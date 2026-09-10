@@ -5,8 +5,18 @@ versions are tags `vX.Y.Z` (tag == package.json version, enforced by CI).
 
 ## v0.1.0 — unreleased (date set at tagging; release playbook step 2)
 
-First release, on Electron 43.4.0 / Chromium 150.0.7871.224. The thesis,
+First release, on Electron 44.2.0 / Chromium 152.0.7977.76. The thesis,
 working end to end:
+
+### Changed
+- **Electron 43.4.0 → 44.2.0** (Chromium 150.0.7871.224 → 152.0.7977.76,
+  Node 24.18.1 → 24.20.0). 152.0.7977.76 is a build Google shipped as
+  Chrome stable, so the full-version client hint matches a real Chrome.
+  Consequences from upstream: **macOS 13 (Ventura) or later** is now
+  required, and 32-bit Windows/ARM Linux builds are no longer possible
+  (Raha never shipped them). The Chrome-identity brand tables were
+  re-checked against the Chromium 152 source and are unchanged; the brand
+  order rotates with the major, as in Chrome.
 
 ### Fixed
 - **Typing an address no longer opens a surprise tab**: on the grid (after

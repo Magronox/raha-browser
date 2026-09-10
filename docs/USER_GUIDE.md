@@ -210,7 +210,7 @@ subdomains. First matching rule wins. A tab pinned by rule shows a faded pin.
 - **Global Privacy Control** (on) — sends `Sec-GPC: 1` + `DNT: 1`.
 - **HTTPS first** (on) — typed addresses try HTTPS; failures offer an
   explicit, clearly-labeled HTTP retry.
-- **Search engine** — DuckDuckGo (default), Brave, Startpage, Ecosia, Google.
+- **Search engine** — DuckDuckGo (default), Brave, Startpage, Ecosia, Google, Bing, Kagi (Kagi needs your own Kagi account; sign in at kagi.com in a tab).
 - **App links opened without asking** — appears once you've ticked *always
   allow* on an app-link prompt (Zoom, Teams, …): one chip per link kind,
   click the × to make Raha ask again.
