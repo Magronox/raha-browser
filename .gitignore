@@ -1,0 +1,28 @@
+# Dependencies (never committed; CI and dev machines run `npm install`)
+node_modules/
+
+# Vendored Electron binary fetched by scripts/get-electron.mjs (sandbox/offline use)
+vendor/
+
+# Build output
+release/
+out/
+
+# Rendered from build/entitlements.mac.plist.in by scripts/mac-entitlements.mjs
+# at build time — it carries the Team ID, which is not committed.
+build/entitlements.mac.plist
+
+# Test artifacts
+test-results/
+playwright-report/
+tests/ui/__screenshots__/actual/
+
+# Local state created when running the app from the repo in dev mode
+.raha-dev-profile/
+
+# Editor / OS noise
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/

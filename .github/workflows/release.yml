@@ -1,0 +1,145 @@
+# Release: push a tag `v*` and this builds installers for Linux/Windows/macOS
+# and attaches them to a GitHub Release (created as a draft by the first job
+# to finish, then published when you review it).
+#
+# Cutting a release (also in docs/PLAYBOOKS/release.md):
+#   1. Update CHANGELOG.md + bump "version" in package.json (keep in sync!)
+#   2. git tag v0.x.y && git push origin v0.x.y
+#   3. Watch Actions → review the draft release → publish.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-fund --no-audit
+
+      - name: "Guard: tag matches package.json version"
+        shell: bash
+        run: |
+          PKG_V="v$(node -p "require('./package.json').version")"
+          TAG="${GITHUB_REF_NAME}"
+          if [ "$PKG_V" != "$TAG" ]; then
+            echo "::error::package.json is $PKG_V but tag is $TAG — bump the version first."
+            exit 1
+          fi
+
+      - name: Quick sanity (typecheck + unit) before building installers
+        run: npm run typecheck && npm test
+
+      # Two build steps, one per OS group, because the signing secrets must NOT
+      # be visible to the Windows job: electron-builder's Windows signer falls
+      # back from WIN_CSC_LINK to CSC_LINK, so a mac cert in the environment
+      # would make the Windows build try to sign with it and fail.
+      - name: Build and publish installers (Linux/Windows)
+        if: matrix.os != 'macos-latest'
+        run: npx electron-builder --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+      # @electron/notarize wants APPLE_API_KEY to be a PATH to the .p8; the
+      # secret holds its contents. Write it out first, and record on the job
+      # env whether signing is possible at all (the `secrets` context is NOT
+      # available in a step-level `if:`, so later steps read these instead).
+      - name: Prepare macOS signing material
+        if: matrix.os == 'macos-latest'
+        shell: bash
+        run: |
+          if [ -n "$P8" ]; then
+            printf '%s' "$P8" > "$RUNNER_TEMP/asc-key.p8"
+            chmod 600 "$RUNNER_TEMP/asc-key.p8"
+            echo "APPLE_API_KEY=$RUNNER_TEMP/asc-key.p8" >> "$GITHUB_ENV"
+          fi
+          if [ -n "$CSC" ]; then echo "RAHA_SIGNING=1" >> "$GITHUB_ENV"; else echo "RAHA_SIGNING=0" >> "$GITHUB_ENV"; fi
+        env:
+          P8: ${{ secrets.APPLE_API_KEY_P8 }}
+          CSC: ${{ secrets.CSC_LINK }}
+
+      # macOS: signs + notarizes when the secrets exist, and still produces a
+      # working unsigned build when they do not (R-108). extraMetadata.teamId
+      # puts the Team ID in the packaged package.json, which is how the runtime
+      # learns its own keychain-access-group.
+      - name: Build and publish installers (macOS)
+        if: matrix.os == 'macos-latest'
+        shell: bash
+        run: |
+          if [ "$RAHA_SIGNING" = "1" ]; then
+            npx electron-builder --publish always -c.extraMetadata.teamId="$APPLE_TEAM_ID"
+          else
+            echo "::warning::No CSC_LINK secret — building macOS UNSIGNED. Users will need right-click → Open."
+            CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder --publish always
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+
+      # electron-builder only WARNS when notarization credentials are missing,
+      # so "the build was green" proves nothing. Assert the real thing.
+      - name: "Security guard: the macOS build is signed, stapled and accepted"
+        if: matrix.os == 'macos-latest'
+        shell: bash
+        run: |
+          if [ "$RAHA_SIGNING" != "1" ]; then
+            echo "unsigned build (no CSC_LINK) — skipping signature checks."
+            exit 0
+          fi
+          shopt -s nullglob
+          APPS=(release/mac*/Raha.app)
+          if [ ${#APPS[@]} -eq 0 ]; then echo "::error::No .app found under release/ to verify."; exit 1; fi
+          for APP in "${APPS[@]}"; do
+            echo "── $APP"
+            codesign --verify --deep --strict --verbose=2 "$APP"
+            codesign --display --entitlements - "$APP"
+            xcrun stapler validate "$APP"
+            spctl --assess --type execute --verbose=4 "$APP"
+          done
+
+      - name: "Security guard: fuses hold (ELECTRON_RUN_AS_NODE must be dead)"
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: |
+          BIN=release/linux-unpacked/raha-browser
+          # Unfused, RunAsNode mode executes the -e script and exits fast.
+          # Fused, the env var and -e are ignored and the real app boots
+          # until timeout kills it (exit 124) — which is the PASS case.
+          set +e
+          OUT="$(ELECTRON_RUN_AS_NODE=1 RAHA_PROFILE_DIR=/tmp/raha-fuse-check timeout 20 \
+            xvfb-run -a "$BIN" --no-sandbox -e "console.log('NODE_MODE_ALIVE')" 2>&1)"
+          CODE=$?
+          set -e
+          echo "exit=$CODE"; echo "$OUT" | head -5
+          if echo "$OUT" | grep -q 'NODE_MODE_ALIVE'; then
+            echo "::error::Packaged binary honored ELECTRON_RUN_AS_NODE and executed script code. The runAsNode fuse is not burned — check electronFuses in electron-builder.yml."
+            exit 1
+          fi
+          if echo "$OUT" | grep -q 'raha:boot' || [ "$CODE" = 124 ]; then
+            echo "fuse holds: the binary refused to run as Node and booted as the app."
+          else
+            echo "::error::Unexpected fuse-check behavior (exit $CODE) — inspect output above."
+            exit 1
+          fi

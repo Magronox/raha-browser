@@ -1,0 +1,191 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Raha security QA</title>
+<style>
+  body { font: 15px/1.55 system-ui, sans-serif; max-width: 780px; margin: 40px auto; padding: 0 20px;
+         background: #12161c; color: #dce3ec; }
+  h1 { font-size: 20px; } h2 { font-size: 15px; margin: 26px 0 8px; color: #8b98a9; text-transform: uppercase; letter-spacing: .06em; }
+  button { font: inherit; background: #1c2530; color: #dce3ec; border: 1px solid #2c3644; border-radius: 6px;
+           padding: 8px 12px; cursor: pointer; margin: 3px 0; }
+  button:hover { border-color: #4fd1b3; }
+  .row { display: flex; gap: 10px; align-items: center; margin: 6px 0; }
+  .row button { min-width: 320px; text-align: left; }
+  .want { color: #8b98a9; font-size: 13px; }
+  .good { color: #4fd1b3; } .bad { color: #e06c75; }
+  #log { margin-top: 24px; padding: 12px; background: #0e1116; border: 1px solid #232b37; border-radius: 8px;
+         white-space: pre-wrap; font: 12px/1.5 ui-monospace, monospace; min-height: 60px; }
+</style>
+<h1>Raha security QA page</h1>
+<script>
+  // This page TESTS Raha's protections — in any normal browser most checks
+  // below "fail" by design (permissions aren't denied, popups behave
+  // differently, no Raha toasts). Refuse to be misread outside Raha.
+  // Detection: Raha presents a standard Chrome UA AND Chrome's client-hint
+  // brands on purpose (R-114, ADR-0012), so neither can tell it apart. What
+  // still can: Electron's window.chrome is an EMPTY object — real Chrome,
+  // Edge, Brave and Opera fill it (chrome.runtime, chrome.loadTimes, ...),
+  // and Safari/Firefox have no window.chrome at all. That is the residual
+  // tell this page keys on; the others Raha knows about (an undecided
+  // permission reads "denied" to a check where Chrome says "prompt", and
+  // the wire-level divergences) are listed in ADR-0012 / ADR-0013.
+  {
+    const looksLikeRaha = typeof window.chrome === 'object' && window.chrome !== null
+      && Object.keys(window.chrome).length === 0;
+    if (!looksLikeRaha) {
+      const b = document.createElement('div');
+      b.style.cssText = 'background:#e06c75;color:#0e1116;font-weight:700;padding:14px 16px;border-radius:8px;margin:0 0 18px;font-size:16px';
+      b.textContent = '⚠ You are NOT viewing this in Raha. This page tests Raha’s protections, so in this browser most checks below will look like failures — that means nothing. Open http://127.0.0.1:8777 inside a from-source Raha (npm start) and click there.';
+      document.querySelector('h1')?.after(b);
+    }
+  }
+</script>
+<p class="want">Hands-on checks for the fixes from the
+<b>2026-07 security audit</b> (docs/SECURITY-AUDIT-2026-07.md). Serve with
+<b>npm run qa</b> and open this over <b>http://127.0.0.1:8777</b> in a Raha
+built <i>from source</i> — a packaged app in /Applications is only as new as
+the day it was built.</p>
+<p class="want">Click each button. The “expect” text says what a fixed Raha does.
+Anything that opens a tab showing real content when it says “blocked” is a failure.</p>
+
+<h2>P1 — what a page may open</h2>
+<div class="row"><button onclick="pop('file:///etc/passwd')">window.open('file:///etc/passwd')</button>
+  <span class="want">expect: <b class="bad">blocked</b> — no tab (Chromium may refuse it before Raha even sees it, so a toast is optional)</span></div>
+<div class="row"><button onclick="pop('file:///Users/')">window.open('file:///Users/')</button>
+  <span class="want">expect: <b class="bad">blocked</b> — no tab (toast optional, as above)</span></div>
+<div class="row"><button onclick="pop('javascript:document.write(1)')">window.open('javascript:…')</button>
+  <span class="want">expect: <b class="bad">blocked</b></span></div>
+<div class="row"><button onclick="pop('data:text/html,<h1>Sign in to your bank</h1>')">window.open('data:text/html,…fake login…')</button>
+  <span class="want">expect: <b class="bad">blocked</b> + warn toast (this one reaches Raha's own gate)</span></div>
+<div class="row"><button onclick="pop('chrome://settings')">window.open('chrome://settings')</button>
+  <span class="want">expect: <b class="bad">blocked</b></span></div>
+<div class="row"><button onclick="pop('view-source:file:///etc/passwd')">window.open('view-source:file:///…')</button>
+  <span class="want">expect: <b class="bad">blocked</b></span></div>
+
+<h2>Regression checks — these MUST still work</h2>
+<div class="row"><button onclick="popBlob()">window.open(blob:…) — a generated PDF/report</button>
+  <span class="want">expect: <b class="good">opens a tab</b> saying “generated report”</span></div>
+<div class="row"><button onclick="pop('https://example.com')">window.open('https://example.com')</button>
+  <span class="want">expect: <b class="good">opens a tab</b></span></div>
+
+<h2>P3 — can a page reach Raha's own chrome?</h2>
+<div class="row"><button onclick="probe('raha://app/index.html')">fetch raha://app/index.html</button>
+  <span class="want">expect: <b class="bad">403 or error</b></span></div>
+<div class="row"><button onclick="probe('raha://thumb/x.png')">fetch raha://thumb/x.png (your tab screenshots)</button>
+  <span class="want">expect: <b class="bad">403 or error</b></span></div>
+<div class="row"><button onclick="frameIt()">iframe raha://app/index.html</button>
+  <span class="want">expect: <b class="bad">no Raha sidebar appears below</b></span></div>
+
+<h2>P5 — permissions: Raha asks, per site (R-103)</h2>
+<p class="want">Every request below must raise an ask <b>in Raha's own chrome</b> (“127.0.0.1 wants to …”) —
+never a system dialog, never a silent grant, no toast. What you click there is the page's answer:
+<i>Always allow</i> / <i>Never for this site</i> are remembered (Settings → Site permissions, remove to be asked again);
+<i>Allow once</i> lasts until you leave the page; <i>Not now</i> / Escape refuse this request only.
+A site you have not decided on reads as <b>denied</b> to a mere <i>check</i> (Chrome would say “prompt”; Electron's
+check hook has no third answer) and is asked the moment it actually <i>requests</i>.</p>
+<div class="row"><button onclick="permQuery('geolocation')">navigator.permissions.query(geolocation)</button>
+  <span class="want">expect: <b class="bad">denied</b> until you have chosen “Always allow” here, <b class="good">granted</b> after — and never an ask (a check is not a request)</span></div>
+<div class="row"><button onclick="permQuery('notifications')">navigator.permissions.query(notifications)</button>
+  <span class="want">expect: same as above</span></div>
+<div class="row"><button onclick="permQuery('microphone')">navigator.permissions.query(microphone)</button>
+  <span class="want">expect: <b class="bad">denied</b> until an “Allow once”/“Always allow” for the mic in THIS tab, <b class="good">granted</b> after — and never an ask</span></div>
+<div class="row"><button onclick="geo()">navigator.geolocation.getCurrentPosition()</button>
+  <span class="want">expect: ask “…wants to use your location”; “Never for this site” → <b class="bad">error: code 1</b> (PERMISSION_DENIED), and no ask next time</span></div>
+<div class="row"><button onclick="notif()">Notification.requestPermission()</button>
+  <span class="want">expect: ask “…wants to show notifications”; “Always allow” → <b class="good">granted</b>, and no ask next time</span></div>
+<div class="row"><button onclick="media('audio')">getUserMedia({audio: true})</button>
+  <span class="want">expect: ask “…wants to use your microphone”; “Allow once” → <b class="good">stream</b> (macOS may add its own microphone dialog for a from-source Raha) and no ask again on this page; “Not now” → <b class="bad">NotAllowedError</b> and it asks again</span></div>
+<div class="row"><button onclick="media('video')">getUserMedia({video: true})</button>
+  <span class="want">expect: ask “…wants to use your camera”; “Never for this site” → <b class="bad">NotAllowedError</b>, and no ask next time. (No camera on this machine → Chromium answers NotFoundError before Raha is even asked.)</span></div>
+
+<h2>History regression — do this by hand</h2>
+<p class="want">1. Click <b>build history</b> and wait until the page shows <b>step 4</b>. 2. Sleep this tab (<b>⌘⇧S</b>). 3. Click it in the sidebar to wake it.
+4. Press <b>Back</b> (Alt+←) several times — you should walk back through every step, including the blob one
+(which may show an error page after wake: its data died with the old renderer — the ENTRY surviving is the point).
+Losing the back button = the regression is back.</p>
+<div class="row"><button onclick="buildHistory()">build history (adds a blob: page + 2 steps)</button>
+  <span class="want">expect: <b class="good">Back works after wake</b></span></div>
+
+<div id="log">ready.</div>
+
+<script>
+const log = (msg, ok) => {
+  const el = document.getElementById('log');
+  el.innerHTML += `\n<span class="${ok === true ? 'good' : ok === false ? 'bad' : ''}">${msg}</span>`;
+};
+function pop(url) {
+  const w = window.open(url, '_blank');
+  log(`window.open(${url}) -> handle ${w ? 'returned' : 'null (denied, expected)'} — now LOOK at Raha: did a tab open with real content?`);
+}
+function popBlob() {
+  const url = URL.createObjectURL(new Blob(
+    ['<h1>generated report</h1><p>If you can read this in a Raha tab, blob: popups work.</p>'],
+    { type: 'text/html' }));
+  window.open(url, '_blank');
+  log(`window.open(${url.slice(0, 48)}…) — a tab should now show "generated report"`);
+}
+async function probe(url) {
+  try {
+    const r = await fetch(url);
+    log(`fetch(${url}) -> HTTP ${r.status}`, r.status === 403);
+  } catch (e) {
+    log(`fetch(${url}) -> blocked (${String(e).slice(0, 60)})`, true);
+  }
+}
+function frameIt() {
+  const f = document.createElement('iframe');
+  f.src = 'raha://app/index.html';
+  f.width = 700; f.height = 220;
+  document.body.appendChild(f);
+  log('iframe appended — scroll down. Seeing Raha\'s sidebar/omnibox inside the page = FAIL.');
+}
+// Permission verdicts are YOUR answers in Raha's ask, so no line below is
+// colored good/bad — read the "expect" text for the branch you chose.
+async function permQuery(name) {
+  try {
+    const s = await navigator.permissions.query({ name });
+    log(`permissions.query(${name}) -> ${s.state}`);
+  } catch (e) {
+    log(`permissions.query(${name}) threw: ${String(e).slice(0, 60)}`);
+  }
+}
+function geo() {
+  navigator.geolocation.getCurrentPosition(
+    (p) => log(`geolocation position: ${p.coords.latitude},${p.coords.longitude}`),
+    (e) => log(`geolocation error: code ${e.code} (${e.message})`));
+}
+async function notif() {
+  const r = await Notification.requestPermission();
+  log(`Notification.requestPermission() -> ${r} (Notification.permission now reads ${Notification.permission})`);
+}
+async function media(kind) {
+  try {
+    const s = await navigator.mediaDevices.getUserMedia({ [kind]: true });
+    s.getTracks().forEach((t) => t.stop());
+    log(`getUserMedia(${kind}) -> stream (granted; a device exists)`);
+  } catch (e) {
+    log(`getUserMedia(${kind}) -> ${e.name}`);
+  }
+}
+// History chain. A naive location.href + setTimeout loop dies with the
+// document on the FIRST navigation (found by the automated twin of this
+// page, tests/e2e/security-qa.spec.js — the old builder never got past
+// step 1). Instead each loaded page drives the next hop: ?step=1 re-runs
+// this script and jumps to a blob page, and the blob carries its OWN driver
+// script with an absolute URL for the final hop.
+function buildHistory() {
+  sessionStorage.setItem('raha-qa-walk', 'go');
+  location.href = '?step=1';
+}
+if (new URLSearchParams(location.search).get('step') === '1'
+    && sessionStorage.getItem('raha-qa-walk') === 'go') {
+  sessionStorage.removeItem('raha-qa-walk');
+  const dest = location.origin + location.pathname + '?step=4';
+  const blob = URL.createObjectURL(new Blob(
+    [`<h1>step 2 (blob)</h1><script>setTimeout(() => location.href = ${JSON.stringify(dest)}, 700)<\/script>`],
+    { type: 'text/html' }));
+  setTimeout(() => { location.href = blob; }, 700);
+}
+if (new URLSearchParams(location.search).get('step') === '4') {
+  document.querySelector('h1').textContent = 'Raha security QA page — step 4 (history built; now sleep, wake, and walk Back)';
+}
+</script>

@@ -1,0 +1,21 @@
+{
+  // Offline typecheck: only the platform-free layers (src/shared, src/ui) and
+  // the electron-free core (src/main/core). These files must not import
+  // 'electron' or any node: module — that rule is enforced by
+  // tests/unit/boundaries.test.js and eslint. Because of that purity, this
+  // config needs no node_modules at all and runs in fully offline sandboxes.
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "strict": true,
+    "target": "ES2023",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "types": [],
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["src/shared/**/*.js", "src/ui/**/*.js", "src/main/core/**/*.js"]
+}

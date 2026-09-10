@@ -1,0 +1,51 @@
+{
+  "name": "raha-browser",
+  "productName": "Raha",
+  "version": "0.1.0",
+  "description": "Raha — a light, private, open-source browser where you decide which tabs get to spend your RAM and CPU.",
+  "license": "GPL-3.0-only",
+  "author": {
+    "name": "Amir Basareh",
+    "email": "basareh@duck.com"
+  },
+  "homepage": "https://magronox.github.io/raha-browser/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Magronox/raha-browser.git"
+  },
+  "type": "module",
+  "main": "src/main/index.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node scripts/launch.mjs",
+    "smoke": "node scripts/launch.mjs --raha-smoke",
+    "test": "node --test \"tests/unit/*.test.js\"",
+    "test:ui": "node tests/ui/run.mjs",
+    "test:e2e": "playwright test",
+    "qa": "node tests/manual/serve.mjs",
+    "typecheck": "tsc -p tsconfig.json",
+    "typecheck:pure": "tsc -p tsconfig.pure.json",
+    "lint": "eslint .",
+    "verify": "npm run typecheck && npm run lint && npm test && npm run test:ui && npm run test:e2e",
+    "verify:offline": "npm run typecheck:pure && npm test && npm run test:ui",
+    "get:electron": "node scripts/get-electron.mjs",
+    "dist": "electron-builder --publish never",
+    "blocklists": "node scripts/build-blocklists.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "1.62.1",
+    "@types/node": "^26.4.0",
+    "electron": "43.4.0",
+    "electron-builder": "^26.0.0",
+    "eslint": "^10.9.1",
+    "typescript": "~7.0.2"
+  },
+  "dependencies": {
+    "@ghostery/adblocker": "2.18.2",
+    "electron-updater": "6.8.9"
+  },
+  "funding": "https://venmo.com/u/magronox"
+}

@@ -1,0 +1,13 @@
+# Line endings are part of the bytes we ship and hash: the bundled filter
+# lists are checked against manifest sha256s and the compiled engines are
+# compared byte-for-byte (tests/unit/blocklist-artifacts.test.js). Windows
+# checkouts default to CRLF conversion, which silently broke both the first
+# time CI ran there. Everything text is LF on every platform; binaries are
+# detected by text=auto and left alone.
+* text=auto eol=lf
+*.engine binary
+*.png binary
+*.icns binary
+*.ico binary
+*.dmg binary
+*.zip binary

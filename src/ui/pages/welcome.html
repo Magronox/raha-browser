@@ -1,0 +1,126 @@
+<!doctype html>
+<!-- raha://welcome — the first-run tour, opened as a real tab on first launch.
+     Reachable any time by typing raha://welcome in the address bar.
+     Pure static file: no network, no bridge. The only script swaps keyboard
+     labels to ⌘ on macOS (textContent only). -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+  <title>Welcome to Raha</title>
+  <style>
+    :root {
+      --bg: #0e1116; --side: #12161d; --raise: #1a2029; --border: #232b37;
+      --text: #dce3ec; --dim: #8b98a9; --accent: #4fd1b3; --pin: #e8b04b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg); color: var(--text);
+      font: 15px/1.65 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      padding: 48px 24px 80px;
+    }
+    .wrap { max-width: 680px; margin: 0 auto; }
+    .hero { text-align: center; margin-bottom: 44px; }
+    .hero svg { width: 64px; height: 64px; color: var(--accent); }
+    h1 { font-size: 30px; font-weight: 650; margin: 12px 0 6px; }
+    .sub { color: var(--dim); font-size: 16px; }
+    .sub em { color: var(--accent); font-style: normal; }
+    kbd {
+      display: inline-block; background: var(--raise); border: 1px solid var(--border);
+      border-bottom-width: 2px; border-radius: 6px; padding: 1px 8px;
+      font-size: 13px; font-family: inherit; color: var(--text); white-space: nowrap;
+    }
+    .card {
+      background: var(--side); border: 1px solid var(--border); border-radius: 14px;
+      padding: 22px 24px; margin: 14px 0; display: flex; gap: 18px; align-items: flex-start;
+    }
+    .card svg { width: 26px; height: 26px; color: var(--accent); flex: none; margin-top: 3px; }
+    .card.pin svg { color: var(--pin); }
+    .card h2 { font-size: 16px; font-weight: 650; margin-bottom: 4px; }
+    .card p { color: var(--dim); }
+    .card p b { color: var(--text); font-weight: 550; }
+    .card .why { margin-top: 8px; font-size: 13px; color: var(--dim); opacity: 0.85; border-left: 2px solid var(--border); padding-left: 10px; }
+    .foot { text-align: center; margin-top: 40px; color: var(--dim); font-size: 13px; }
+    .foot code { color: var(--accent); font-size: 13px; }
+    .foot a { color: var(--accent); }
+    .promise {
+      margin-top: 14px; display: inline-block; padding: 8px 16px; border-radius: 999px;
+      border: 1px solid var(--border); background: var(--side); font-size: 12.5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hero">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12c4 1 9 0 11-4l1.5-.5-1.5-1a4 4 0 0 0-7 1L2 12z"/><path d="M6 12.5c1 .8 3 .8 4 0"/></svg>
+      <h1>Welcome to Raha</h1>
+      <p class="sub"><em>Raha (رها)</em> means “set free.” Here, tabs don’t spend your memory — <em>you</em> do, on purpose.</p>
+    </div>
+
+    <div class="card">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
+      <div>
+        <h2>Go somewhere</h2>
+        <p>Press <kbd><span data-mod>Ctrl</span>+L</kbd> (or click the bar up top), type a search or an address, hit <kbd>Enter</kbd>. Search is DuckDuckGo by default.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 12a6 6 0 1 1 12 0"/><path d="M8 12l3-4"/></svg>
+      <div>
+        <h2>The live bar is the truth</h2>
+        <p>The strip at the bottom shows <b>every tab that is actually running</b> with its real memory and CPU, measured from the OS. If it's not there, it's costing you nothing.</p>
+        <p class="why">Hover a chip and hit the moon to put it to sleep yourself.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M13.5 9.5A6 6 0 1 1 6.5 2.5a5 5 0 0 0 7 7z"/></svg>
+      <div>
+        <h2>Tabs sleep — that's the point</h2>
+        <p>You have a cap (<b>6 live tabs</b> to start; change it in Settings). Open a seventh and the one you touched longest ago goes to sleep: its process is destroyed, the memory returns to your Mac or PC, and its card stays right where it was. <b>Click any sleeping card to wake it.</b></p>
+        <p class="why">Restarting Raha brings your whole workspace back asleep — instant start, near-zero memory, nothing lost. Try the “Try these” folder in the sidebar: those tabs are asleep right now, costing 0 MB.</p>
+      </div>
+    </div>
+
+    <div class="card pin">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 2.5l4 4-3 1-2.5 5-1.5-1.5L3 14l-1-1 2.5-3.5L3 8l5-2.5 1.5-3z"/></svg>
+      <div>
+        <h2>Protect what matters</h2>
+        <p>Pin a tab (<kbd><span data-mod>Ctrl</span>+Shift+K</kbd> or the pin icon) and Raha will never auto-sleep it. Music keeps playing — <b>tabs making sound are protected</b> by default. Give a hungry tab its own limit with the gauge icon: cross it, and it sleeps, pinned or not.</p>
+        <p class="why">Power move: Settings → Domain rules. <code style="color:#4fd1b3">*.music.youtube.com</code> → keep alive. <code style="color:#4fd1b3">*.slack.com</code> → 800 MB, max.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 4.5a1 1 0 0 1 1-1h3l1.5 2h6.5a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1v-8z"/></svg>
+      <div>
+        <h2>Organize spatially</h2>
+        <p>Folders nest as deep as you like. Drag tabs between them in the sidebar. Click a folder to see its tabs as <b>thumbnail cards</b>. Right-click anything for more — including “sleep all tabs inside.” <kbd><span data-mod>Ctrl</span>+E</kbd> brings you back to the grid.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.5l5.5 2v4c0 3.5-2.5 6-5.5 7-3-1-5.5-3.5-5.5-7v-4l5.5-2z"/></svg>
+      <div>
+        <h2>Private by architecture</h2>
+        <p>No telemetry, ever. Raha itself contacts <b>one</b> server: GitHub Releases, to check for security updates so you get Chromium's fixes — turn it off in Settings. (Your tab list also loads each site's favicon from that site.) Ads and trackers are blocked with the bundled EasyList + EasyPrivacy lists — watch the shield counter in the address bar, and click it to allow a site that misbehaves. Sites asking for your location, camera, or notifications get told no, visibly. This page loaded nothing from the internet.</p>
+      </div>
+    </div>
+
+    <div class="foot">
+      <p>Settings: <kbd><span data-mod>Ctrl</span>+,</kbd> · All shortcuts are in the menus · Read this again anytime: type <code>raha://welcome</code></p>
+      <p>Raha costs nothing and never will. If it earns a coffee:
+        <a href="https://venmo.com/u/magronox" target="_blank" rel="noreferrer">support Raha</a>
+        — it funds code-signing certificates, nothing else.</p>
+      <p class="promise">Free as in <b>رها</b> — GPL-3.0, no ads, no tracking, yours.</p>
+    </div>
+  </div>
+  <script>
+    // Platform-aware key labels. textContent only; no other scripting.
+    if (/Mac|iPhone|iPad/.test(navigator.platform)) {
+      for (const el of document.querySelectorAll('[data-mod]')) el.textContent = '⌘';
+    }
+  </script>
+</body>
+</html>

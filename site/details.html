@@ -1,0 +1,158 @@
+<!doctype html>
+<!-- The Raha website, page two (ADR-0010). Static files, nothing else — what's
+     in site/ is what serves. There is deliberately NO inline script here, so
+     this page's CSP can say script-src 'none'. Every link must satisfy
+     scripts/check-site.mjs, which checks this page exactly as it checks
+     index.html. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; img-src 'self'; style-src 'self'; script-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Raha — the details</title>
+  <meta name="description" content="How Raha's governor decides which tabs sleep, what the browser does and does not send, the security audit, and the keyboard map.">
+  <link rel="icon" href="assets/icon.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <nav class="nav" aria-label="Site">
+    <a class="brand" href="index.html"><img src="assets/icon.png" alt=""> Raha</a>
+    <span class="links">
+      <a href="index.html#download">Download</a>
+      <a href="index.html">Home</a>
+      <a href="https://github.com/Magronox/raha-browser">GitHub</a>
+      <a class="btn donate" href="https://venmo.com/u/magronox">Donate</a>
+    </span>
+  </nav>
+</header>
+
+<main class="wrap">
+
+  <section class="page-intro" id="top">
+    <h1>The details</h1>
+    <p class="tagline">Everything the front page leaves out: how the governor decides,
+       what Raha does and does not send, the security audit, and the keyboard map.</p>
+  </section>
+
+  <section id="governor">
+    <h2>The governor</h2>
+    <p>The heart of Raha is ~150 lines of pure, exhaustively-tested policy
+       (<a href="https://github.com/Magronox/raha-browser/blob/main/src/shared/policy.js">src/shared/policy.js</a>).
+       In precedence order:</p>
+    <ol class="rules">
+      <li><b>Per-tab memory limit</b> — a tab over its own limit goes to sleep, even a pinned one (you asked for <em>that</em> limit). The active tab is never yanked — you get a warning instead.</li>
+      <li><b>Idle timer</b> <span class="dim">(off by default)</span> — background tabs idle longer than N minutes go to sleep.</li>
+      <li><b>Live-tab cap</b> — beyond the cap, the least-recently-used background tab sleeps first. Pinned, audible, and active tabs are protected.</li>
+      <li><b>Global memory budget</b> <span class="dim">(off by default)</span> — if running tabs together exceed your budget, LRU eviction until they fit.</li>
+    </ol>
+    <p>Sleeping is real: the renderer <b>process is destroyed</b> and the RAM goes back to your OS
+       (<a href="https://github.com/Magronox/raha-browser/blob/main/docs/DECISIONS/ADR-0006-sleep-is-process-destruction.md">why</a>) —
+       not merely throttled or hidden. Navigation history survives; back and forward work after waking.</p>
+  </section>
+
+  <section id="organization">
+    <h2>Organization is spatial</h2>
+    <p>Nested folders, thumbnail grids, drag &amp; drop. A restart brings your whole tree
+       back <b>asleep</b>: instant start, ~0 tab memory, nothing lost.</p>
+  </section>
+
+  <section id="privacy">
+    <h2>Private by architecture</h2>
+    <dl class="priv">
+      <dt>Telemetry, phone-home</dt>
+      <dd><b>No telemetry, ever.</b> Raha itself contacts exactly one server: GitHub Releases, for the optional security-update check — on by default, one toggle to silence it. Note the chrome also loads <b>favicons</b> directly from the sites in your tab list, including on a cold start with every tab asleep.</dd>
+      <dt>Tracker / ad blocking</dt>
+      <dd>EasyList + EasyPrivacy via Ghostery’s open-source engine — lists <b>bundled</b> with the app, never fetched at runtime. Separate ads/trackers toggles, per-site off switch on the address-bar shield.</dd>
+      <dt>Global Privacy Control</dt>
+      <dd><code>Sec-GPC: 1</code> + <code>DNT: 1</code> on every request made by a page (toggleable).</dd>
+      <dt>Permission requests</dt>
+      <dd>Camera, microphone, location, notifications, clipboard: asked per site in Raha’s own prompt — allow once / always / never — never granted silently, never a surprise system dialog. Everything else a page asks for is refused, visibly.</dd>
+      <dt>Default search</dt>
+      <dd>DuckDuckGo (Brave / Startpage / Ecosia / Google selectable).</dd>
+      <dt>New tab page</dt>
+      <dd>Local. Loads nothing.</dd>
+      <dt>HTTPS</dt>
+      <dd>HTTPS-first for typed addresses; explicit opt-in for plain-HTTP fallback.</dd>
+      <dt>Web content isolation</dt>
+      <dd>Chromium sandbox on; no preload, no bridge in page processes.</dd>
+      <dt>What a page may open</dt>
+      <dd>Only <code>http:</code> / <code>https:</code> / <code>raha:</code> / <code>blob:</code> — a site cannot make Raha open <code>file:///…</code> or a fake <code>data:</code> login page in your chrome.</dd>
+      <dt>Supply chain</dt>
+      <dd><b>Two direct runtime dependencies</b> — the updater and the filter-list engine, both pinned exact, each with a public decision record. With transitives, 28 npm packages ship inside the app alongside Electron — verify with <code>npm ls --omit=dev --all</code>. Everything else is the project’s own code, and the <a href="https://github.com/Magronox/raha-browser/blob/main/docs/INVARIANTS.md">invariants</a> are enforced by tests.</dd>
+    </dl>
+    <p class="note">Honesty note: Raha is Chromium under the hood (via Electron, ~100&nbsp;MB installed). The “light” we promise is <b>runtime discipline</b> — 60 tabs open, only your chosen few consuming anything — not installer size. Fingerprinting resistance is <a href="https://github.com/Magronox/raha-browser/blob/main/docs/ROADMAP.md">on the roadmap</a> and won’t be claimed before it’s real.</p>
+  </section>
+
+  <section id="shot-settings">
+    <figure>
+      <img src="assets/settings.png" width="820" alt="Raha settings: the governor’s knobs (live-tab cap, memory budget, idle timer) and the privacy toggles">
+      <figcaption>Every knob explained where it lives — the governor and the privacy toggles are the whole settings surface.</figcaption>
+    </figure>
+  </section>
+
+  <section id="security">
+    <h2>Security, with receipts</h2>
+    <p>Before its first release, Raha went through a
+       <a href="https://github.com/Magronox/raha-browser/blob/main/docs/SECURITY-AUDIT-2026-07.md">security audit</a>
+       against Electron’s official checklist: eight findings, all fixed pre-launch, report public —
+       including the <a href="https://github.com/Magronox/raha-browser/blob/main/SECURITY.md">accepted risks</a>,
+       because a security story that hides its trade-offs isn’t one. Every audit check re-runs as an
+       automated test suite on every push, alongside hundreds of unit tests, a UI harness in real
+       Chromium, and an end-to-end suite on real Electron.</p>
+    <p class="dim">Found something exploitable? Please don’t open a public issue — use
+       <a href="https://github.com/Magronox/raha-browser/security/advisories/new">private reporting</a>.</p>
+  </section>
+
+  <section id="keyboard">
+    <h2>Keyboard</h2>
+    <p class="keys">
+      <kbd>Ctrl/⌘ T</kbd> new tab · <kbd>Ctrl/⌘ W</kbd> close · <kbd>Ctrl/⌘ ⇧ T</kbd> reopen closed tab ·
+      <kbd>Ctrl/⌘ F</kbd> find in page · <kbd>Ctrl/⌘ L</kbd> address bar · <kbd>Ctrl/⌘ ⇧ R</kbd> hard reload ·
+      <kbd>Ctrl/⌘ E</kbd> grid/home · <kbd>Ctrl/⌘ ⇧ B</kbd> sidebar ·
+      <kbd>⌘ Y</kbd>/<kbd>Ctrl H</kbd> history · <kbd>Ctrl Tab</kbd> cycle running tabs ·
+      <kbd>Ctrl/⌘ 1…9</kbd> jump to running tab · <kbd>Ctrl/⌘ ⇧ S</kbd> sleep this tab ·
+      <kbd>Ctrl/⌘ ⇧ A</kbd> sleep everything · <kbd>Ctrl/⌘ ⇧ K</kbd> pin · <kbd>Ctrl/⌘ ,</kbd> settings
+    </p>
+  </section>
+
+  <section id="support">
+    <h2>Support</h2>
+    <p>Raha is one person and a
+       <a href="https://github.com/Magronox/raha-browser/blob/main/docs/ROADMAP.md">public, numbered roadmap</a>.
+       It’s free, GPL, and has no business model — there is nothing to pay for,
+       no subscription, no product.</p>
+    <p>If it’s been useful and you feel like leaving something:
+       <a href="https://venmo.com/u/magronox"><b>support Raha via Venmo</b></a>.</p>
+    <p class="dim">Bugs and ideas: <a href="https://github.com/Magronox/raha-browser/issues">file issues generously</a>.
+       Want to build? Start at
+       <a href="https://github.com/Magronox/raha-browser/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a>,
+       then <a href="https://github.com/Magronox/raha-browser/blob/main/docs/ARCHITECTURE.md">ARCHITECTURE.md</a>
+       for the layer map and the
+       <a href="https://github.com/Magronox/raha-browser/tree/main/docs/DECISIONS">decision records</a>
+       for why each trade-off went the way it did —
+       the codebase is deliberately structured for safe iteration by humans and AI agents alike.</p>
+    <p class="dim">Not on GitHub, or reporting something sensitive?
+       <a href="mailto:basareh@duck.com">basareh@duck.com</a> — security reports should start their
+       subject with <code>[raha security]</code> (see
+       <a href="https://github.com/Magronox/raha-browser/blob/main/SECURITY.md">SECURITY.md</a>).</p>
+  </section>
+
+  <p class="back"><a href="index.html">&larr; Back to the front page</a></p>
+
+</main>
+
+<footer>
+  <p class="promise">Free as in <b><span lang="fa" dir="rtl">رها</span></b> — GPL-3.0, no ads, no tracking, yours.</p>
+  <p class="fine">Code <a href="https://github.com/Magronox/raha-browser/blob/main/LICENSE">GPL-3.0-only</a> © 2026 Amir Basareh — forks stay open source.
+     The Raha name and bird mark are <a href="https://github.com/Magronox/raha-browser/blob/main/TRADEMARK.md">reserved</a>.</p>
+  <p class="fine">No cookies, no analytics, no third-party anything: this page is a few static files, and every
+     request your browser makes for it goes to the one host serving it. That host (GitHub Pages) keeps ordinary
+     access logs, as any host does — nothing here adds to them.
+     <a href="https://github.com/Magronox/raha-browser/tree/main/site">See this site’s source.</a></p>
+</footer>
+
+</body>
+</html>

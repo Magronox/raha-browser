@@ -1,0 +1,19 @@
+# Dependency PRs — most importantly Electron patch releases, which carry
+# Chromium security fixes. Treat those PRs as urgent: merge, verify, tag a
+# release (docs/PLAYBOOKS/release.md) so the auto-updater ships them.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: daily
+    open-pull-requests-limit: 5
+    groups:
+      dev-tooling:
+        dependency-type: development
+        exclude-patterns:
+          - electron
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

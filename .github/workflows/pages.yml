@@ -1,0 +1,71 @@
+# The website (R-123, ADR-0010): static files in site/, checked then deployed
+# to GitHub Pages. The check step is the honesty guard — it fails the deploy
+# on link-policy violations, version drift vs package.json, stale screenshot
+# copies, and banned overclaims. package.json and docs/screenshots are in the
+# trigger paths ON PURPOSE: a release version-bump or screenshot refresh that
+# forgets the site must turn this workflow red, not silently strand the site.
+#
+# One-time setup (human): repo Settings → Pages → Source: "GitHub Actions".
+name: Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - "docs/screenshots/**"
+      - "build/icon.png"
+      - "package.json"
+      - "scripts/check-site.mjs"
+      - ".github/workflows/pages.yml"
+  # PRs get the check without the deploy (ci.yml ignores site/**, so this is
+  # the only automated gate a site PR sees).
+  pull_request:
+    paths:
+      - "site/**"
+      - "docs/screenshots/**"
+      - "build/icon.png"
+      - "scripts/check-site.mjs"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Per-ref group: PR check runs must not cancel each other (three same-minute
+# Dependabot PRs did exactly that); main deploys still serialize because they
+# all share refs/heads/main.
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      # No npm ci — the check script has zero dependencies (ADR-0010).
+      - run: node scripts/check-site.mjs
+      # Deploy is gated TWICE: never on PRs, and not until launch day —
+      # the repo variable PAGES_LIVE flips with the Pages toggle
+      # (`gh variable set PAGES_LIVE --body true` + Settings → Pages →
+      # GitHub Actions). Until then every push runs the check only, so a
+      # red job always means a REAL site problem, not the launch gate.
+      - if: github.event_name != 'pull_request' && vars.PAGES_LIVE == 'true'
+        uses: actions/configure-pages@v6
+      - if: github.event_name != 'pull_request' && vars.PAGES_LIVE == 'true'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+      - if: github.event_name != 'pull_request' && vars.PAGES_LIVE == 'true'
+        id: deployment
+        uses: actions/deploy-pages@v5

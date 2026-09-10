@@ -1,0 +1,71 @@
+<!doctype html>
+<!-- raha://error#url=...&code=...&desc=... — shown when a page fails to load.
+     Reads its parameters from the location hash (never sent anywhere).
+     The only script on this page renders those params as TEXT (no HTML). -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+  <title>Page failed to load</title>
+  <style>
+    html, body { height: 100%; margin: 0; }
+    body {
+      display: flex; align-items: center; justify-content: center;
+      background: #0e1116; color: #8b98a9;
+      font: 14px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    .wrap { max-width: 480px; padding: 24px; }
+    h1 { color: #dce3ec; font-size: 19px; margin: 0 0 8px; }
+    .url { color: #4fd1b3; word-break: break-all; }
+    .code { font-size: 12px; opacity: 0.75; margin-top: 10px; }
+    .actions { margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap; }
+    a.btn {
+      color: #dce3ec; text-decoration: none; background: #1a2029;
+      border: 1px solid #232b37; border-radius: 6px; padding: 8px 14px;
+    }
+    a.btn:hover { border-color: #4fd1b3; }
+    .note { font-size: 12px; margin-top: 16px; opacity: 0.7; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Couldn’t load the page</h1>
+    <div class="url" id="url"></div>
+    <div class="code" id="code"></div>
+    <div class="actions" id="actions"></div>
+    <div class="note" id="note"></div>
+  </div>
+  <script>
+    // textContent only — never innerHTML — the failed URL is untrusted.
+    const params = new URLSearchParams(location.hash.slice(1));
+    const url = params.get('url') || '';
+    const code = params.get('code') || '';
+    const desc = params.get('desc') || '';
+    document.getElementById('url').textContent = url;
+    document.getElementById('code').textContent = code ? `Error ${code} ${desc}` : desc;
+
+    // The failed URL is attacker-influenced, and this page's CSP allows
+    // inline script — which also permits javascript: hrefs. Only ever put a
+    // real web URL in an href.
+    const isWebUrl = /^https?:\/\//i.test(url);
+
+    const actions = document.getElementById('actions');
+    const retry = document.createElement('a');
+    retry.className = 'btn';
+    retry.textContent = 'Try again';
+    retry.href = isWebUrl ? url : 'raha://home';
+    actions.appendChild(retry);
+
+    if (isWebUrl && url.startsWith('https://')) {
+      const httpUrl = 'http://' + url.slice('https://'.length);
+      const http = document.createElement('a');
+      http.className = 'btn';
+      http.textContent = 'Retry over plain HTTP (insecure)';
+      http.href = httpUrl;
+      actions.appendChild(http);
+      document.getElementById('note').textContent =
+        'Raha tried HTTPS first. Only fall back to HTTP if you trust this site — the connection would be unencrypted.';
+    }
+  </script>
+</body>
+</html>

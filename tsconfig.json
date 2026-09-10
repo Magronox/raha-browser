@@ -1,0 +1,31 @@
+{
+  // Full typecheck: JSDoc-typed JavaScript, checked by tsc. No emit — the app
+  // runs directly from src/ (no build step, by design; see docs/DECISIONS/ADR-0003).
+  // Requires node_modules (electron's bundled .d.ts + @types/node). For offline
+  // environments use tsconfig.pure.json via `npm run typecheck:pure`.
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "strict": true,
+    "exactOptionalPropertyTypes": false,
+    "noUncheckedIndexedAccess": false,
+    "target": "ES2023",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "types": ["node"],
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": [
+    "src/**/*.js",
+    "src/**/*.cjs",
+    "tests/**/*.js",
+    "tests/**/*.mjs",
+    "scripts/**/*.mjs",
+    "playwright.config.js",
+    "eslint.config.js"
+  ],
+  "exclude": ["node_modules", "vendor", "release"]
+}

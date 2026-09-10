@@ -1,0 +1,6 @@
+# One channel, charity-framed (R-124): donations fund exactly one thing —
+# the code-signing certificates in R-108. Framed as "Support" everywhere we
+# control the words; the button label on the repo page is GitHub's own.
+# GitHub Sponsors is optional and only joins here if the maintainer ever
+# wants it.
+custom: ["https://venmo.com/u/magronox"]

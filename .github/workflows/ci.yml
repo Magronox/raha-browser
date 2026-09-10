@@ -1,0 +1,120 @@
+# CI: the truth-teller. Every push/PR runs the full verify suite:
+# typecheck (JSDoc via tsc) → lint → unit (node:test) → UI harness
+# (Chromium + mock bridge) → e2e (REAL Electron under xvfb) → smoke.
+# An agent's change is NOT done until this is green (see CLAUDE.md).
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["site/**"]   # the website has its own workflow (pages.yml)
+  pull_request:
+    paths-ignore: ["site/**"]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# CI only reads the repo. Release uploads use the scoped contents:write
+# grant inside release.yml — the repo-wide default token stays read-only.
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-fund --no-audit
+
+      - name: Typecheck (full, JSDoc via tsc)
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests (pure core + engine on fake ports)
+        run: npm test
+
+      - name: Install Chromium for the UI harness
+        run: npx playwright install --with-deps chromium
+
+      - name: UI harness (real UI in Chromium, mock main)
+        run: npm run test:ui
+
+      - name: E2E (real Electron, xvfb)
+        run: xvfb-run -a npm run test:e2e
+
+      - name: Smoke self-test (real Electron adapters)
+        # RAHA_NO_SANDBOX: GitHub runners have no usable SUID sandbox helper;
+        # the e2e spec passes --no-sandbox itself for the same reason.
+        run: RAHA_PROFILE_DIR=/tmp/raha-smoke RAHA_NO_SANDBOX=1 xvfb-run -a npm run smoke
+
+      - name: Upload playwright traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-artifacts
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 7
+
+  # The same suite on the two desktop OSes we ship for but had never run
+  # anywhere: macOS and Windows runners have a real window server, so real
+  # Electron runs headed (no xvfb). Linux stays the canonical job above.
+  # Deliberately NOT continue-on-error: a red Windows job is a shipped-bug
+  # report, not noise.
+  verify-native:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash   # Windows defaults to pwsh; the env-var syntax below is bash
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-fund --no-audit
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Install Chromium for the UI harness
+        run: npx playwright install chromium
+
+      - name: UI harness
+        run: npm run test:ui
+
+      - name: E2E (real Electron, headed on the runner's display)
+        run: npm run test:e2e
+
+      - name: Smoke self-test
+        run: RAHA_PROFILE_DIR="${RUNNER_TEMP}/raha-smoke" npm run smoke
+
+      - name: Upload playwright traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-artifacts-${{ matrix.os }}
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 7

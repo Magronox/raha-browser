@@ -1,0 +1,18 @@
+{
+  "builtAt": "2026-09-10T19:10:39.737Z",
+  "adblockerVersion": "2.18.2",
+  "lists": {
+    "easylist": {
+      "source": "https://easylist.to/easylist/easylist.txt",
+      "sha256": "a5d61f19d5afb6270ae4948df26875701ee2578a1e43d52a849b7960bd029bfb",
+      "rawBytes": 2094062,
+      "engineBytes": 1541865
+    },
+    "easyprivacy": {
+      "source": "https://easylist.to/easylist/easyprivacy.txt",
+      "sha256": "d9522cb1388da929047b9bf6b402da01cd16069031bbf7963091363950d29b04",
+      "rawBytes": 1501651,
+      "engineBytes": 1669189
+    }
+  }
+}

@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability (private)
+    url: https://github.com/Magronox/raha-browser/security/advisories/new
+    about: Never open a public issue for an exploitable bug — see SECURITY.md.
+  - name: Questions & ideas
+    url: https://github.com/Magronox/raha-browser/discussions
+    about: Not sure it's a bug? Start here.

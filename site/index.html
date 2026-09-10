@@ -1,0 +1,190 @@
+<!doctype html>
+<!-- The Raha website. Static files, nothing else — what's in site/ is what
+     serves (ADR-0010, extending ADR-0003). Every link must satisfy
+     scripts/check-site.mjs: relative, in-page, or an allow-listed URL.
+     This is the front page and it stays short on purpose: what you can do,
+     the file, and one link. Everything explanatory lives in details.html. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; img-src 'self'; style-src 'self'; script-src 'sha256-MOIVzFSDIbZkDzAv6TT3EfDSMK0QnCJMWSoTg3NM3rU='; base-uri 'none'; form-action 'none'">
+  <title>Raha — you decide which tabs get to run</title>
+  <meta name="description" content="A free, open-source browser: cap how many tabs run at once, set how much memory each may spend, and keep developing it on your own machine.">
+  <!-- The only absolute self-URLs on this site (Open Graph requires them);
+       change these two lines + add site/CNAME when a custom domain lands. -->
+  <meta property="og:url" content="https://magronox.github.io/raha-browser/">
+  <meta property="og:image" content="https://magronox.github.io/raha-browser/assets/grid.png">
+  <meta property="og:title" content="Raha — you decide which tabs get to run">
+  <meta property="og:description" content="A free, open-source browser: cap how many tabs run at once, set how much memory each may spend, and keep developing it on your own machine.">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta property="og:image:alt" content="Raha’s folder grid: tab thumbnails, nested sidebar, and the live bar showing per-tab memory.">
+  <link rel="icon" href="assets/icon.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <nav class="nav" aria-label="Site">
+    <span class="brand"><img src="assets/icon.png" alt=""> Raha</span>
+    <span class="links">
+      <a href="#download">Download</a>
+      <a href="details.html">Details</a>
+      <a href="https://github.com/Magronox/raha-browser">GitHub</a>
+      <a class="btn donate" href="https://venmo.com/u/magronox">Donate</a>
+    </span>
+  </nav>
+</header>
+
+<main class="wrap">
+
+  <section class="hero" id="top">
+    <h1>Raha</h1>
+    <p class="tagline"><strong>A free, open-source browser where <em>you</em> decide which tabs get to run — and how much memory each one may spend.</strong></p>
+    <p class="etym"><em>Raha (<span lang="fa" dir="rtl">رها</span>)</em> is Persian for “free, released, let go”.</p>
+    <p class="cta">
+      <a class="btn primary" href="#download">Download</a>
+      <a class="btn" href="https://github.com/Magronox/raha-browser">Source on GitHub</a>
+    </p>
+    <p class="shot"><img src="assets/grid.png" width="820" alt="Raha: folder grid with thumbnails, nested sidebar, live bar with per-tab memory badges"></p>
+  </section>
+
+  <section id="control">
+    <h2>What you control</h2>
+    <div class="cards">
+      <div class="card">
+        <h3>Cap what runs</h3>
+        <p>Pick a number of live tabs — six, say. Everything past it goes <b>asleep</b>: the renderer process is destroyed and its RAM goes back to your OS, while the tab keeps its title, thumbnail and history, right where you left it. Click it and it’s back.</p>
+      </div>
+      <div class="card">
+        <h3>Set the memory</h3>
+        <p>Give <code>*.slack.com</code> an 800&nbsp;MB allowance and it sleeps when it goes over. Pin the tabs that must stay alive; tabs playing audio are kept by default. The live bar shows what each running tab actually costs, sampled from the OS.</p>
+      </div>
+      <div class="card">
+        <h3>Keep it yours</h3>
+        <p>GPL-3.0, and deliberately no build step: clone it, <code>npm start</code>, and keep developing it on your own machine. No account, no subscription, <b>no telemetry</b>.</p>
+      </div>
+    </div>
+    <p class="more">How the governor decides, what Raha does and doesn’t send, the security audit and the whole keyboard map: <a href="details.html">the details</a>.</p>
+  </section>
+
+  <section id="download">
+    <h2>Download</h2>
+    <p class="version">Version <b data-version="0.1.0">v0.1.0</b> · not code-signed yet, so the first launch takes one extra click — see your platform’s note (<a href="details.html#support">why</a>).</p>
+    <p class="pick" id="dl-pick" hidden></p>
+    <div class="dl">
+      <div class="card" data-os="mac">
+        <p class="yours-label">for this machine</p>
+        <h3>macOS</h3>
+        <ul class="assets">
+          <li><a data-asset="mac-arm64" href="https://github.com/Magronox/raha-browser/releases/download/v0.1.0/Raha-0.1.0-arm64.dmg">Apple&nbsp;Silicon (M1–M4) <b>.dmg</b></a></li>
+          <li><a data-asset="mac-x64" href="https://github.com/Magronox/raha-browser/releases/download/v0.1.0/Raha-0.1.0.dmg">Intel <b>.dmg</b></a></li>
+        </ul>
+        <p>Not sure which Mac? Apple menu → <i>About This Mac</i>: “Chip Apple M…” is Apple Silicon. First open: <b>right-click the app → Open</b>, then Open again.</p>
+      </div>
+      <div class="card" data-os="win">
+        <p class="yours-label">for this machine</p>
+        <h3>Windows</h3>
+        <ul class="assets">
+          <li><a data-asset="win-x64" href="https://github.com/Magronox/raha-browser/releases/download/v0.1.0/Raha-Setup-0.1.0.exe">Installer <b>.exe</b> (64-bit, also runs on Arm PCs)</a></li>
+        </ul>
+        <p>SmartScreen may interpose on the unsigned installer: <b>More info → Run anyway</b>.</p>
+      </div>
+      <div class="card" data-os="linux">
+        <p class="yours-label">for this machine</p>
+        <h3>Linux</h3>
+        <ul class="assets">
+          <li><a data-asset="linux-appimage" href="https://github.com/Magronox/raha-browser/releases/download/v0.1.0/Raha-0.1.0.AppImage"><b>.AppImage</b> (any distro, x86-64)</a></li>
+          <li><a data-asset="linux-deb" href="https://github.com/Magronox/raha-browser/releases/download/v0.1.0/raha-browser_0.1.0_amd64.deb"><b>.deb</b> (Debian / Ubuntu)</a></li>
+        </ul>
+        <p>AppImage: <code>chmod +x Raha-*.AppImage</code> and run — or <code>sudo apt install ./raha-*.deb</code>.</p>
+      </div>
+    </div>
+    <p class="dim">Every file lives on the <a href="https://github.com/Magronox/raha-browser/releases/latest">GitHub release page</a>, with checksums.</p>
+    <pre><code># or run it from source and keep going from there (Node ≥ 22)
+git clone https://github.com/Magronox/raha-browser
+cd raha-browser
+npm install
+npm start</code></pre>
+  </section>
+
+</main>
+
+<footer>
+  <p class="promise">Free as in <b><span lang="fa" dir="rtl">رها</span></b> — GPL-3.0, no ads, no tracking, yours.</p>
+  <p class="fine">One person, no business model, nothing to buy. If Raha has been useful:
+     <a href="https://venmo.com/u/magronox">leave something via Venmo</a>.
+     Bugs and ideas: <a href="https://github.com/Magronox/raha-browser/issues">file issues generously</a>,
+     or <a href="mailto:basareh@duck.com">basareh@duck.com</a>.</p>
+  <p class="fine">Code <a href="https://github.com/Magronox/raha-browser/blob/main/LICENSE">GPL-3.0-only</a> © 2026 Amir Basareh — forks stay open source.
+     The Raha name and bird mark are <a href="https://github.com/Magronox/raha-browser/blob/main/TRADEMARK.md">reserved</a>.
+     No cookies, no analytics, no third-party anything on this page —
+     <a href="https://github.com/Magronox/raha-browser/tree/main/site">see its source</a>.</p>
+</footer>
+
+<script>
+  // Progressive enhancement only: work out which build fits this machine,
+  // point the big Download button straight at it, and highlight its card.
+  // The page is fully usable with JS disabled — every asset link is a plain
+  // versioned href in the HTML (scripts/check-site.mjs pins them to the
+  // package version), and this script never fetches anything.
+  // NOTE: the CSP above pins this block's sha256 instead of allowing
+  // 'unsafe-inline'. Edit anything below and the browser will silently
+  // refuse to run it — re-run `node scripts/check-site.mjs`, which prints
+  // the new hash to paste into the meta.
+  (function () {
+    // No mobile builds exist: skip Android (platform says "Linux …") and
+    // iPadOS (Safari masquerades as "MacIntel" but is multi-touch).
+    if (/android/i.test(navigator.userAgent)) return;
+    var uad = navigator.userAgentData;
+    var p = (uad && uad.platform) || navigator.platform || '';
+    if (/mac/i.test(p) && navigator.maxTouchPoints > 1) return;
+    var os = /mac/i.test(p) ? 'mac' : /win/i.test(p) ? 'win' : /linux/i.test(p) ? 'linux' : null;
+    if (!os) return;
+    var card = document.querySelector('.dl .card[data-os="' + os + '"]');
+    if (card) card.classList.add('yours');
+
+    // CPU architecture: only Chromium-family browsers say (UA client hints).
+    // Safari and Firefox don't, so on a Mac we default to Apple Silicon and
+    // keep the Intel link one line away; nothing is hidden.
+    function done(arch) {
+      var asset, label;
+      if (os === 'mac') {
+        var arm = arch === 'arm' || arch === null;
+        asset = arm ? 'mac-arm64' : 'mac-x64';
+        label = arm ? 'macOS · Apple Silicon' : 'macOS · Intel';
+        if (arch === null) label += ' (Intel Mac? use the second link below)';
+      } else if (os === 'win') {
+        asset = 'win-x64'; label = 'Windows';
+      } else {
+        if (arch === 'arm') return; // no Linux arm64 build yet — leave the cards as they are
+        asset = 'linux-appimage'; label = 'Linux · AppImage';
+      }
+      var link = document.querySelector('.dl a[data-asset="' + asset + '"]');
+      if (!link) return;
+      var btn = document.querySelector('.hero a.btn.primary');
+      if (btn) { btn.href = link.href; btn.textContent = 'Download for ' + label.replace(/ \(.*\)$/, ''); }
+      var pick = document.getElementById('dl-pick');
+      if (pick) {
+        pick.textContent = 'For this machine: ' + label + ' → ';
+        var a = document.createElement('a');
+        a.href = link.href; a.textContent = link.href.split('/').pop();
+        pick.appendChild(a);
+        pick.hidden = false;
+      }
+      link.classList.add('picked');
+    }
+    if (uad && uad.getHighEntropyValues) {
+      uad.getHighEntropyValues(['architecture']).then(function (v) {
+        done(v && v.architecture ? (/arm/i.test(v.architecture) ? 'arm' : 'x86') : null);
+      }, function () { done(null); });
+    } else {
+      done(null);
+    }
+  })();
+</script>
+
+</body>
+</html>

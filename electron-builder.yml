@@ -1,0 +1,113 @@
+# electron-builder configuration. Used by `npm run dist` locally and by
+# .github/workflows/release.yml on tag push (which publishes to the GitHub
+# Release). Docs: https://www.electron.build
+appId: io.github.rahabrowser.raha
+productName: Raha
+copyright: Copyright © 2026 Amir Basareh — GPL-3.0-only
+
+directories:
+  buildResources: build
+  output: release
+
+# Declare http/https handling so the OS lists Raha as a default-browser
+# candidate (macOS: CFBundleURLTypes; Windows/Linux: protocol associations).
+# Without this, "set as default browser" cannot even be offered.
+protocols:
+  - name: Web URL
+    schemes: [http, https]
+    role: Viewer
+
+# The app runs straight from source — no build step, so ship src/ verbatim.
+# NOTE: these globs are not the whole story. electron-builder also packs
+# production dependencies automatically, so the asar additionally contains
+# node_modules/ with electron-updater + its 15 transitive packages (ADR-0008).
+# Confirm what actually shipped with:
+#   npx asar list release/mac/Raha.app/Contents/Resources/app.asar | head
+# tests/ and docs/ are excluded by omission — do not add a broad glob.
+files:
+  - src/**/*
+  - package.json
+  - LICENSE
+  - "!**/*.map"
+
+asar: true
+
+# Electron fuses: capabilities burned OFF in shipped binaries (dev/test runs
+# from node_modules are unaffected). Verified by the "fuses hold" step in
+# .github/workflows/release.yml — if you remove one here, that step goes red.
+electronFuses:
+  # The binary must never act as a generic Node runtime for whatever set
+  # ELECTRON_RUN_AS_NODE in the environment (classic living-off-the-land
+  # vector; we don't use process.fork so nothing needs it).
+  runAsNode: false
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  # Cookies encrypted at rest with the OS keychain.
+  enableCookieEncryption: true
+  # App code loads only from the signed/packed asar, and (where the OS
+  # supports it) the asar hash is validated at startup.
+  onlyLoadAppFromAsar: true
+  enableEmbeddedAsarIntegrityValidation: true
+  # Renderers get no special file:// powers (raha:// is served by main).
+  grantFileProtocolExtraPrivileges: false
+  # macOS: re-sign ad-hoc after flipping fuses so the binary stays runnable.
+  resetAdHocDarwinSignature: true
+
+linux:
+  target:
+    - AppImage
+    - deb
+  category: Network
+  synopsis: A calm, private browser where you control which tabs may spend RAM and CPU.
+  maintainer: Amir Basareh <basareh@duck.com>
+
+win:
+  target:
+    - nsis
+nsis:
+  # Pin the installer name (default is "Raha Setup 0.1.0.exe", which GitHub
+  # rewrites to dots) so site/index.html can link to it verbatim — checked by
+  # scripts/check-site.mjs against package.json version.
+  artifactName: Raha-Setup-${version}.${ext}
+  oneClick: true
+  deleteAppDataOnUninstall: false
+
+mac:
+  # Both architectures: GitHub's macos runners are Apple Silicon, and a bare
+  # target list would ship arm64-only installers that no Intel Mac can run.
+  target:
+    - target: dmg
+      arch: [x64, arm64]
+    - target: zip
+      arch: [x64, arm64]
+  category: public.app-category.productivity
+  # R-108 signing. There is deliberately NO `identity:` key here: setting it to
+  # null hard-disables signing, and electron-builder already does the right
+  # thing on its own — it signs when CSC_LINK + CSC_KEY_PASSWORD are in the
+  # environment and skips (falling back to the ad-hoc re-sign below) when they
+  # are not. A cert-less `npm run dist` therefore still produces the same
+  # runnable, unsigned app it always did.
+  hardenedRuntime: true
+  # Gatekeeper assessment of the *unsigned* local build would always fail;
+  # release.yml asserts spctl on the signed artifact instead.
+  gatekeeperAssess: false
+  # Rendered by the beforePack hook — see scripts/mac-entitlements.mjs.
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  # Notarize when APPLE_API_KEY/_ID/_ISSUER are set. NOTE: with them missing,
+  # app-builder-lib only WARNS and skips, so a green build is not proof of
+  # notarization — release.yml has an explicit stapler/spctl guard for that.
+  notarize: true
+  # Why the app asks for these, shown in the macOS consent dialogs.
+  extendInfo:
+    NSCameraUsageDescription: A site you are visiting asked to use the camera. Raha always asks you first.
+    NSMicrophoneUsageDescription: A site you are visiting asked to use the microphone. Raha always asks you first.
+    NSLocationWhenInUseUsageDescription: A site you are visiting asked for your location. Raha always asks you first.
+    NSAppleEventsUsageDescription: Raha reads the open tabs of another browser you pick, so it can import them.
+
+# Renders build/entitlements.mac.plist from the committed .in template and
+# $APPLE_TEAM_ID before packaging. No-op on Linux/Windows.
+beforePack: ./scripts/mac-entitlements.mjs
+
+publish:
+  provider: github

@@ -1,0 +1,43 @@
+<!doctype html>
+<!-- raha://home — the page a fresh tab shows INSIDE the content area.
+     Pure static file: no scripts, no bridge, no network. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+  <title>New tab</title>
+  <style>
+    html, body { height: 100%; margin: 0; }
+    body {
+      display: flex; align-items: center; justify-content: center;
+      background: #0e1116; color: #8b98a9;
+      font: 14px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    .wrap { text-align: center; max-width: 420px; padding: 24px; }
+    svg { width: 52px; height: 52px; color: #4fd1b3; opacity: 0.75; }
+    h1 { color: #dce3ec; font-size: 20px; font-weight: 600; margin: 14px 0 6px; }
+    kbd {
+      background: #1a2029; border: 1px solid #232b37; border-radius: 4px;
+      padding: 1px 6px; font-size: 12px; color: #dce3ec;
+    }
+    p { margin: 6px 0; }
+    .quiet { font-size: 12px; opacity: 0.7; margin-top: 18px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M2 12c4 1 9 0 11-4l1.5-.5-1.5-1a4 4 0 0 0-7 1L2 12z"/><path d="M6 12.5c1 .8 3 .8 4 0"/>
+    </svg>
+    <h1>Raha</h1>
+    <p>Press <kbd><span data-mod>Ctrl</span>+L</kbd> and type a search or address.</p>
+    <p class="quiet">This page loads nothing from the network. Your other tabs are asleep unless you chose otherwise — check the live bar below.</p>
+    <p class="quiet">New here? Type <a href="raha://welcome" style="color:#4fd1b3">raha://welcome</a> for the one-minute tour.</p>
+  </div>
+  <script>
+    if (/Mac|iPhone|iPad/.test(navigator.platform)) {
+      for (const el of document.querySelectorAll('[data-mod]')) el.textContent = '⌘';
+    }
+  </script>
+</body>
+</html>
