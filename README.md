@@ -119,12 +119,9 @@ Electron's official checklist. Expect rough edges; file issues generously. The
 
 Raha was written with agentic coding: an AI did much of the typing, a human
 decided what to build, read what came back, and ran it. It is offered in that
-spirit — take it, fork it, make it your own. And keep one eye open: language
-models are confident, not reliable. They invent APIs, misremember facts, and
-present a plausible guess with the same calm as a truth. The tests, invariants
-and playbooks in this repo exist so that a mistake, human or machine, gets
-caught before it ships. Read the code before you trust it; that is the whole
-point of it being open.
+spirit — take it, fork it, make it your own. The tests, invariants and
+playbooks in this repo exist so that a mistake, human or machine, gets caught
+before it ships.
 
 ## Contributing (humans and AI agents)
 
