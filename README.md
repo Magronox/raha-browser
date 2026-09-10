@@ -59,7 +59,7 @@ work after waking.
 | Tracker/ad blocking | EasyList + EasyPrivacy via Ghostery's open-source engine ([ADR-0009](docs/DECISIONS/ADR-0009-ghostery-adblocker-bundled-lists.md), MPL-2.0) — lists **bundled** with the app (never fetched at runtime), separate ads/trackers toggles, per-site off switch on the address-bar shield |
 | Global Privacy Control | `Sec-GPC: 1` + `DNT: 1` on every request made by a page (toggleable). Favicon loads from the chrome itself do not carry them |
 | Permission requests (camera, microphone, location, notifications, clipboard) | Asked per site, in Raha's own prompt — allow once / always / never — never granted silently, never a surprise system dialog; remembered answers are one click away in Settings ([ADR-0013](docs/DECISIONS/ADR-0013-site-permissions.md)). Everything else a page asks for is refused, visibly |
-| Default search | DuckDuckGo (Brave/Startpage/Ecosia/Google selectable) |
+| Default search | DuckDuckGo (Brave/Startpage/Ecosia/Google/Bing/Kagi selectable) |
 | New tab page | Local. Loads nothing. |
 | HTTPS | HTTPS-first for typed addresses, explicit opt-in for plain-HTTP fallback |
 | Web content isolation | Chromium sandbox on, no preload/bridge in page processes ([invariant #5](docs/INVARIANTS.md)) |
@@ -76,7 +76,7 @@ it's real.
 
 Grab the installer for your OS from
 **[Releases](../../releases)**: Linux AppImage/deb · Windows installer ·
-macOS dmg (unsigned in v0.1: right-click → Open the first time).
+macOS 13 or later, dmg (unsigned in v0.1: right-click → Open the first time).
 Or start at the website: <https://magronox.github.io/raha-browser/>.
 
 **New here? Read the [User Guide](docs/USER_GUIDE.md)** — install, first

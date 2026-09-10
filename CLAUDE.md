@@ -28,7 +28,7 @@ CI as "the task is not finished", never as "flaky infra".
 
 > **Current state (2026-09-10).** The repository's history begins at a
 > single snapshot commit of the audited tree (`docs/PLAYBOOKS/first-push.md`).
-> Running Electron 43.4.0 / Chromium 150.0.7871.224. Suite: **366 unit / 47
+> Running Electron 44.2.0 / Chromium 152.0.7977.76 (macOS 13+). Suite: **366 unit / 47
 > ui-harness / 48 e2e**. The 2026-07 security audit
 > (`docs/SECURITY-AUDIT-2026-07.md`) is in; its commit references predate
 > the public history and do not resolve here. There is deliberately **no
@@ -41,9 +41,10 @@ CI as "the task is not finished", never as "flaky infra".
 > (freezing a background tab over CDP instead of sleeping it) is a
 > post-launch item on the roadmap, not built.
 >
-> Dependabot will propose **Electron 44.x, a MAJOR**. Do not merge it
-> casually: it needs `docs/PLAYBOOKS/upgrade-electron.md` and the owner's
-> decision. v0.1.0 ships on 43.4.0.
+> Electron majors arrive from Dependabot every ~8 weeks. They are routine
+> when done by `docs/PLAYBOOKS/upgrade-electron.md` (an hour: breaking-
+> changes audit, verify, chrome-identity table check) — do that, do not
+> merge the bot's PR blind.
 >
 > Installed builds on a dev machine may lag `main`; run from source
 > (`npm start`) to test current features, and verify any claim about which

@@ -54,7 +54,7 @@
 //
 // Everything here is a pure re-implementation of Chromium's
 // components/embedder_support/user_agent_utils.cc (verified against tag
-// 150.0.7871.224). The grease brand is NOT random: it is seeded by the
+// 150.0.7871.224; re-verified unchanged at 152.0.7977.76, 2026-09-10). The grease brand is NOT random: it is seeded by the
 // major version, so producing the same value as real Chrome is part of
 // looking real. (ROADMAP R-114.)
 
