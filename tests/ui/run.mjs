@@ -614,24 +614,33 @@ await t('omnibox actions: on a folder\'s grid the default row names that folder,
   const proj = must(mock.engine.snapshot().folders.find((f) => f.name === 'Project Raha'), 'seeded folder');
   await page.click(`#sidebar .row[data-id="${proj.id}"] .name`); // grid shows the folder; no tab showing
   await pump();
-  const before = mock.engine.snapshot().tabs.length;
-  await page.click('.omnibox');
-  await page.fill('.omnibox', 'https://act-grid.example/');
-  await page.waitForSelector('.omnisuggest.open .sug.action');
-  const rows = await actionRowsOnPage();
-  assert(!rows.some((r) => r.mode === 'here'), 'no tab showing — nothing to open "here"');
-  const def = must(rows.find((r) => r.sel), 'a default row is highlighted');
-  assert(def.mode === 'new' && def.text.includes('Open in new tab → Project Raha'), `default must name the folder: ${def.text}`);
-  await page.keyboard.press('Enter');
-  await pump();
-  const snap = mock.engine.snapshot();
-  assert(snap.tabs.length === before + 1, 'one new tab');
-  const madeTab = must(snap.tabs.find((t2) => t2.url === 'https://act-grid.example/'), 'created tab');
-  assert(madeTab.parentId === proj.id, 'tab must land in the folder the row named');
-  mock.engine.nodeRemove({ nodeId: madeTab.id });
-  await pump();
-  await page.click('#sidebar .rootrow .name'); // restore root selection for later scenarios
-  await pump();
+  const before = new Set(mock.engine.snapshot().tabs.map((t2) => t2.id));
+  try {
+    await page.click('.omnibox');
+    await page.fill('.omnibox', 'https://act-grid.example/');
+    await page.waitForSelector('.omnisuggest.open .sug.action');
+    const rows = await actionRowsOnPage();
+    assert(!rows.some((r) => r.mode === 'here'), 'no tab showing — nothing to open "here"');
+    const def = must(rows.find((r) => r.sel), 'a default row is highlighted');
+    assert(def.mode === 'new' && def.text.includes('Open in new tab → Project Raha'), `default must name the folder: ${def.text}`);
+    await page.keyboard.press('Enter');
+    await pump();
+    // Compare by id, not by count: a tab closed asynchronously by the previous
+    // scenario must not make this one miscount (issue #6).
+    const added = mock.engine.snapshot().tabs.filter((t2) => !before.has(t2.id));
+    assert(added.length === 1, `one new tab, got ${added.length}: ${added.map((t2) => t2.url).join(', ')}`);
+    assert(added[0].url === 'https://act-grid.example/', `created tab url: ${added[0].url}`);
+    assert(added[0].parentId === proj.id, 'tab must land in the folder the row named');
+  } finally {
+    // Whatever happened, leave no stray tab in the seeded folder — the drag
+    // scenarios later assert its exact child order.
+    for (const t2 of mock.engine.snapshot().tabs) {
+      if (!before.has(t2.id)) mock.engine.nodeRemove({ nodeId: t2.id });
+    }
+    await pump();
+    await page.click('#sidebar .rootrow .name'); // restore root selection for later scenarios
+    await pump();
+  }
 });
 
 await t('app-link ask: a zoom link prompts, cancel opens nothing, remember stops asking', async () => {

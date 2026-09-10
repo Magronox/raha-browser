@@ -198,6 +198,7 @@ subdomains. First matching rule wins. A tab pinned by rule shows a faded pin.
 - **Total memory budget** (off) — a ceiling for all running tabs combined.
 - **Sleep background tabs after** (off) — idle timer per tab.
 - **Never auto-sleep audio** (on) — the music protection.
+- **Remember scroll position and unsent form text** (on) — a sleeping tab wakes where you left it, with what you had typed still there. Password fields are never kept, values are capped, and turning this off wipes everything stored.
 - **Warn on runaway tabs** (on) — the terminate-this-tab prompt when CPU or
   memory use explodes (sustained, never on a momentary spike).
 - **Block ads** (on) — requests matching the bundled EasyList are dropped.

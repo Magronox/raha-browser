@@ -90,6 +90,11 @@ working end to end:
   (Found by the automated security suite below.)
 
 ### Added
+- **A sleeping tab wakes where you left it** (R-104): scroll position and
+  unsent form text are captured before a tab sleeps and put back after it
+  wakes. Password fields are never captured, values are capped, and the
+  *Remember scroll position and unsent form text* setting wipes everything
+  stored when turned off.
 - **Sites now ask before using your camera, microphone, location,
   notifications, or clipboard** (ADR-0013). Where Raha used to refuse
   everything with a toast — so video calls in the browser simply could not
@@ -314,7 +319,6 @@ report with method and accepted risks in `docs/SECURITY-AUDIT-2026-07.md`.
   under Added above.
 
 ### Known limitations
-- No cosmetic ad filtering (empty boxes where ads were; needs a page
-  preload, invariant #5), no screen sharing yet (R-103b),
-  scroll position not restored on wake (R-104), single window (R-107),
-  macOS unsigned (R-108). Numbers reference docs/ROADMAP.md.
+- No cosmetic ad filtering (empty boxes where ads were), no screen sharing
+  yet (R-103b), single window (R-107), macOS unsigned (R-108). Numbers
+  reference docs/ROADMAP.md.

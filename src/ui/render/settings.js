@@ -83,6 +83,10 @@ export function render() {
         <span>Never auto-sleep tabs that are playing sound</span>
       </label>
       <label class="setting toggle">
+        <input type="checkbox" ${s.restorePageState ? 'checked' : ''} data-set-bool="restorePageState">
+        <span>Remember scroll position and unsent form text while a tab sleeps <small>(passwords are never kept; turning this off forgets everything stored)</small></span>
+      </label>
+      <label class="setting toggle">
         <input type="checkbox" ${s.runawayGuard ? 'checked' : ''} data-set-bool="runawayGuard">
         <span>Warn when a tab's CPU or memory use explodes, and offer to terminate it</span>
       </label>

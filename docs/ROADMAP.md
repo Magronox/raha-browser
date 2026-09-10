@@ -93,9 +93,11 @@ source of what's next, issues track execution (R-125).
   screen/window, with a preview) — a different UI from the yes/no ask, so it
   stays out of R-103. AC: the picker, an e2e that grants a fake display
   stream, and an entry under Site permissions.
-- **R-104 Scroll + form state on wake.** Save scroll position at sleep
-  (executeJavaScript) and restore after wake. AC: e2e scrolls, sleeps,
-  wakes, asserts position within 50px.
+- **R-104 Scroll + form state on wake.** *Delivered 2026-09-05* (`src/shared/page-state.js`,
+  state schema 2, `restorePageState` setting). Scroll position and unsent
+  form text captured before sleep, restored after wake; passwords never
+  captured. e2e scrolls, sleeps, wakes, asserts position. Part B (freezing a
+  background tab over CDP instead of sleeping it) is not started.
 - **R-105 Wake-preview hover.** Hovering an asleep tab shows its thumbnail
   large without waking. AC: ui-harness test.
 - **R-106 History & downloads pages.** raha://history from a local (opt-in)
