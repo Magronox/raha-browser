@@ -88,7 +88,12 @@ jobs:
             npx electron-builder --publish always -c.extraMetadata.teamId="$APPLE_TEAM_ID"
           else
             echo "::warning::No CSC_LINK secret — building macOS UNSIGNED. Users will need right-click → Open."
-            CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder --publish always
+            # A missing secret arrives as an EMPTY string, and electron-builder
+            # treats an empty CSC_LINK as a file path ("<cwd> not a file").
+            # Unset every signing variable so it sees none at all.
+            CSC_IDENTITY_AUTO_DISCOVERY=false \
+              env -u CSC_LINK -u CSC_KEY_PASSWORD -u APPLE_API_KEY -u APPLE_API_KEY_ID -u APPLE_API_ISSUER -u APPLE_TEAM_ID \
+              npx electron-builder --publish always
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
