@@ -3,7 +3,7 @@
 All notable changes to Raha. Format: [Keep a Changelog](https://keepachangelog.com);
 versions are tags `vX.Y.Z` (tag == package.json version, enforced by CI).
 
-## v0.1.0 — unreleased (date set at tagging; release playbook step 2)
+## v0.1.0 — 2026-09-10
 
 First release, on Electron 44.2.0 / Chromium 152.0.7977.76. The thesis,
 working end to end:
