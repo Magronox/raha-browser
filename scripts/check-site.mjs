@@ -34,6 +34,7 @@ const siteDir = path.join(repo, 'site');
 const pageFiles = fs.readdirSync(siteDir).filter((f) => f.endsWith('.html')).sort();
 
 /** @type {string[]} */ const problems = [];
+/** @param {string} file @param {string} msg */
 const at = (file, msg) => problems.push(`${file}: ${msg}`);
 
 if (!pageFiles.includes('index.html')) problems.push('site/index.html is missing');
@@ -51,6 +52,7 @@ const SELF_ABSOLUTE = 'https://magronox.github.io/raha-browser/'; // og: metas o
 // href/src/srcset are always link-shaped (either quote style); content="…"
 // only counts when it carries a scheme (og:url / og:image) — descriptions and
 // CSP text are not links.
+/** @param {string} html @returns {string[]} */
 const linkUrls = (html) => [
   ...[...html.matchAll(/(?:href|src)="([^"]+)"/g)].map((m) => m[1]),
   ...[...html.matchAll(/(?:href|src)='([^']+)'/g)].map((m) => m[1]),
@@ -59,6 +61,7 @@ const linkUrls = (html) => [
   ...[...html.matchAll(/content=["'](https?:[^"']+)["']/g)].map((m) => m[1]),
 ];
 
+/** @param {string} file @param {string} source @param {string} u */
 const checkUrl = (file, source, u) => {
   if (u.startsWith('#')) return; // in-page; existence checked in section 5
   if (/^[a-z][a-z+.-]*:/i.test(u)) {
