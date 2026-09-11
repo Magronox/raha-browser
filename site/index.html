@@ -9,7 +9,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta http-equiv="Content-Security-Policy"
-        content="default-src 'none'; img-src 'self'; style-src 'self'; script-src 'sha256-TeZprbQ5Dnin+pfCpgMAEy7Y8h/y03yn8ihFWGzDsVU='; base-uri 'none'; form-action 'none'">
+        content="default-src 'none'; img-src 'self'; style-src 'self'; script-src 'sha256-TsN/c/+7UMKBFQlgVaf5xKljSI9bxcUK2muXPKRkPyY='; base-uri 'none'; form-action 'none'">
   <title>Raha — you decide which tabs get to run</title>
   <meta name="description" content="A free, open-source browser: cap how many tabs run at once, set how much memory each may spend, and keep developing it on your own machine.">
   <!-- The only absolute self-URLs on this site (Open Graph requires them);
@@ -48,6 +48,7 @@
       <a class="btn primary" href="#download">Download</a>
       <a class="btn" href="https://github.com/Magronox/raha-browser">Source on GitHub</a>
     </p>
+    <p class="dim hint" id="dl-hint" hidden>Auto-detected and not always right — <a href="#download">all downloads below</a>.</p>
     <p class="shot"><img src="assets/grid.png" width="820" alt="Raha: folder grid with thumbnails, nested sidebar, live bar with per-tab memory badges"></p>
   </section>
 
@@ -164,6 +165,8 @@ npm start</code></pre>
       if (!link) return;
       var btn = document.querySelector('.hero a.btn.primary');
       if (btn) { btn.href = link.href; btn.textContent = 'Download for ' + label.replace(/ \(.*\)$/, ''); }
+      var hint = document.getElementById('dl-hint');
+      if (hint) hint.hidden = false;
       var pick = document.getElementById('dl-pick');
       if (pick) {
         pick.textContent = 'For this machine: ' + label + ' → ';
