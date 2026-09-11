@@ -83,7 +83,7 @@
       <dt>Supply chain</dt>
       <dd><b>Two direct runtime dependencies</b> — the updater and the filter-list engine, both pinned exact, each with a public decision record. With transitives, 28 npm packages ship inside the app alongside Electron — verify with <code>npm ls --omit=dev --all</code>. Everything else is the project’s own code, and the <a href="https://github.com/Magronox/raha-browser/blob/main/docs/INVARIANTS.md">invariants</a> are enforced by tests.</dd>
     </dl>
-    <p class="note">Honesty note: Raha is Chromium under the hood (via Electron, ~100&nbsp;MB installed). The “light” we promise is <b>runtime discipline</b> — 60 tabs open, only your chosen few consuming anything — not installer size. Fingerprinting resistance is <a href="https://github.com/Magronox/raha-browser/blob/main/docs/ROADMAP.md">on the roadmap</a> and won’t be claimed before it’s real.</p>
+    <p class="note">Raha is Chromium under the hood (Electron, ~100&nbsp;MB installed). “Light” means runtime discipline, not installer size. Fingerprinting resistance is <a href="https://github.com/Magronox/raha-browser/blob/main/docs/ROADMAP.md">on the roadmap</a>, not claimed yet.</p>
   </section>
 
   <section id="shot-settings">
@@ -95,15 +95,10 @@
 
   <section id="security">
     <h2>Security, with receipts</h2>
-    <p>Before its first release, Raha went through a
-       <a href="https://github.com/Magronox/raha-browser/blob/main/docs/SECURITY-AUDIT-2026-07.md">security audit</a>
-       against Electron’s official checklist: eight findings, all fixed pre-launch, report public —
-       including the <a href="https://github.com/Magronox/raha-browser/blob/main/SECURITY.md">accepted risks</a>,
-       because a security story that hides its trade-offs isn’t one. Every audit check re-runs as an
-       automated test suite on every push, alongside hundreds of unit tests, a UI harness in real
-       Chromium, and an end-to-end suite on real Electron.</p>
-    <p class="dim">Found something exploitable? Please don’t open a public issue — use
-       <a href="https://github.com/Magronox/raha-browser/security/advisories/new">private reporting</a>.</p>
+    <p>Pre-release <a href="https://github.com/Magronox/raha-browser/blob/main/docs/SECURITY-AUDIT-2026-07.md">security audit</a>
+       against Electron’s checklist: eight findings, all fixed, report public, with the
+       <a href="https://github.com/Magronox/raha-browser/blob/main/SECURITY.md">accepted risks</a>.
+       Every audit check re-runs as a test on every push.</p>
   </section>
 
   <section id="keyboard">
@@ -120,28 +115,16 @@
 
   <section id="support">
     <h2>Support</h2>
-    <p>Raha is one person and a
-       <a href="https://github.com/Magronox/raha-browser/blob/main/docs/ROADMAP.md">public, numbered roadmap</a>.
-       It’s free, GPL, and has no business model — there is nothing to pay for,
-       no subscription, no product.</p>
-    <p>If it’s been useful and you feel like leaving something:
-       <a href="https://venmo.com/u/magronox"><b>support Raha via Venmo</b></a>.</p>
-    <p class="dim">Bugs and ideas: <a href="https://github.com/Magronox/raha-browser/issues">file issues generously</a>.
+    <p>Raha is free, GPL, one person, and a
+       <a href="https://github.com/Magronox/raha-browser/blob/main/docs/ROADMAP.md">public roadmap</a>.
+       Bugs and ideas: <a href="https://github.com/Magronox/raha-browser/issues">GitHub issues</a>
+       or <a href="mailto:basareh@duck.com">basareh@duck.com</a>.
        Want to build? Start at
-       <a href="https://github.com/Magronox/raha-browser/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a>,
-       then <a href="https://github.com/Magronox/raha-browser/blob/main/docs/ARCHITECTURE.md">ARCHITECTURE.md</a>
-       for the layer map and the
-       <a href="https://github.com/Magronox/raha-browser/tree/main/docs/DECISIONS">decision records</a>
-       for why each trade-off went the way it did —
-       the codebase is deliberately structured for safe iteration by humans and AI agents alike.</p>
-    <p>Raha was written with agentic coding: an AI did much of the typing, a human decided what to
-       build, read what came back, and ran it. It’s offered in that spirit — take it, fork it, make it
-       your own. The tests, invariants and playbooks exist so a mistake, human or machine, gets caught
-       before it ships.</p>
-    <p class="dim">Not on GitHub, or reporting something sensitive?
-       <a href="mailto:basareh@duck.com">basareh@duck.com</a> — security reports should start their
-       subject with <code>[raha security]</code> (see
-       <a href="https://github.com/Magronox/raha-browser/blob/main/SECURITY.md">SECURITY.md</a>).</p>
+       <a href="https://github.com/Magronox/raha-browser/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a>.</p>
+    <p class="dim">Security reports: <a href="https://github.com/Magronox/raha-browser/security/advisories/new">private reporting</a>
+       or email with a <code>[raha security]</code> subject
+       (<a href="https://github.com/Magronox/raha-browser/blob/main/SECURITY.md">SECURITY.md</a>).</p>
+    <p class="dim">Raha was written with agentic coding: an AI did much of the typing, a human decided what to build and ran it.</p>
   </section>
 
   <p class="back"><a href="index.html">&larr; Back to the front page</a></p>
@@ -152,10 +135,8 @@
   <p class="promise">Free as in <b><span lang="fa" dir="rtl">رها</span></b> — GPL-3.0, no ads, no tracking, yours.</p>
   <p class="fine">Code <a href="https://github.com/Magronox/raha-browser/blob/main/LICENSE">GPL-3.0-only</a> © 2026 Amir Basareh — forks stay open source.
      The Raha name and bird mark are <a href="https://github.com/Magronox/raha-browser/blob/main/TRADEMARK.md">reserved</a>.</p>
-  <p class="fine">No cookies, no analytics, no third-party anything: this page is a few static files, and every
-     request your browser makes for it goes to the one host serving it. That host (GitHub Pages) keeps ordinary
-     access logs, as any host does — nothing here adds to them.
-     <a href="https://github.com/Magronox/raha-browser/tree/main/site">See this site’s source.</a></p>
+  <p class="fine">No cookies, no analytics — static files on GitHub Pages.
+     <a href="https://github.com/Magronox/raha-browser/tree/main/site">This site’s source.</a></p>
 </footer>
 
 </body>

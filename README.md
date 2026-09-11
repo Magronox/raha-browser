@@ -140,13 +140,6 @@ contract; invariants that are enforced by tests, not vibes.
 npm run verify   # typecheck + lint + unit + UI harness + e2e — the definition of done
 ```
 
-## Support
-
-Raha is free, GPL, and has no business model — there is nothing to pay
-for, no subscription, no product. If it's been useful and you feel like
-leaving something:
-[support Raha via Venmo](https://venmo.com/u/magronox).
-
 ## License & name
 
 Code: [GPL-3.0-only](LICENSE) © 2026 Amir Basareh — forks stay open source.
