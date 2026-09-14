@@ -102,10 +102,8 @@ export function render() {
   restoreScrollTop(root, '.tree', treeScroll);
 
   // --- events
-  root.querySelector('[data-newtab]')?.addEventListener('click', () => {
-    void api.tabShowGrid();
-    document.dispatchEvent(new CustomEvent('raha:focus-omnibox'));
-  });
+  root.querySelector('[data-newtab]')?.addEventListener('click', () =>
+    document.dispatchEvent(new CustomEvent('raha:new-tab')));
   root.querySelector('[data-newfolder]')?.addEventListener('click', () => {
     void api.folderCreate('New folder', store.local.selectedFolderId);
   });

@@ -104,7 +104,9 @@ another tab already has that page (jump to it instead of opening a copy), and
 *Open in new tab → folder*, which names the folder the new tab would land in
 — `Ctrl+Enter` takes that one without arrowing down. On the grid, where no tab
 is showing, the new-tab row is the default and names the folder you're
-viewing.
+viewing. `Ctrl/⌘+T` from a showing tab opens the grid on **All tabs**, so the
+new tab lands at the top level; press it while viewing a folder's grid and the
+new tab lands in that folder.
 
 **…and it suggests as you type** — your open tabs first ("switch to tab"),
 then pages you've visited, ranked by how often and how recently. Arrows move,

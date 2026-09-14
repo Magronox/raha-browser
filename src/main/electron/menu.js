@@ -6,7 +6,7 @@ import { Menu } from 'electron';
 
 /**
  * @param {import('../core/engine.js').Engine} engine
- * @param {{ focusOmnibox: () => void, toggleSidebar: () => void, openHistory: () => void, openFind: () => void }} ui
+ * @param {{ focusOmnibox: () => void, newTab: () => void, toggleSidebar: () => void, openHistory: () => void, openFind: () => void }} ui
  * @param {() => void} openSettings
  */
 export function installMenu(engine, ui, openSettings) {
@@ -54,7 +54,9 @@ export function installMenu(engine, ui, openSettings) {
     {
       label: 'File',
       submenu: [
-        { label: 'New Tab', accelerator: 'CmdOrCtrl+T', click: () => { engine.tabShowGrid(); ui.focusOmnibox(); } },
+        // The UI owns the choice of folder (a tab was showing → All tabs;
+        // a folder grid was showing → that folder), so it drives the whole step.
+        { label: 'New Tab', accelerator: 'CmdOrCtrl+T', click: () => ui.newTab() },
         { label: 'Close Tab', accelerator: 'CmdOrCtrl+W', click: closeTab },
         { label: 'Reopen Closed Tab', accelerator: 'CmdOrCtrl+Shift+T', click: () => engine.tabReopen() },
         { type: /** @type {const} */ ('separator') },

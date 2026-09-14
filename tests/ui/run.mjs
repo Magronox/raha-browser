@@ -555,6 +555,47 @@ await t('omnibox actions: with a tab showing, "Open here" is the default — Ent
   await pump();
 });
 
+await t('new tab (Cmd/Ctrl+T): from a showing tab the grid opens on All tabs, not the last-viewed folder', async () => {
+  const research = must(mock.engine.snapshot().folders.find((f) => f.name === 'Research'), 'seeded folder');
+  // View the Research grid, then show a root-level tab: the sidebar still remembers Research.
+  await page.click(`#sidebar [data-open-folder="${research.id}"]`);
+  await pump();
+  const made = ok(mock.engine.tabCreate({ url: 'https://newtab-from-tab.example/', activate: true }));
+  await pump();
+  await page.evaluate(([c]) => /** @type {any} */ (window).__rahaEmit(c, {}), [EVENT.newTab]);
+  await pump();
+  assert(mock.engine.snapshot().activeTabId == null, 'the grid is showing');
+  const crumb = await page.$eval('.crumbs', (el) => el.textContent ?? '');
+  assert(!crumb.includes('Research'), `grid must be on All tabs, not the remembered folder: ${crumb.slice(0, 120)}`);
+  await page.fill('.omnibox', 'https://newtab-landed.example/');
+  await page.keyboard.press('Enter');
+  await pump();
+  const snap = mock.engine.snapshot();
+  const t2 = must(snap.tabs.find((x) => x.url === 'https://newtab-landed.example/'), 'new tab');
+  assert(t2.parentId === snap.rootId, 'the new tab lands in All tabs');
+  for (const id of [made.tabId, t2.id]) mock.engine.tabClose({ tabId: id });
+  mock.engine.tabShowGrid();
+  await pump();
+});
+
+await t('new tab (Cmd/Ctrl+T): already on a folder\'s grid, it stays in that folder', async () => {
+  const research = must(mock.engine.snapshot().folders.find((f) => f.name === 'Research'), 'seeded folder');
+  await page.click(`#sidebar [data-open-folder="${research.id}"]`);
+  await pump();
+  assert(mock.engine.snapshot().activeTabId == null, 'the grid is showing');
+  await page.evaluate(([c]) => /** @type {any} */ (window).__rahaEmit(c, {}), [EVENT.newTab]);
+  await pump();
+  await page.fill('.omnibox', 'https://newtab-in-folder.example/');
+  await page.keyboard.press('Enter');
+  await pump();
+  const snap = mock.engine.snapshot();
+  const t2 = must(snap.tabs.find((x) => x.url === 'https://newtab-in-folder.example/'), 'new tab');
+  assert(t2.parentId === research.id, 'the new tab lands in the folder the grid was showing');
+  mock.engine.tabClose({ tabId: t2.id });
+  mock.engine.tabShowGrid();
+  await pump();
+});
+
 await t('omnibox actions: Ctrl/⌘+Enter opens a NEW tab beside the showing tab — its folder, not the sidebar\'s', async () => {
   const proj = must(mock.engine.snapshot().folders.find((f) => f.name === 'Project Raha'), 'seeded folder');
   const research = must(mock.engine.snapshot().folders.find((f) => f.name === 'Research'), 'seeded folder');

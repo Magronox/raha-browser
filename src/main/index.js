@@ -194,6 +194,7 @@ if (!app.requestSingleInstanceLock()) {
 
     installMenu(engine, {
       focusOmnibox: () => push.focusOmnibox(),
+      newTab: () => push.newTab(),
       toggleSidebar: () => push.toggleSidebar(),
       openHistory: () => push.openHistory(),
       openFind: () => push.openFind(),

@@ -143,6 +143,7 @@ export function wireIpc(engine, uiView) {
     /** @param {{ kind: string, text: string }} t */
     pushToast(t) { send(EVENT.toast, t); },
     focusOmnibox() { send(EVENT.focusOmnibox, {}); },
+    newTab() { send(EVENT.newTab, {}); },
     toggleSidebar() { send(EVENT.toggleSidebar, {}); },
     askDefaultBrowser() { send(EVENT.askDefaultBrowser, {}); },
     openSettings() { send(EVENT.openSettings, {}); },

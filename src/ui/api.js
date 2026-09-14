@@ -117,6 +117,8 @@ export const api = {
   /** @param {() => void} h */
   onFocusOmnibox: (h) => bridge().on(EVENT.focusOmnibox, () => h()),
   /** @param {() => void} h */
+  onNewTab: (h) => bridge().on(EVENT.newTab, () => h()),
+  /** @param {() => void} h */
   onOpenSettings: (h) => bridge().on(EVENT.openSettings, () => h()),
   /** @param {() => void} h */
   onOpenHistory: (h) => bridge().on(EVENT.openHistory, () => h()),

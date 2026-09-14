@@ -118,6 +118,15 @@ async function main() {
   });
   api.onToast((t) => showToast(t));
   api.onFocusOmnibox(() => focusOmnibox());
+  // New tab (Cmd/Ctrl+T, sidebar +): from a showing tab it lands in All tabs —
+  // not whichever folder the grid last showed. Already on a folder's grid: stay.
+  const newTab = () => {
+    if (store.snap?.activeTabId != null) store.setLocal({ selectedFolderId: store.snap.rootId });
+    void api.tabShowGrid();
+    focusOmnibox();
+  };
+  api.onNewTab(newTab);
+  document.addEventListener('raha:new-tab', newTab);
   api.onOpenSettings(() => store.setLocal({ settingsOpen: true }));
   api.onOpenHistory(() => openHistory());
   api.onOpenFind(() => {

@@ -62,6 +62,7 @@ export const EVENT = {
   snapshot: 'evt:snapshot',           // full Snapshot push (state or metrics changed)
   toast: 'evt:toast',                 // {kind:'info'|'warn'|'sleep'|'download', text}
   focusOmnibox: 'evt:focusOmnibox',   // {} (keyboard shortcut routed from main)
+  newTab: 'evt:newTab',               // {} (Cmd/Ctrl+T routed from main — UI picks the folder, shows the grid, focuses the omnibox)
   openSettings: 'evt:openSettings',   // {} (menu/shortcut routed from main)
   openHistory: 'evt:openHistory',     // {} (menu/shortcut routed from main)
   openFind: 'evt:openFind',           // {} (Cmd/Ctrl+F routed from main — UI opens the find bar)
