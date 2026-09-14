@@ -3,6 +3,24 @@
 All notable changes to Raha. Format: [Keep a Changelog](https://keepachangelog.com);
 versions are tags `vX.Y.Z` (tag == package.json version, enforced by CI).
 
+## Unreleased
+
+### Changed
+- **Electron 44.2.0 → 44.3.0** (Chromium 152.0.7977.76 → .78, Node
+  unchanged at 24.20.0). Google never shipped .78 as a Chrome stable (the
+  152 line went .77 → .82), so `Sec-CH-UA-Full-Version-List` carries a
+  patch level no real Chrome sent (ADR-0012, divergence 3); the brand
+  tables are unchanged within a major.
+- **Updater's YAML parser moved to js-yaml 5.4.2** via a scoped npm
+  override (CVE-2026-59870, quadratic CPU on hostile `!!omap`, has no fix
+  on the 4.x line electron-updater declares). Only the release manifest
+  Raha fetches from its own GitHub Releases is ever parsed; the real
+  `latest-mac.yml` parses identically under 4.x and 5.x. electron-builder
+  (dev-only) stays on 4.x.
+- **⌘/Ctrl+T from a showing tab opens the grid on All tabs**, so the new
+  tab lands at the top level instead of whichever folder the sidebar last
+  remembered. On a folder's grid it still lands in that folder.
+
 ## v0.1.0 — 2026-09-10
 
 First release, on Electron 44.2.0 / Chromium 152.0.7977.76. The thesis,

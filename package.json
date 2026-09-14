@@ -38,7 +38,7 @@
     "@eslint/js": "^10.0.1",
     "@playwright/test": "1.63.0",
     "@types/node": "^26.5.1",
-    "electron": "44.2.0",
+    "electron": "44.3.0",
     "electron-builder": "^26.0.0",
     "eslint": "^10.10.0",
     "typescript": "~7.0.2"
@@ -47,5 +47,10 @@
     "@ghostery/adblocker": "2.18.2",
     "electron-updater": "6.8.9"
   },
-  "funding": "https://venmo.com/u/magronox"
+  "funding": "https://venmo.com/u/magronox",
+  "overrides": {
+    "electron-updater": {
+      "js-yaml": "5.4.2"
+    }
+  }
 }
