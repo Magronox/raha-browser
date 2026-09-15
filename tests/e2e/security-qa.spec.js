@@ -285,6 +285,16 @@ async function answerAsk(decision) {
 /** Log lines the QA page wrote containing `text`. @param {import('playwright').Page} qa @param {string} text */
 const logLines = (qa, text) => qa.locator('#log span', { hasText: text });
 
+test('P6: passkeys are reported unsupported, so sign-in pages fall back instead of hanging', async () => {
+  // A WebAuthn request Raha cannot serve never settles (Electron has no
+  // cross-device UI; Touch ID needs the signed build) — so the API is off at
+  // the Chromium level (src/main/index.js) and sites must see NO passkey
+  // support. The rest of navigator.credentials stays.
+  const qa = await contentPage('/security-qa.html');
+  expect(await qa.evaluate(() => 'PublicKeyCredential' in window)).toBe(false);
+  expect(await qa.evaluate(() => typeof window.navigator.credentials)).toBe('object');
+});
+
 test('P5: an undecided site reads as denied to a mere check, and a check never asks', async () => {
   const qa = await contentPage('/security-qa.html');
   await qa.click(`button[onclick="permQuery('geolocation')"]`);

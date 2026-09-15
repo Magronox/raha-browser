@@ -213,6 +213,11 @@ subdomains. First matching rule wins. A tab pinned by rule shows a faded pin.
 - **Global Privacy Control** (on) — sends `Sec-GPC: 1` + `DNT: 1`.
 - **HTTPS first** (on) — typed addresses try HTTPS; failures offer an
   explicit, clearly-labeled HTTP retry.
+- **Passkeys** — not supported yet: Raha tells sites it has no passkey
+  support, so sign-in pages offer their other methods (an authenticator app
+  push, a code, a password) instead of waiting on a passkey that cannot
+  arrive. USB security keys are included in this for now. See the roadmap
+  (R-108).
 - **Search engine** — DuckDuckGo (default), Brave, Startpage, Ecosia, Google, Bing, Kagi (Kagi needs your own Kagi account; sign in at kagi.com in a tab).
 - **App links opened without asking** — appears once you've ticked *always
   allow* on an app-link prompt (Zoom, Teams, …): one chip per link kind,

@@ -48,6 +48,21 @@ if (process.env.RAHA_NO_SANDBOX === '1') {
   }
 }
 
+// Passkeys (WebAuthn) are switched OFF at the Chromium level until Raha can
+// actually serve a request. Measured on Electron 44.3.0 / macOS (2026-09-15,
+// bare Electron behaves the same): navigator.credentials.get() for a phone
+// passkey (the "hybrid" QR flow Microsoft Entra / Purdue login uses) and
+// create() for a platform passkey never settle — not even after the
+// request's own timeout — because Electron has no QR/cross-device UI and
+// Touch ID needs the signed-build keychain entitlement (R-108). A sign-in
+// page that awaits that promise shows a spinner forever. With the blink
+// feature off, `PublicKeyCredential` is undefined: sites feature-detect "no
+// passkeys here" and offer their other methods instead. Cost: USB security
+// keys are off too. Revisit when signing lands (Touch ID tier) — then this
+// becomes a setting, not a constant. navigator.credentials itself stays
+// (password/federated credential APIs are unaffected).
+app.commandLine.appendSwitch('disable-blink-features', 'WebAuth');
+
 registerRahaScheme();
 
 // External links (Raha as default browser). macOS delivers them via

@@ -5,6 +5,16 @@ versions are tags `vX.Y.Z` (tag == package.json version, enforced by CI).
 
 ## Unreleased
 
+### Fixed
+- **Sign-in pages no longer hang on "use a passkey"**. Microsoft Entra
+  (e.g. Purdue login) offers a passkey via Microsoft Authenticator; in Raha
+  the request never completed and the page spun forever, because Electron
+  has no cross-device (QR) passkey UI and Touch ID passkeys need a signed
+  build (R-108). Raha now reports no passkey support at all
+  (`PublicKeyCredential` is absent), so such pages fall back to their other
+  methods (Authenticator push, Duo, password). USB security keys are off as
+  part of this; they return with the signed-build passkey work.
+
 ### Changed
 - **Electron 44.2.0 → 44.3.0** (Chromium 152.0.7977.76 → .78, Node
   unchanged at 24.20.0). Google never shipped .78 as a Chrome stable (the

@@ -144,6 +144,17 @@ source of what's next, issues track execution (R-125).
   on an Intel build). What is left is human: enrolment, the certificate, and
   the six secrets/variables listed in `docs/PLAYBOOKS/release.md`. Windows
   signing is still untouched.
+  **Passkeys (2026-09-15):** WebAuthn is disabled at the Chromium level
+  (`--disable-blink-features=WebAuth`, `src/main/index.js`) because a
+  request Raha cannot serve never settles and sign-in pages hang (measured:
+  hybrid/QR `get()` and platform `create()` on Electron 44.3.0, bare
+  Electron identical; `configureWebAuthn` does not make
+  `isUserVerifyingPlatformAuthenticatorAvailable()` true in an unsigned dev
+  run — the entitlement is required). Once signing lands: Touch ID tier via
+  `app.configureWebAuthn` + the `select-webauthn-account` picker
+  (`src/shared/webauthn.js` draft), and this flag becomes a setting so USB
+  security keys can be turned back on. The cross-device (phone QR) flow is
+  a `//chrome`-layer UI Electron does not ship — out of reach.
 - **R-119 Password manager: save prompts + autofill.** Offer to save
   credentials after a login-form submission (Save / Never for this site /
   Not now) and fill them on the next visit; a "Saved passwords" section in

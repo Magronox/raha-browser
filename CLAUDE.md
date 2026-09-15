@@ -29,7 +29,7 @@ CI as "the task is not finished", never as "flaky infra".
 > **Current state (2026-09-10).** The repository's history begins at a
 > single snapshot commit of the audited tree (`docs/PLAYBOOKS/first-push.md`).
 > Running Electron 44.2.0 / Chromium 152.0.7977.76 (macOS 13+). Suite: **366 unit / 49
-> ui-harness / 48 e2e**. The 2026-07 security audit
+> ui-harness / 49 e2e**. The 2026-07 security audit
 > (`docs/SECURITY-AUDIT-2026-07.md`) is in; its commit references predate
 > the public history and do not resolve here. There is deliberately **no
 > tag and no GitHub release yet** — v0.1.0 gets cut from green `main` by
