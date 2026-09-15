@@ -3,7 +3,7 @@
 All notable changes to Raha. Format: [Keep a Changelog](https://keepachangelog.com);
 versions are tags `vX.Y.Z` (tag == package.json version, enforced by CI).
 
-## Unreleased
+## v0.2.0 — 2026-09-15
 
 ### Fixed
 - **Sign-in pages no longer hang on "use a passkey"**. Microsoft Entra
