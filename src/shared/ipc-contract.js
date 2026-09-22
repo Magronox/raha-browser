@@ -69,6 +69,7 @@ export const EVENT = {
   openSettings: 'evt:openSettings',   // {} (menu/shortcut routed from main)
   openHistory: 'evt:openHistory',     // {} (menu/shortcut routed from main)
   openDownloads: 'evt:openDownloads', // {} (menu/shortcut routed from main) — the Downloads panel (R-106)
+  openPalette: 'evt:openPalette',     // {} (menu/shortcut routed from main) — the command palette (R-111)
   openFind: 'evt:openFind',           // {} (Cmd/Ctrl+F routed from main — UI opens the find bar)
   findResult: 'evt:findResult',       // {tabId, matches, activeMatchOrdinal} final result of a find:start
   toggleSidebar: 'evt:toggleSidebar', // {} (Cmd/Ctrl+B routed from main — UI owns the state)

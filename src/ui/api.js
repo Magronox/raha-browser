@@ -133,6 +133,8 @@ export const api = {
   /** @param {() => void} h */
   onOpenDownloads: (h) => bridge().on(EVENT.openDownloads, () => h()),
   /** @param {() => void} h */
+  onOpenPalette: (h) => bridge().on(EVENT.openPalette, () => h()),
+  /** @param {() => void} h */
   onOpenFind: (h) => bridge().on(EVENT.openFind, () => h()),
   /** @param {(r: { tabId: string, matches: number, activeMatchOrdinal: number }) => void} h */
   onFindResult: (h) => bridge().on(EVENT.findResult, /** @type {(p: unknown) => void} */ (h)),

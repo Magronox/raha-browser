@@ -498,3 +498,21 @@ img { -webkit-user-drag: none; }
   content: ''; position: absolute; right: 4px; top: 4px; width: 6px; height: 6px; border-radius: 50%;
   background: var(--accent);
 }
+
+/* ---------- command palette (R-111) ---------- */
+.modal.palette { top: 18%; transform: translate(-50%, 0); width: min(560px, 92vw); padding: 8px; }
+.palette-input { width: 100%; font-size: 15px; padding: 10px 12px; box-sizing: border-box; }
+.palette-list { display: flex; flex-direction: column; gap: 1px; margin-top: 6px; max-height: 52vh; overflow-y: auto; }
+.palette-row {
+  display: grid; grid-template-columns: 18px 1fr auto; align-items: center; gap: 10px;
+  padding: 7px 10px; border: 0; border-radius: var(--radius-s); background: transparent; color: var(--text);
+  font: inherit; text-align: left; cursor: pointer;
+}
+.palette-row:hover { background: var(--bg-hover); }
+.palette-row.sel { background: var(--bg-hover); box-shadow: inset 2px 0 0 var(--accent); }
+.palette-kind { color: var(--text-dim); display: inline-flex; }
+.palette-kind svg { width: 14px; height: 14px; }
+.palette-title { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.palette-sub { color: var(--text-dim); font-size: 11px; white-space: nowrap; max-width: 40%; overflow: hidden; text-overflow: ellipsis; }
+.palette-empty { padding: 14px 10px; color: var(--text-dim); font-size: 13px; }
+.palette-hint { margin-top: 6px; padding: 0 10px 4px; color: var(--text-dim); font-size: 11px; display: flex; gap: 6px; align-items: center; }

@@ -326,6 +326,11 @@ source of what's next, issues track execution (R-125).
   rules as JSON.
 - **R-110 Virtualized sidebar/grid** for 1000+ tabs.
 - **R-111 Command palette** (Ctrl+K): fuzzy jump to tab/folder, actions.
+  *Delivered 2026-09-22:* `src/shared/palette.js` (pure item list + a
+  subsequence ranker: word starts, consecutive runs and title prefixes win;
+  the active tab is never listed; tab-only actions hide on the grid) with
+  unit tests; `src/ui/render/palette.js` modal (↑/↓/Enter/click, Esc),
+  `evt:openPalette` from the menu accelerator, ui-harness scenario.
 - **R-112 Session snapshots.** Named saves of the whole tree ("Monday
   research"), restorable; export/import JSON.
 - **R-113 Tab search across titles/urls** in the omnibox dropdown (local only).

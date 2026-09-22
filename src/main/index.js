@@ -226,6 +226,7 @@ if (!app.requestSingleInstanceLock()) {
       toggleSidebar: () => push.toggleSidebar(),
       openHistory: () => push.openHistory(),
       openDownloads: () => push.openDownloads(),
+      openPalette: () => push.openPalette(),
       openFind: () => push.openFind(),
     }, () => push.openSettings());
 

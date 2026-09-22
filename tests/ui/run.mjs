@@ -533,7 +533,7 @@ await t('downloads panel (R-106): toolbar button + list, progress, cancel, open/
   assert((await page.$('#topbar [data-act="downloads"].busy')) !== null, 'toolbar download button shows activity');
   await page.click('[data-act="downloads"]');
   await page.waitForSelector('.modal.downloads .dl-row[data-dl="dl_a"] progress');
-  let meta = await page.$eval('.dl-row[data-dl="dl_a"] .dl-meta', (el) => el.textContent ?? '');
+  const meta = await page.$eval('.dl-row[data-dl="dl_a"] .dl-meta', (el) => el.textContent ?? '');
   assert(meta.startsWith('512 B of 2.0 KB'), `progress text: ${meta}`);
   assert((await page.$('.dl-row[data-dl="dl_a"] [data-dl-act="open"]')) === null, 'no Open while in progress');
   // Cancel goes to the adapter handle; the adapter then reports the state.
@@ -566,6 +566,47 @@ await t('downloads panel (R-106): toolbar button + list, progress, cancel, open/
   await pump();
   assert((await page.$('.modal.downloads')) === null, 'Escape closes the panel');
   assert((await page.$('#topbar [data-act="downloads"].busy')) === null, 'no activity dot when nothing is in progress');
+});
+
+await t('command palette (R-111): opens focused, ranks tabs/folders/actions, arrows + Enter jump to a tab, an action runs, Escape closes', async () => {
+  const open = () => page.evaluate(([c]) => /** @type {any} */ (window).__rahaEmit(c, {}), [EVENT.openPalette]); // the menu's path
+  await open();
+  await page.waitForSelector('.modal.palette input.palette-input');
+  assert(await page.evaluate(() => document.activeElement?.classList.contains('palette-input')), 'input focused on open');
+  // Empty query: tree order — a tab first, then folders, then actions.
+  const kindsAtStart = await page.$$eval('.palette-row', (els) => els.map((e) => e.querySelector('.palette-sub')?.textContent ?? ''));
+  assert(kindsAtStart.length > 0, 'rows listed');
+  // Type: the Wikipedia tab ranks first for "wiki"; Enter activates it (wakes if asleep).
+  const wiki = seeded.wiki;
+  await page.type('.palette-input', 'wiki');
+  await page.waitForSelector('.palette-row.sel');
+  const first = await page.$eval('.palette-row.sel .palette-title', (el) => el.textContent ?? '');
+  assert(first.includes('Working memory'), `first row for "wiki": ${first}`);
+  await page.keyboard.press('Enter');
+  await pump();
+  assert(mock.engine.snapshot().activeTabId === wiki, 'Enter activated the wiki tab');
+  assert((await page.$('.modal.palette')) === null, 'palette closed after running');
+  // An action: "sleep all" through the palette; arrow keys move the cursor.
+  await open();
+  await page.waitForSelector('.modal.palette input.palette-input');
+  await page.type('.palette-input', 'sleep');
+  await page.waitForSelector('.palette-row.sel');
+  await page.keyboard.press('ArrowDown');
+  const second = await page.$eval('.palette-row.sel .palette-title', (el) => el.textContent ?? '');
+  assert(second === 'Sleep all tabs', `ArrowDown selects the next row: ${second}`);
+  await page.keyboard.press('Enter');
+  await pump();
+  assert(mock.engine.snapshot().stats.runningCount === 0, 'Sleep all ran');
+  // Escape closes without doing anything.
+  await open();
+  await page.waitForSelector('.modal.palette');
+  await page.keyboard.press('Escape');
+  await pump();
+  assert((await page.$('.modal.palette')) === null, 'Escape closed it');
+  // Leave the world as found for later scenarios: wake hn, gh.
+  mock.engine.tabActivate({ tabId: seeded.gh });
+  mock.engine.tabActivate({ tabId: seeded.hn });
+  await pump();
 });
 
 await t('settings About: shows the app version; links open as tabs, never navigate the chrome', async () => {

@@ -6,6 +6,9 @@ versions are tags `vX.Y.Z` (tag == package.json version, enforced by CI).
 ## Unreleased
 
 ### Added
+- **Command palette** (R-111). `Ctrl/⌘+K`: fuzzy-jump to any open tab or
+  folder, or run a command (new tab, sleep/freeze/pin this tab, sleep all,
+  organize, history, downloads, settings, find, toggle sidebar).
 - **Downloads panel** (R-106). Toolbar button / `Ctrl+J`: this session's
   downloads with progress, Open, Show in folder, Cancel and Clear finished.
   Session-only by design — never written to disk.

@@ -152,6 +152,7 @@ export function wireIpc(engine, uiView) {
     openSettings() { send(EVENT.openSettings, {}); },
     openHistory() { send(EVENT.openHistory, {}); },
     openDownloads() { send(EVENT.openDownloads, {}); },
+    openPalette() { send(EVENT.openPalette, {}); },
     openFind() { send(EVENT.openFind, {}); },
     /** @param {{ id: number, url: string, scheme: string|null, app: string }} r */
     askExternal(r) { send(EVENT.askExternal, { id: r.id, url: r.url, scheme: r.scheme, app: r.app }); },

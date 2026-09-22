@@ -6,7 +6,7 @@ import { Menu } from 'electron';
 
 /**
  * @param {import('../core/engine.js').Engine} engine
- * @param {{ focusOmnibox: () => void, newTab: () => void, toggleSidebar: () => void, openHistory: () => void, openDownloads: () => void, openFind: () => void }} ui
+ * @param {{ focusOmnibox: () => void, newTab: () => void, toggleSidebar: () => void, openHistory: () => void, openDownloads: () => void, openPalette: () => void, openFind: () => void }} ui
  * @param {() => void} openSettings
  */
 export function installMenu(engine, ui, openSettings) {
@@ -77,6 +77,7 @@ export function installMenu(engine, ui, openSettings) {
         { id: 'toggle-sidebar', label: 'Toggle Sidebar', accelerator: 'CmdOrCtrl+Shift+B', click: () => ui.toggleSidebar() },
         { label: 'History', accelerator: process.platform === 'darwin' ? 'Cmd+Y' : 'Ctrl+H', click: () => ui.openHistory() },
         { id: 'downloads', label: 'Downloads', accelerator: 'CmdOrCtrl+J', click: () => ui.openDownloads() },
+        { id: 'palette', label: 'Command Palette…', accelerator: 'CmdOrCtrl+K', click: () => ui.openPalette() },
         { type: /** @type {const} */ ('separator') },
         { label: 'Reload', accelerator: 'CmdOrCtrl+R', click: withActive((id) => engine.navOp({ tabId: id }, 'reload')) },
         { label: 'Hard Reload (ignore cache)', accelerator: 'CmdOrCtrl+Shift+R', click: withActive((id) => engine.navOp({ tabId: id }, 'hardReload')) },

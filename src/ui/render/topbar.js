@@ -92,7 +92,7 @@ let suggestSeq = 0;
 /** Overlay the modals need — the dropdown must not lower the chrome under one. */
 function modalOverlayUp() {
   const l = store.local;
-  return l.settingsOpen || l.historyOpen || l.downloadsOpen || l.organizeOpen
+  return l.settingsOpen || l.historyOpen || l.downloadsOpen || l.paletteOpen || l.organizeOpen
     || Boolean(l.limitPromptId) || l.defaultBrowserAsk || Boolean(l.externalAsk) || Boolean(l.permissionAsk) || Boolean(store.snap?.runaway);
 }
 

@@ -73,6 +73,10 @@ by the cap/idle/budget rules (turn off in Settings if you want).
 and hit the moon. Whole folder: right-click → *Sleep all tabs inside*.
 Everything: `Ctrl+Shift+A`.
 
+**Jump anywhere** — `Ctrl+K` opens the command palette: type a few letters
+of a tab's title or site, a folder name, or a command (*sleep all*,
+*settings*, *freeze*…), arrow to it, Enter. Picking a sleeping tab wakes it.
+
 **Downloads** — the arrow button in the toolbar (`Ctrl+J`) lists what you
 downloaded this session: progress, *Open*, *Show in folder*, *Cancel*. A dot
 on the button means something is still coming in. The list is not saved —
@@ -295,6 +299,7 @@ are Chromium's session data alongside it).
 | Toggle sidebar | `Ctrl+Shift+B` | `⌘⇧B` |
 | History | `Ctrl+H` | `⌘Y` |
 | Downloads | `Ctrl+J` | `⌘J` |
+| Command palette (jump to any tab or folder, run a command) | `Ctrl+K` | `⌘K` |
 | Hard reload (ignore cache) | `Ctrl+Shift+R` | `⌘⇧R` |
 | Cycle running tabs | `Ctrl+Tab` / `Ctrl+Shift+Tab` | same |
 | Jump to Nth running tab (9 = last) | `Ctrl+1…9` | `⌘1…9` |
