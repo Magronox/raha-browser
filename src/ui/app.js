@@ -5,6 +5,7 @@ import { store } from './store.js';
 import { SIDEBAR_WIDTH, TOPBAR_HEIGHT, LIVEBAR_HEIGHT } from '../shared/layout.js';
 import { initTopbar, render as renderTopbar, focusOmnibox, focusFind, setFindResult } from './render/topbar.js';
 import { initSidebar, render as renderSidebar } from './render/sidebar.js';
+import { initPreview } from './render/preview.js';
 import { initLivebar, render as renderLivebar } from './render/livebar.js';
 import { initGrid, render as renderGrid } from './render/grid.js';
 import { initSettings, render as renderSettings } from './render/settings.js';
@@ -28,6 +29,7 @@ async function main() {
 
   initTopbar(mustGet('topbar'));
   initSidebar(mustGet('sidebar'));
+  initPreview(mustGet('sidebar')); // R-105 hover preview, delegated on the sidebar
   initLivebar(mustGet('livebar'));
   initGrid(mustGet('content'));
   initSettings(mustGet('settings'));

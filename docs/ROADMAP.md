@@ -134,6 +134,12 @@ source of what's next, issues track execution (R-125).
   R-127 (freeze), delivered 2026-09-16.
 - **R-105 Wake-preview hover.** Hovering an asleep tab shows its thumbnail
   large without waking. AC: ui-harness test.
+  *Delivered 2026-09-22:* rest the pointer 400 ms on an asleep or frozen
+  sidebar row and `#preview` (`src/ui/render/preview.js`) shows the stored
+  thumbnail + title + host inside the sidebar's width (never over the page
+  view, so no chrome-raise). Hides on leave, click, drag, scroll, or when
+  the tab's state changes; no thumbnail = no card; live tabs never preview
+  (their thumb is stale). ui-harness scenario.
 - **R-106 History & downloads pages.** raha://history from a local (opt-in)
   history store; raha://downloads listing session downloads. AC: history off
   by default (privacy), searchable when on.

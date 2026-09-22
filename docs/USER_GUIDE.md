@@ -73,6 +73,10 @@ by the cap/idle/budget rules (turn off in Settings if you want).
 and hit the moon. Whole folder: right-click → *Sleep all tabs inside*.
 Everything: `Ctrl+Shift+A`.
 
+**Peek before you wake** — rest the pointer on a sleeping or frozen tab in
+the sidebar and a preview of the page appears under it. Nothing wakes; move
+away and it's gone.
+
 **Keep something alive** — the pin icon in the toolbar, `Ctrl+Shift+K`, or
 right-click → *Keep alive*. Pinned tabs survive the cap, idle, and budget —
 only their own per-tab limit can sleep them.

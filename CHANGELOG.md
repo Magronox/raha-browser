@@ -6,6 +6,8 @@ versions are tags `vX.Y.Z` (tag == package.json version, enforced by CI).
 ## Unreleased
 
 ### Added
+- **Wake preview** (R-105). Rest the pointer on a sleeping or frozen tab in
+  the sidebar and a preview of the page appears — without waking it.
 - **Spellcheck** (R-118). Text fields are checked again — with the system
   dictionary on macOS (offline; right-click a red word for corrections or
   *Add to Dictionary*). Windows/Linux stay off by default because Chromium

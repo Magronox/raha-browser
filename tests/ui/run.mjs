@@ -178,6 +178,33 @@ await t('sleep button on a live chip sleeps the tab', async () => {
   assert(state === 'asleep', `state=${state}`);
 });
 
+await t('wake-preview hover (R-105): resting on an asleep row shows its thumbnail without waking; leaving hides it; running rows never preview', async () => {
+  const music = seeded.music;
+  assert(mock.engine.snapshot().tabs.find((x) => x.id === music)?.state === 'asleep', 'music asleep');
+  const before = mock.engine.snapshot().stats.runningCount;
+  await page.hover(`#sidebar .row[data-id="${music}"] .name`);
+  assert((await page.$('#preview:not([hidden])')) === null, 'nothing before the hover delay');
+  await page.waitForSelector('#preview:not([hidden]) img.thumb', { timeout: 3000 });
+  const src = await page.$eval('#preview img.thumb', (el) => /** @type {HTMLImageElement} */ (el).getAttribute('src') ?? '');
+  assert(src.includes(encodeURIComponent(music)), `preview shows this tab's thumbnail: ${src}`);
+  const meta = await page.$eval('#preview .preview-url', (el) => el.textContent ?? '');
+  assert(meta.includes('asleep'), `meta says asleep: ${meta}`);
+  assert(mock.engine.snapshot().stats.runningCount === before, 'hover did not wake it');
+  assert(mock.engine.snapshot().tabs.find((x) => x.id === music)?.state === 'asleep', 'still asleep');
+  // The card fits inside the sidebar: it must never spill under the page view.
+  const box = await page.$eval('#preview', (el) => el.getBoundingClientRect().right);
+  assert(box <= 264, `preview stays within the sidebar width: right=${box}`);
+  // Leaving the row hides it.
+  await page.hover('.omnibox');
+  await page.waitForSelector('#preview[hidden]', { state: 'attached', timeout: 3000 });
+  // A running row has a live page, not a stale thumbnail: no preview.
+  const running = must(mock.engine.snapshot().tabs.find((x) => x.state === 'running' || x.state === 'active'), 'a live tab');
+  await page.hover(`#sidebar .row[data-id="${running.id}"] .name`);
+  await page.waitForTimeout(700);
+  assert((await page.$('#preview:not([hidden])')) === null, 'no preview for a live tab');
+  await page.hover('.omnibox');
+});
+
 await t('omnibox Enter navigates the active tab through the engine', async () => {
   await page.click('.omnibox');
   await page.fill('.omnibox', 'example.com/path');
