@@ -13,6 +13,7 @@
 import { isNavigableUrl } from './urls.js';
 
 const SELECTION_LABEL_MAX = 30;
+const SPELL_SUGGESTIONS_MAX = 5;
 
 /**
  * @typedef {{ id?: string, label?: string, enabled?: boolean, role?: string, type?: 'separator' }} PageMenuItem
@@ -20,7 +21,8 @@ const SELECTION_LABEL_MAX = 30;
 
 /**
  * @param {{ linkURL?: string, srcURL?: string, mediaType?: string,
- *           selectionText?: string, isEditable?: boolean }} params
+ *           selectionText?: string, isEditable?: boolean,
+ *           misspelledWord?: string, dictionarySuggestions?: string[] }} params
  *        subset of Electron's context-menu params (all page-controlled!)
  * @param {{ canGoBack: boolean, canGoForward: boolean, devMode: boolean, canClearSiteData?: boolean }} caps
  * @returns {PageMenuItem[]}
@@ -48,6 +50,17 @@ export function buildPageMenuTemplate(params, caps) {
   }
 
   if (params.isEditable) {
+    // Spellcheck (R-118): the checker's suggestions first, Chrome-style.
+    // Page-controlled strings too — they only ever become menu labels.
+    const word = str(params.misspelledWord);
+    if (word) {
+      const suggestions = (Array.isArray(params.dictionarySuggestions) ? params.dictionarySuggestions : [])
+        .filter((x) => typeof x === 'string' && x).slice(0, SPELL_SUGGESTIONS_MAX);
+      if (suggestions.length === 0) items.push({ id: 'spell-none', label: 'No Guesses Found', enabled: false });
+      for (const [i, sug] of suggestions.entries()) items.push({ id: `spell-${i}`, label: sug });
+      items.push({ id: 'spell-add', label: 'Add to Dictionary' });
+      items.push({ type: 'separator' });
+    }
     items.push({ role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'selectAll' });
     items.push({ type: 'separator' });
   } else if (selection) {

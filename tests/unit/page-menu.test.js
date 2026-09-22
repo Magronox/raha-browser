@@ -75,3 +75,15 @@ test('clear-site-data appears only when the page can meaningfully have data', ()
   const without = buildPageMenuTemplate({}, CAPS); // raha:// pages etc.
   assert.deepEqual(ids(without), ['back', 'forward', 'reload']);
 });
+
+test('spellcheck (R-118): misspelled word in an editable field lists up to 5 suggestions + Add to Dictionary; no guesses = one disabled line', () => {
+  const items = buildPageMenuTemplate({ isEditable: true, misspelledWord: 'teh', dictionarySuggestions: ['the', 'tech', 'ten', 'tea', 'tee', 'tel'] }, CAPS);
+  assert.deepEqual(ids(items).slice(0, 7), ['spell-0', 'spell-1', 'spell-2', 'spell-3', 'spell-4', 'spell-add', 'separator']);
+  assert.equal(items[0].label, 'the');
+  const none = buildPageMenuTemplate({ isEditable: true, misspelledWord: 'xqzv', dictionarySuggestions: [] }, CAPS);
+  assert.deepEqual(ids(none).slice(0, 3), ['spell-none', 'spell-add', 'separator']);
+  assert.equal(none[0].enabled, false);
+  // Not editable, or no misspelling: nothing spelling-related.
+  assert.ok(!ids(buildPageMenuTemplate({ isEditable: true }, CAPS)).some((i) => String(i).startsWith('spell')));
+  assert.ok(!ids(buildPageMenuTemplate({ misspelledWord: 'teh', dictionarySuggestions: ['the'] }, CAPS)).some((i) => String(i).startsWith('spell')));
+});

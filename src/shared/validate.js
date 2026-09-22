@@ -6,7 +6,7 @@
 // list of human-readable problems for logging. Persistence must only ever
 // write objects that came out of this function.
 
-import { defaultSettings, RANGES, SEARCH_ENGINES, SETTINGS_SCHEMA_VERSION } from './defaults.js';
+import { defaultSettings, RANGES, SEARCH_ENGINES, SPELLCHECK_MODES, SETTINGS_SCHEMA_VERSION } from './defaults.js';
 import { classifyExternal, schemeOf } from './external.js';
 import { isPermissionKind, isPermissionDecision, SITE_PERMISSIONS_CAP } from './permissions.js';
 
@@ -51,6 +51,10 @@ export function validateSettings(raw) {
     ? /** @type {import('./defaults.js').RahaSettings['searchEngine']} */ (o.searchEngine)
     : (o.searchEngine !== undefined ? (problems.push(`settings.searchEngine: unknown '${String(o.searchEngine)}', using ${d.searchEngine}`), d.searchEngine) : d.searchEngine);
 
+  const spellcheck = typeof o.spellcheck === 'string' && /** @type {readonly string[]} */ (SPELLCHECK_MODES).includes(o.spellcheck)
+    ? /** @type {import('./defaults.js').RahaSettings['spellcheck']} */ (o.spellcheck)
+    : (o.spellcheck !== undefined ? (problems.push(`settings.spellcheck: unknown '${String(o.spellcheck)}', using ${d.spellcheck}`), d.spellcheck) : d.spellcheck);
+
   return {
     value: {
       schemaVersion: SETTINGS_SCHEMA_VERSION,
@@ -73,6 +77,7 @@ export function validateSettings(raw) {
       sitePermissions: validateSitePermissions(o.sitePermissions, problems),
       restorePageState: bool('restorePageState'),
       searchEngine: engine,
+      spellcheck,
       rules: validateRules(o.rules, problems),
     },
     problems,

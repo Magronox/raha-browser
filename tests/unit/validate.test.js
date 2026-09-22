@@ -33,6 +33,15 @@ test('validateSettings: unknown search engine falls back', () => {
   assert.equal(value.searchEngine, 'duckduckgo');
 });
 
+test('validateSettings: spellcheck (R-118) — unknown falls back to system, valid preserved', () => {
+  assert.equal(validateSettings({ spellcheck: 'sometimes' }).value.spellcheck, 'system');
+  assert.equal(validateSettings({ spellcheck: 7 }).value.spellcheck, 'system');
+  assert.equal(validateSettings({}).value.spellcheck, 'system');
+  assert.equal(validateSettings({ spellcheck: 'on' }).value.spellcheck, 'on');
+  assert.equal(validateSettings({ spellcheck: 'off' }).value.spellcheck, 'off');
+  assert.deepEqual(validateSettings({ spellcheck: 'off' }).problems, []);
+});
+
 test('validateSettings: recordHistory — garbage falls back to default (true), valid preserved', () => {
   assert.equal(validateSettings({ recordHistory: 'yes' }).value.recordHistory, defaultSettings().recordHistory);
   assert.equal(defaultSettings().recordHistory, true);

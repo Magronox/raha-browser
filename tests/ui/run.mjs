@@ -393,6 +393,24 @@ await t('freeze: runaway CPU prompt — Freeze leaves the tab frozen and closes 
   await pump();
 });
 
+await t('settings: spellcheck select (R-118) writes through and survives a re-render', async () => {
+  await page.click('[data-act="settings"]');
+  await page.waitForSelector('.modal.settings select[data-set-str="spellcheck"]');
+  assert(mock.engine.settings.spellcheck === 'system', 'default is system');
+  await page.$eval('select[data-set-str="spellcheck"]', (el) => {
+    const sel = /** @type {HTMLSelectElement} */ (el);
+    sel.value = 'off';
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  await pump();
+  assert(mock.engine.settings.spellcheck === 'off', `spellcheck: ${mock.engine.settings.spellcheck}`);
+  mock.engine.tick(); await pump();
+  assert((await page.$eval('select[data-set-str="spellcheck"]', (el) => /** @type {HTMLSelectElement} */ (el).value)) === 'off', 'select shows the stored value after a tick');
+  mock.engine.settingsSet({ spellcheck: 'system' });
+  await page.keyboard.press('Escape');
+  await pump();
+});
+
 await t('context menu appears on right-click with tab actions', async () => {
   await page.click(`#sidebar .row[data-id="${seeded.gh}"] .name`, { button: 'right' });
   await pump();

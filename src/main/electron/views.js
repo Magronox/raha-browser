@@ -49,13 +49,11 @@ export function createViewsPort(windowHost) {
           sandbox: true,
           contextIsolation: true,
           nodeIntegration: false,
-          // Electron defaults this to true, and on Windows/Linux Chromium then
-          // fetches Hunspell dictionaries from Google's servers on first use —
-          // app-initiated network traffic, which invariant #6 says we do not
-          // do. macOS would use the native checker with no download, but a
-          // browser whose spellchecking depends on your OS is worse than one
-          // without it. Restoring it without the network is ROADMAP R-118.
-          spellcheck: false,
+          // Spellcheck (R-118) is governed per SESSION by applySpellcheck
+          // (privacy.js) from the `spellcheck` setting — off by default
+          // anywhere it would download a dictionary. This flag only says the
+          // view is allowed to take part; it decides nothing on its own.
+          spellcheck: true,
         },
       });
       const wc = view.webContents;

@@ -13,7 +13,7 @@ import { createMetricsPort } from './electron/metrics.js';
 import { createPersistPort } from './electron/persist.js';
 import { createImportersPort } from './electron/import-history.js';
 import { createTabImportersPort } from './electron/import-tabs.js';
-import { hardenWebSession, configureChromeIdentity } from './electron/privacy.js';
+import { hardenWebSession, configureChromeIdentity, applySpellcheck } from './electron/privacy.js';
 import { loadBlockerEngines } from './electron/blocker.js';
 import { wireIpc } from './electron/ipc.js';
 import { installMenu } from './electron/menu.js';
@@ -105,6 +105,8 @@ if (!app.requestSingleInstanceLock()) {
 
     /** @type {ReturnType<typeof wireIpc>} */
     let push; // assigned right after engine construction; events queue via microtask
+    /** @type {() => void} session-side settings mirror; bound once the web session exists */
+    let applySettings = () => {};
 
     const engine = new Engine({
       views: viewsPort,
@@ -127,7 +129,7 @@ if (!app.requestSingleInstanceLock()) {
       onEvent: (evt) => {
         queueMicrotask(() => {
           if (!push) return;
-          if (evt.type === 'snapshot') push.pushSnapshot();
+          if (evt.type === 'snapshot') { push.pushSnapshot(); applySettings(); }
           else if (evt.type === 'toast') push.pushToast(evt);
           else if (evt.type === 'focusOmnibox') push.focusOmnibox();
           else if (evt.type === 'findResult') push.pushFindResult(evt);
@@ -164,6 +166,10 @@ if (!app.requestSingleInstanceLock()) {
 
     // Web-content session: raha:// pages (home/error) + privacy hardening.
     const webSession = session.fromPartition(WEB_PARTITION);
+    // Settings the SESSION must mirror (R-118 spellcheck): applied now and
+    // re-checked on every snapshot, since settingsSet always emits one.
+    applySettings = () => applySpellcheck(webSession, engine.settings.spellcheck);
+    applySettings();
     installRahaProtocol(webSession, { allowThumbs: false, allowChrome: false });
 
     // Bundled filter-list engines (ADR-0009). A load failure must never

@@ -155,6 +155,12 @@ source of what's next, issues track execution (R-125).
   bundle a dictionary, use the OS checker where it is free (macOS), or make it
   an opt-in setting that states the download plainly. AC: text fields spellcheck
   again with no request Raha did not disclose.
+  *Delivered 2026-09-22:* `spellcheck` setting, `'system'` (default: macOS
+  native checker, no download; off elsewhere) / `'on'` (Windows/Linux fetch
+  a dictionary from Google once — the Settings text says so) / `'off'`.
+  Applied per session (`applySpellcheck`, privacy.js) on boot and on every
+  settings change; the page context menu offers corrections + Add to
+  Dictionary. Unit-tested (validation, platform matrix, menu template).
 - **R-117 Gate `RAHA_NO_SANDBOX` on `!app.isPackaged`.** *Delivered
   2026-08-17.* Packaged builds log and ignore the env var; dev/CI (never
   packaged) unaffected. Not a privilege boundary — anyone who can set your

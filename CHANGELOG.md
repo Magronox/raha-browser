@@ -6,6 +6,11 @@ versions are tags `vX.Y.Z` (tag == package.json version, enforced by CI).
 ## Unreleased
 
 ### Added
+- **Spellcheck** (R-118). Text fields are checked again — with the system
+  dictionary on macOS (offline; right-click a red word for corrections or
+  *Add to Dictionary*). Windows/Linux stay off by default because Chromium
+  would download a dictionary from Google; Settings → Spellcheck → *Always*
+  allows that one-time fetch and says so.
 - **Freeze — make a tab static instead of killing it** (R-127, ADR-0014).
   A frozen tab keeps its process but stops running: no CPU, no memory
   growth, the page exactly as you left it — scroll, typed text, JS state —

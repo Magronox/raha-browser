@@ -28,6 +28,7 @@ export const HISTORY_SCHEMA_VERSION = 1;
  * @property {import('./permissions.js').SitePermissions} sitePermissions  Remembered answers to per-site permission asks (R-103, ADR-0013): site host (normalized like noBlockHosts) -> kind -> 'allow'|'deny'. Undecided = ask when a page requests, "denied" to a mere check. Max 200 sites, oldest dropped. Schema v3.
  * @property {boolean} restorePageState Restore scroll position and unsaved form text when a sleeping tab wakes (R-104). Kept in the profile only — never passwords. Turning it off wipes stored state.
  * @property {'duckduckgo'|'brave'|'startpage'|'ecosia'|'google'|'bing'|'kagi'} searchEngine
+ * @property {'system'|'on'|'off'} spellcheck  R-118. 'system' (default): spellcheck only where the OS provides it with no download (macOS); 'on': everywhere — on Windows/Linux Chromium fetches a Hunspell dictionary from Google once, which the setting says in so many words; 'off': never.
  * @property {DomainRule[]} rules      Programmable per-domain policies, first match wins.
  */
 
@@ -61,6 +62,7 @@ export function defaultSettings() {
     sitePermissions: {},
     restorePageState: true,
     searchEngine: 'duckduckgo',
+    spellcheck: 'system',
     rules: [],
   };
 }
@@ -73,6 +75,9 @@ export const RANGES = {
   globalBudgetMB: [0, 65536],
   memLimitMB: [0, 16384],
 };
+
+/** Spellcheck modes (R-118), in Settings order. */
+export const SPELLCHECK_MODES = /** @type {const} */ (['system', 'on', 'off']);
 
 /** Search engine name -> URL template. %s is the encoded query. */
 export const SEARCH_ENGINES = {

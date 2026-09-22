@@ -139,6 +139,31 @@ export function alignSessionClientHints(ses) {
 }
 
 /**
+ * Spellcheck (R-118) without undisclosed traffic. macOS uses the OS checker
+ * and never downloads anything; on Windows/Linux Chromium fetches a Hunspell
+ * dictionary from Google's CDN the first time the checker is enabled — so
+ * there 'system' keeps it off and only an explicit 'on' (whose Settings text
+ * says exactly that) turns it on. Idempotent: called on boot and on every
+ * snapshot, it touches the session only when the answer changes.
+ * https://www.electronjs.org/docs/latest/api/session#sessetspellcheckerenabledenable
+ * @param {Electron.Session} ses
+ * @param {import('../../shared/defaults.js').RahaSettings['spellcheck']} mode
+ * @param {NodeJS.Platform} [platform]
+ * @returns {boolean} what the checker is now set to
+ */
+export function applySpellcheck(ses, mode, platform = process.platform) {
+  const want = mode === 'on' || (mode === 'system' && platform === 'darwin');
+  const cur = spellcheckApplied.get(ses);
+  if (cur !== want) {
+    ses.setSpellCheckerEnabled(want);
+    spellcheckApplied.set(ses, want);
+  }
+  return want;
+}
+/** @type {WeakMap<Electron.Session, boolean>} */
+const spellcheckApplied = new WeakMap();
+
+/**
  * @param {Electron.Session} ses the persist:main web session
  * @param {{
  *   getSettings: () => import('../../shared/defaults.js').RahaSettings,

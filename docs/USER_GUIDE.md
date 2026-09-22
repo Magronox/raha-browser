@@ -233,6 +233,11 @@ subdomains. First matching rule wins. A tab pinned by rule shows a faded pin.
   reach: those need Apple's browser entitlement and Chrome-layer UI that no
   Electron app has.
 - **Search engine** — DuckDuckGo (default), Brave, Startpage, Ecosia, Google, Bing, Kagi (Kagi needs your own Kagi account; sign in at kagi.com in a tab).
+- **Spellcheck** — *System checker only* (default): on macOS, text fields
+  are checked with the system dictionary and right-click offers
+  corrections; nothing is downloaded. On Windows and Linux the default is
+  off, because Chromium would fetch a dictionary from Google — choose
+  *Always* to allow that one-time download, or *Off* to never check.
 - **App links opened without asking** — appears once you've ticked *always
   allow* on an app-link prompt (Zoom, Teams, …): one chip per link kind,
   click the × to make Raha ask again.

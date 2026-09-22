@@ -52,7 +52,10 @@ export function attachPageContextMenu(wc, hooks) {
         } catch { /* page navigated away mid-click */ }
       },
       inspect: () => wc.inspectElement(params.x, params.y),
+      // https://www.electronjs.org/docs/latest/api/web-contents#contentsreplacemisspellingtext
+      'spell-add': () => { if (params.misspelledWord) wc.session.addWordToSpellCheckerDictionary(params.misspelledWord); },
     };
+    (params.dictionarySuggestions ?? []).forEach((sug, i) => { actions[`spell-${i}`] = () => wc.replaceMisspelling(sug); });
 
     const template = items.map((item) => {
       if (item.type === 'separator') return { type: /** @type {const} */ ('separator') };
