@@ -6,6 +6,9 @@ versions are tags `vX.Y.Z` (tag == package.json version, enforced by CI).
 ## Unreleased
 
 ### Added
+- **Downloads panel** (R-106). Toolbar button / `Ctrl+J`: this session's
+  downloads with progress, Open, Show in folder, Cancel and Clear finished.
+  Session-only by design — never written to disk.
 - **Wake preview** (R-105). Rest the pointer on a sleeping or frozen tab in
   the sidebar and a preview of the page appears — without waking it.
 - **Spellcheck** (R-118). Text fields are checked again — with the system

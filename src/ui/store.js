@@ -13,6 +13,7 @@
  * @property {{ id: number, url: string, scheme: string|null, app: string }|null} externalAsk  pending "open this in another app?" request (routed from main); id must echo back on the answer
  * @property {import('../shared/ipc-contract.js').PermissionAsk|null} permissionAsk  the site-permission ask on screen (routed from main; null = withdrawn); id must echo back on the answer
  * @property {boolean} historyOpen
+ * @property {boolean} downloadsOpen  Downloads panel (R-106)
  * @property {string} historyQuery
  * @property {{ entries: import('../shared/history.js').HistoryEntry[], total: number }|null} historyData   pulled, not from snapshots
  * @property {import('../shared/ipc-contract.js').HistorySource[]|null} historySources  null = scan in flight
@@ -45,6 +46,7 @@ const local = {
   externalAsk: null,
   permissionAsk: null,
   historyOpen: false,
+  downloadsOpen: false,
   historyQuery: '',
   historyData: null,
   historySources: null,

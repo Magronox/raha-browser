@@ -522,6 +522,52 @@ await t('settings rule input keeps typed text across re-renders', async () => {
   await pump();
 });
 
+await t('downloads panel (R-106): toolbar button + list, progress, cancel, open/reveal via the shell port, remove, clear finished', async () => {
+  const dl = (/** @type {Partial<import('../../src/shared/ipc-contract.js').DownloadView>} */ o) => ({
+    id: 'dl_a', filename: 'paper.pdf', url: 'https://arxiv.example/paper.pdf', path: '/tmp/paper.pdf',
+    totalBytes: 2048, receivedBytes: 512, state: /** @type {const} */ ('progressing'), startedAt: 1, ...o,
+  });
+  let cancelled = 0;
+  mock.engine.downloadUpdate(dl({}), { cancel() { cancelled += 1; } });
+  await pump();
+  assert((await page.$('#topbar [data-act="downloads"].busy')) !== null, 'toolbar download button shows activity');
+  await page.click('[data-act="downloads"]');
+  await page.waitForSelector('.modal.downloads .dl-row[data-dl="dl_a"] progress');
+  let meta = await page.$eval('.dl-row[data-dl="dl_a"] .dl-meta', (el) => el.textContent ?? '');
+  assert(meta.startsWith('512 B of 2.0 KB'), `progress text: ${meta}`);
+  assert((await page.$('.dl-row[data-dl="dl_a"] [data-dl-act="open"]')) === null, 'no Open while in progress');
+  // Cancel goes to the adapter handle; the adapter then reports the state.
+  await page.click('.dl-row[data-dl="dl_a"] [data-dl-act="cancel"]');
+  await pump();
+  assert(cancelled === 1, 'cancel reached the download handle');
+  mock.engine.downloadUpdate(dl({ state: 'cancelled' }), null);
+  await pump();
+  await page.waitForSelector('.dl-row[data-dl="dl_a"].state-cancelled');
+  // A finished one: Open / Show in folder go to the shell port with its path.
+  mock.engine.downloadUpdate(dl({ id: 'dl_b', filename: 'notes.zip', path: '/tmp/notes.zip', receivedBytes: 2048, state: 'completed' }), null);
+  await pump();
+  await page.waitForSelector('.dl-row[data-dl="dl_b"] [data-dl-act="open"]');
+  const order = await page.$$eval('.dl-row', (els) => els.map((e) => /** @type {HTMLElement} */ (e).dataset.dl));
+  assert(order[0] === 'dl_b', `newest first: ${order}`);
+  await page.click('.dl-row[data-dl="dl_b"] [data-dl-act="open"]');
+  await page.click('.dl-row[data-dl="dl_b"] [data-dl-act="reveal"]');
+  await pump();
+  assert(mock.world.openedPaths.includes('/tmp/notes.zip'), 'open → shell.openPath');
+  assert(mock.world.revealedPaths.includes('/tmp/notes.zip'), 'reveal → shell.showItemInFolder');
+  // Remove one, clear the rest.
+  await page.click('.dl-row[data-dl="dl_a"] [data-dl-act="remove"]');
+  await pump();
+  assert((await page.$('.dl-row[data-dl="dl_a"]')) === null, 'removed from the list');
+  await page.click('[data-dl-clear]');
+  await pump();
+  await page.waitForSelector('.modal.downloads .mini-sub');
+  assert((await page.$('.dl-row')) === null, 'clear finished emptied the list');
+  await page.keyboard.press('Escape');
+  await pump();
+  assert((await page.$('.modal.downloads')) === null, 'Escape closes the panel');
+  assert((await page.$('#topbar [data-act="downloads"].busy')) === null, 'no activity dot when nothing is in progress');
+});
+
 await t('settings About: shows the app version; links open as tabs, never navigate the chrome', async () => {
   await page.click('[data-act="settings"]');
   await pump();

@@ -73,6 +73,11 @@ by the cap/idle/budget rules (turn off in Settings if you want).
 and hit the moon. Whole folder: right-click → *Sleep all tabs inside*.
 Everything: `Ctrl+Shift+A`.
 
+**Downloads** — the arrow button in the toolbar (`Ctrl+J`) lists what you
+downloaded this session: progress, *Open*, *Show in folder*, *Cancel*. A dot
+on the button means something is still coming in. The list is not saved —
+when Raha quits it is gone; the files stay where you put them.
+
 **Peek before you wake** — rest the pointer on a sleeping or frozen tab in
 the sidebar and a preview of the page appears under it. Nothing wakes; move
 away and it's gone.
@@ -289,6 +294,7 @@ are Chromium's session data alongside it).
 | Grid / home | `Ctrl+E` | `⌘E` |
 | Toggle sidebar | `Ctrl+Shift+B` | `⌘⇧B` |
 | History | `Ctrl+H` | `⌘Y` |
+| Downloads | `Ctrl+J` | `⌘J` |
 | Hard reload (ignore cache) | `Ctrl+Shift+R` | `⌘⇧R` |
 | Cycle running tabs | `Ctrl+Tab` / `Ctrl+Shift+Tab` | same |
 | Jump to Nth running tab (9 = last) | `Ctrl+1…9` | `⌘1…9` |

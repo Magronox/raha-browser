@@ -57,6 +57,7 @@ export const INVOKE = {
   runawayResolve: 'runaway:resolve',  // ({tabId, action: 'sleep'|'freeze'|'snooze'}) -> {ok}   answer the runaway-tab prompt
   permissionAnswer: 'permission:answer', // ({id, decision: 'once'|'always'|'never'|'dismiss'}) -> {ok}|{error}  answer the site-permission ask `id` names (stale id = error, nothing granted); always/never persist per kind under the site
   permissionForget: 'permission:forget', // ({host, kind?}) -> {ok}|{error}  drop a remembered decision (one kind, or the whole site when kind is omitted)
+  downloadAct: 'downloads:act',       // ({id, action: 'cancel'|'open'|'reveal'|'remove'|'clear'}) -> {ok}|{error}  act on one session download (R-106); 'clear' drops every finished one
 };
 
 /** main -> UI events. */
@@ -67,6 +68,7 @@ export const EVENT = {
   newTab: 'evt:newTab',               // {} (Cmd/Ctrl+T routed from main — UI picks the folder, shows the grid, focuses the omnibox)
   openSettings: 'evt:openSettings',   // {} (menu/shortcut routed from main)
   openHistory: 'evt:openHistory',     // {} (menu/shortcut routed from main)
+  openDownloads: 'evt:openDownloads', // {} (menu/shortcut routed from main) — the Downloads panel (R-106)
   openFind: 'evt:openFind',           // {} (Cmd/Ctrl+F routed from main — UI opens the find bar)
   findResult: 'evt:findResult',       // {tabId, matches, activeMatchOrdinal} final result of a find:start
   toggleSidebar: 'evt:toggleSidebar', // {} (Cmd/Ctrl+B routed from main — UI owns the state)
@@ -121,6 +123,17 @@ export const ALL_EVENT_CHANNELS = Object.values(EVENT);
  * @property {import('./defaults.js').RahaSettings} settings
  * @property {{ runningCount: number, totalMemMB: number, maxLiveTabs: number, frozenCount: number, frozenMemMB: number }} stats  frozen memory is real and already inside totalMemMB
  * @property {{ tabId: string, kind: 'cpu'|'mem' }|null} runaway  open runaway-tab prompt (live values are on the tab itself)
+ * @property {DownloadView[]} downloads  this session's downloads, newest first (R-106); never persisted
+ *
+ * @typedef {Object} DownloadView  One download as the UI sees it. Filename and URL are page-controlled strings.
+ * @property {string} id
+ * @property {string} filename
+ * @property {string} url
+ * @property {string} path         where it is (or will be) saved; '' until the user picked a location
+ * @property {number} totalBytes   0 = unknown
+ * @property {number} receivedBytes
+ * @property {'progressing'|'completed'|'interrupted'|'cancelled'} state
+ * @property {number} startedAt    ms epoch
  *
  * @typedef {Object} PermissionAsk  A pending "site wants X" ask (R-103, ADR-0013), as the UI sees it.
  * @property {number} id             nonce the answer must echo (permission:answer)

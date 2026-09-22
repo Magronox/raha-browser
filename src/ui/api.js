@@ -103,6 +103,10 @@ export const api = {
   organizePreview: () => bridge().invoke(INVOKE.organizePreview),
   organizeApply: () => bridge().invoke(INVOKE.organizeApply),
 
+  // --- downloads (R-106)
+  /** @param {string} id @param {'cancel'|'open'|'reveal'|'remove'|'clear'} action */
+  downloadAct: (id, action) => bridge().invoke(INVOKE.downloadAct, { id, action }),
+
   // --- runaway-tab guard
   /** @param {string} tabId @param {'sleep'|'freeze'|'snooze'} action */
   runawayResolve: (tabId, action) => bridge().invoke(INVOKE.runawayResolve, { tabId, action }),
@@ -126,6 +130,8 @@ export const api = {
   onOpenSettings: (h) => bridge().on(EVENT.openSettings, () => h()),
   /** @param {() => void} h */
   onOpenHistory: (h) => bridge().on(EVENT.openHistory, () => h()),
+  /** @param {() => void} h */
+  onOpenDownloads: (h) => bridge().on(EVENT.openDownloads, () => h()),
   /** @param {() => void} h */
   onOpenFind: (h) => bridge().on(EVENT.openFind, () => h()),
   /** @param {(r: { tabId: string, matches: number, activeMatchOrdinal: number }) => void} h */

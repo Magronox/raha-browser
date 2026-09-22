@@ -174,6 +174,8 @@ export class FakeWorld {
     this.ops = [];
     /** @type {string[]} urls handed to the OS via the shell port */
     this.openedExternally = [];
+    /** @type {string[]} */ this.openedPaths = [];
+    /** @type {string[]} */ this.revealedPaths = [];
     /** Set to make the shell port throw (app not installed). */
     this.shellThrows = false;
     /** Matches every FakeView reports for any non-empty find needle. */
@@ -212,6 +214,10 @@ export class FakeWorld {
           if (world.shellThrows) throw new Error('no handler');
           world.openedExternally.push(url);
         },
+        /** @param {string} p */
+        openPath(p) { world.openedPaths.push(p); },
+        /** @param {string} p */
+        showItemInFolder(p) { world.revealedPaths.push(p); },
       },
       metrics: {
         sample() {

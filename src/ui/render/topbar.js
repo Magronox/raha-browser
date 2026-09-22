@@ -9,6 +9,7 @@ import { hostOf } from '../../shared/rules.js';
 import { isShieldOff } from '../../shared/blocking.js';
 import { normalizeSiteHost } from '../../shared/validate.js';
 import { openHistory } from './history.js';
+import { openDownloads } from './downloads.js';
 
 /** @type {HTMLElement} */ let root;
 let omniboxHasFocus = false;
@@ -91,7 +92,7 @@ let suggestSeq = 0;
 /** Overlay the modals need — the dropdown must not lower the chrome under one. */
 function modalOverlayUp() {
   const l = store.local;
-  return l.settingsOpen || l.historyOpen || l.organizeOpen
+  return l.settingsOpen || l.historyOpen || l.downloadsOpen || l.organizeOpen
     || Boolean(l.limitPromptId) || l.defaultBrowserAsk || Boolean(l.externalAsk) || Boolean(l.permissionAsk) || Boolean(store.snap?.runaway);
 }
 
@@ -327,6 +328,7 @@ export function render() {
     ` : ''}
     <button class="iconbtn" data-act="grid" title="Grid / Home (${MOD}+E)">${icons.grid}</button>
     <button class="iconbtn" data-act="history" title="History">${icons.clock}</button>
+    <button class="iconbtn ${store.snap?.downloads.some((d) => d.state === 'progressing') ? 'busy' : ''}" data-act="downloads" title="Downloads (${MOD}+J)">${icons.download}</button>
     <button class="iconbtn" data-act="settings" title="Settings (${MOD}+,)">${icons.gear}</button>
   `;
 
@@ -455,6 +457,7 @@ export function render() {
       else if (act === 'findclose') closeFind();
       else if (act === 'grid') void api.tabShowGrid();
       else if (act === 'history') openHistory();
+      else if (act === 'downloads') openDownloads();
       else if (act === 'settings') store.setLocal({ settingsOpen: true });
     });
   });

@@ -23,6 +23,7 @@ export const icons = {
   grid: svg('<rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/>'),
   sidebar: svg('<rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/><path d="M6 2.5v11"/>'),
   gauge: svg('<path d="M2 12a6 6 0 1 1 12 0"/><path d="M8 12l3-4"/>'),
+  download: svg('<path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M2.5 12.5h11"/>'),
   clock: svg('<circle cx="8" cy="8" r="6"/><path d="M8 4.5V8l2.5 1.5"/>'),
   sparkle: svg('<path d="M8 1.5l1.4 3.6 3.6 1.4-3.6 1.4L8 11.5 6.6 7.9 3 6.5l3.6-1.4L8 1.5z"/><path d="M12.7 10.3l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7.7-1.8z"/>'),
   snowflake: svg('<path d="M8 1.5v13M2.4 4.75l11.2 6.5M2.4 11.25l11.2-6.5M8 1.5L6.2 3.3M8 1.5l1.8 1.8M8 14.5l-1.8-1.8M8 14.5l1.8-1.8M2.4 4.75l2.4.6M2.4 4.75l.6-2.4M13.6 11.25l-2.4-.6M13.6 11.25l-.6 2.4M2.4 11.25l.6 2.4M2.4 11.25l2.4-.6M13.6 4.75l-.6-2.4M13.6 4.75l-2.4.6"/>'),

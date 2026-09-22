@@ -1796,3 +1796,60 @@ test('freeze: crash while frozen, folderSleepAll, shutdown, and a persisted rest
   const { engine: e2 } = boot(world);
   assert.equal(stateOf(e2, b), 'asleep', 'everything is asleep after a restart');
 });
+
+// ------------------------------------------------------------ downloads R-106
+
+/** @param {Partial<import('../../src/shared/ipc-contract.js').DownloadView>} o */
+const dl = (o) => ({ id: 'dl_1', filename: 'paper.pdf', url: 'https://x.example/paper.pdf', path: '/tmp/paper.pdf', totalBytes: 1000, receivedBytes: 0, state: /** @type {const} */ ('progressing'), startedAt: 1, ...o });
+
+test('downloads: updates land in the snapshot newest-first, never in state.json', () => {
+  const { engine, world } = boot();
+  engine.downloadUpdate(dl({ id: 'a', startedAt: 1 }), { cancel() {} });
+  engine.downloadUpdate(dl({ id: 'b', filename: 'b.zip', startedAt: 2 }), { cancel() {} });
+  engine.downloadUpdate(dl({ id: 'a', receivedBytes: 500 }), { cancel() {} });
+  const snap = engine.snapshot();
+  assert.deepEqual(snap.downloads.map((d) => d.id), ['b', 'a']);
+  assert.equal(snap.downloads[1].receivedBytes, 500);
+  engine.tabCreate({ url: 'https://dirty.example/' }); // make state dirty so a write happens
+  engine.flushPersist();
+  const written = must(world.files.get(STATE_FILE), 'state.json written');
+  assert.ok(!JSON.stringify(written).includes('paper.pdf'), 'downloads never persisted');
+});
+
+test('downloads: cancel reaches the adapter handle only while in progress; remove refuses a live one', () => {
+  const { engine } = boot();
+  let cancelled = 0;
+  engine.downloadUpdate(dl({ id: 'a' }), { cancel() { cancelled += 1; } });
+  assert.deepEqual(engine.downloadAct({ id: 'a', action: 'remove' }), { error: 'still downloading' });
+  assert.deepEqual(engine.downloadAct({ id: 'a', action: 'cancel' }), { ok: true });
+  assert.equal(cancelled, 1);
+  engine.downloadUpdate(dl({ id: 'a', state: 'cancelled' }), null);
+  assert.deepEqual(engine.downloadAct({ id: 'a', action: 'cancel' }), { error: 'not in progress' });
+  assert.deepEqual(engine.downloadAct({ id: 'a', action: 'remove' }), { ok: true });
+  assert.deepEqual(engine.snapshot().downloads, []);
+  assert.deepEqual(engine.downloadAct({ id: 'nope', action: 'open' }), { error: 'unknown download' });
+});
+
+test('downloads: open/reveal go to the shell port with the reported path, and only for completed files', () => {
+  const { engine, world } = boot();
+  engine.downloadUpdate(dl({ id: 'a' }), { cancel() {} });
+  assert.deepEqual(engine.downloadAct({ id: 'a', action: 'open' }), { error: 'not a finished file' });
+  engine.downloadUpdate(dl({ id: 'a', state: 'completed', receivedBytes: 1000 }), null);
+  assert.deepEqual(engine.downloadAct({ id: 'a', action: 'open' }), { ok: true });
+  assert.deepEqual(engine.downloadAct({ id: 'a', action: 'reveal' }), { ok: true });
+  assert.deepEqual(world.openedPaths, ['/tmp/paper.pdf']);
+  assert.deepEqual(world.revealedPaths, ['/tmp/paper.pdf']);
+});
+
+test('downloads: clear drops finished entries and keeps live ones; the cap sheds finished entries oldest-first', () => {
+  const { engine } = boot();
+  engine.downloadUpdate(dl({ id: 'live' }), { cancel() {} });
+  engine.downloadUpdate(dl({ id: 'done', state: 'completed' }), null);
+  assert.deepEqual(engine.downloadAct({ action: 'clear' }), { ok: true });
+  assert.deepEqual(engine.snapshot().downloads.map((d) => d.id), ['live']);
+  for (let i = 0; i < 120; i += 1) engine.downloadUpdate(dl({ id: `f${i}`, state: 'completed', startedAt: i }), null);
+  const ids = engine.snapshot().downloads.map((d) => d.id);
+  assert.equal(ids.length, 100);
+  assert.ok(ids.includes('live'), 'the live one survives the cap');
+  assert.ok(!ids.includes('f0') && ids.includes('f119'), 'oldest finished entries shed first');
+});

@@ -80,6 +80,7 @@ export function createMockMain() {
     [INVOKE.organizePreview]: () => engine.organizePreview(),
     [INVOKE.organizeApply]: () => engine.organizeApply(),
     [INVOKE.runawayResolve]: (p) => engine.runawayResolve(p ?? {}),
+    [INVOKE.downloadAct]: (p) => engine.downloadAct(p ?? {}),
     [INVOKE.permissionAnswer]: (p) => engine.permissionAnswer(p ?? {}),
     [INVOKE.permissionForget]: (p) => engine.permissionForget(p ?? {}),
   };

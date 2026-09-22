@@ -124,6 +124,11 @@ if (!app.requestSingleInstanceLock()) {
             engine.toast('warn', 'That app link could not be opened — is the app installed?');
           });
         },
+        // Downloads (R-106): only paths the will-download hook reported.
+        openPath: (/** @type {string} */ p) => {
+          shell.openPath(p).then((err) => { if (err) engine.toast('warn', `Could not open the file: ${err}`); });
+        },
+        showItemInFolder: (/** @type {string} */ p) => shell.showItemInFolder(p),
       },
       now: () => Date.now(),
       onEvent: (evt) => {
@@ -193,6 +198,8 @@ if (!app.requestSingleInstanceLock()) {
       },
       onBlocked: (wcId) => viewsPort.lookupByWebContentsId(wcId)?.onBlocked(),
       toast: (kind, text) => push.pushToast({ kind, text }),
+      onDownload: (view, controls) => engine.downloadUpdate(view, controls),
+      downloadDir: !app.isPackaged && process.env.RAHA_DOWNLOAD_DIR ? process.env.RAHA_DOWNLOAD_DIR : null,
       // Site permissions (R-103, ADR-0013): the decision is filed under the
       // TAB's page host (top-level), never the asking frame's — an embedded
       // widget asks on behalf of the site the user is looking at. Unknown
@@ -218,6 +225,7 @@ if (!app.requestSingleInstanceLock()) {
       newTab: () => push.newTab(),
       toggleSidebar: () => push.toggleSidebar(),
       openHistory: () => push.openHistory(),
+      openDownloads: () => push.openDownloads(),
       openFind: () => push.openFind(),
     }, () => push.openSettings());
 

@@ -149,8 +149,14 @@ source of what's next, issues track execution (R-125).
   maintainer's explicit call** (it powers the omnibox suggestions, R-113;
   the original off-by-default text above is superseded). Local file only,
   Settings toggle, History panel clears it; reloads don't double-count;
-  raha:// pages never recorded; writes batched (30s). Still open: the
-  downloads page.
+  raha:// pages never recorded; writes batched (30s).
+  *2026-09-22:* the downloads half shipped as a panel like History (not a
+  raha:// page): `downloads` in the snapshot (session-only, cap 100, never
+  persisted), `downloads:act` (cancel/open/reveal/remove/clear), the shell
+  port grew `openPath`/`showItemInFolder`, `will-download` reports through
+  `onDownload` (progress every 250 ms). Toolbar button with an activity
+  dot, `Ctrl/⌘+J`. Real e2e via the unpackaged-only `RAHA_DOWNLOAD_DIR`
+  seam (the native save dialog cannot be driven). **Item complete.**
 - **R-107 Multi-window.** Engine already single-window-agnostic in its tree;
   windows own active-tab + attached views. AC: two windows share one tree,
   governor counts across both.

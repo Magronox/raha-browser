@@ -52,12 +52,15 @@
 //   }   adapters: src/main/electron/import-history.js + import-tabs.js
 //       (merged into one port by index.js); entries are untrusted
 //        and go through normalizeHistoryEntry before touching the store
-//   shell (optional): { openExternal(url) -> void }   hand an app link to the
+//   shell (optional): { openExternal(url) -> void,   hand an app link to the
 //                     OS. Called ONLY after the user says yes in-app, and
 //                     only for a scheme classifyExternal() calls safe.
 //                     Failure surfaces as a toast from whichever layer sees
 //                     it: the engine catches sync throws; the real adapter
 //                     catches the async rejection ("no app registered").
+//                       openPath(path) -> void,        open a finished download
+//                       showItemInFolder(path) -> void }  reveal it (R-106);
+//                     both take only paths the download adapter reported.
 //   now: () -> ms epoch
 //   onEvent: (evt) -> void   evt: {type:'snapshot'} | {type:'toast', kind, text}
 //                            kind: 'info'|'warn'|'sleep'|'freeze'|'download'
@@ -70,7 +73,9 @@
 //                              (tab switched/closed/slept/navigated; ADR-0013)
 //
 // INBOUND (adapter -> engine; not a port the engine calls): the privacy
-// adapter's permission handlers reach permissionRequest({tabId, kinds,
+// adapter's download hook reaches downloadUpdate(view, controls) on every
+// change of a session download (controls = {cancel()} for a live one) and
+// the permission handlers reach permissionRequest({tabId, kinds,
 // host, requestingHost, isMainFrame}) -> Promise<boolean> and
 // permissionCheck({tabId, host, kind}) -> boolean through the hooks wired
 // in src/main/index.js. The promise IS the answer Electron's permission
@@ -107,6 +112,8 @@ const HISTORY_WRITE_MS = 300_000;
 /** Quiet window between remembered-scheme auto-opens (and between
  * blocked-link toasts): one launch per window, extras fall back to asking. */
 const EXTERNAL_QUIET_MS = 3_000;
+/** Session downloads kept in the list (finished ones drop oldest-first past this). */
+const DOWNLOADS_CAP = 100;
 /** Pending permission asks per tab beyond which surplus requests are refused
  * outright — a looping page must not build an endless dialog backlog
  * (identical asks coalesce before this counts). */
@@ -210,6 +217,13 @@ export class Engine {
      * Recently closed tabs, oldest first (reopen pops the newest). Session-only
      * on purpose — not persisted, so no migration and nothing lingers on disk. */
     this.closedTabs = [];
+    /** @type {Map<string, import('../../shared/ipc-contract.js').DownloadView>}
+     * This session's downloads (R-106), insertion order = start order. Never
+     * persisted: a download list is a record of what you fetched, and Raha
+     * keeps no such record beyond the session unless you asked (history). */
+    this.downloads = new Map();
+    /** @type {Map<string, { cancel: () => void }>} live download handles, adapter-owned */
+    this.downloadControls = new Map();
     /** All tabs start asleep after a restart — that is the product philosophy. */
     this.state.activeTabId = null;
     this.dirty = false;
@@ -1676,7 +1690,71 @@ export class Engine {
         frozenMemMB: Math.round(frozenMemMB),
       },
       runaway: this.runawayAlert ? { ...this.runawayAlert } : null,
+      downloads: [...this.downloads.values()].reverse(),
     };
+  }
+
+  // ------------------------------------------------------------- downloads
+
+  /**
+   * Inbound from the download adapter (privacy.js will-download): a session
+   * download started, progressed, or ended. Progress is throttled at the
+   * adapter; every call here re-snapshots. Capped: the oldest FINISHED
+   * entries go once the list passes DOWNLOADS_CAP.
+   * @param {import('../../shared/ipc-contract.js').DownloadView} view
+   * @param {{ cancel: () => void }|null} controls  null once the download ended
+   */
+  downloadUpdate(view, controls) {
+    this.downloads.set(view.id, { ...view });
+    if (controls && view.state === 'progressing') this.downloadControls.set(view.id, controls);
+    else this.downloadControls.delete(view.id);
+    if (this.downloads.size > DOWNLOADS_CAP) {
+      for (const [id, d] of this.downloads) {
+        if (this.downloads.size <= DOWNLOADS_CAP) break;
+        if (d.state !== 'progressing') this.downloads.delete(id);
+      }
+    }
+    this.emitSnapshot();
+  }
+
+  /**
+   * @param {{ id?: string, action?: string }} p
+   * @returns {{ ok: true }|{ error: string }}
+   */
+  downloadAct(p) {
+    if (p?.action === 'clear') {
+      for (const [id, d] of this.downloads) if (d.state !== 'progressing') this.downloads.delete(id);
+      this.emitSnapshot();
+      return { ok: true };
+    }
+    const d = typeof p?.id === 'string' ? this.downloads.get(p.id) : undefined;
+    if (!d) return { error: 'unknown download' };
+    switch (p.action) {
+      case 'cancel': {
+        const c = this.downloadControls.get(d.id);
+        if (!c) return { error: 'not in progress' };
+        c.cancel(); // the adapter reports the resulting state through downloadUpdate
+        return { ok: true };
+      }
+      case 'remove':
+        if (d.state === 'progressing') return { error: 'still downloading' };
+        this.downloads.delete(d.id);
+        this.emitSnapshot();
+        return { ok: true };
+      case 'open':
+      case 'reveal': {
+        if (d.state !== 'completed' || !d.path) return { error: 'not a finished file' };
+        const shell = this.shell;
+        try {
+          if (p.action === 'open') shell?.openPath?.(d.path); else shell?.showItemInFolder?.(d.path);
+        } catch {
+          this.toast('warn', `Could not ${p.action === 'open' ? 'open' : 'show'} “${d.filename}”`);
+        }
+        return { ok: true };
+      }
+      default:
+        return { error: 'bad action' };
+    }
   }
 }
 

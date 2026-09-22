@@ -27,7 +27,7 @@ export function initOverlays(/** @type {HTMLElement} */ toasts, /** @type {HTMLE
       // resource warning for five minutes as a side effect.
       const l = store.local;
       const somethingElseOpen = Boolean(
-        l.ctxMenu || l.settingsOpen || l.historyOpen || l.organizeOpen || l.limitPromptId || l.renamingId || l.externalAsk || l.permissionAsk,
+        l.ctxMenu || l.settingsOpen || l.historyOpen || l.downloadsOpen || l.organizeOpen || l.limitPromptId || l.renamingId || l.externalAsk || l.permissionAsk,
       );
       const alert = store.snap?.runaway;
       if (alert && !somethingElseOpen) void api.runawayResolve(alert.tabId, 'snooze');
@@ -37,7 +37,7 @@ export function initOverlays(/** @type {HTMLElement} */ toasts, /** @type {HTMLE
       // Same for a site-permission ask: Escape = "Not now" (refused for this
       // request, nothing remembered); the engine then shows the next one.
       if (l.permissionAsk) void api.permissionAnswer(l.permissionAsk.id, 'dismiss');
-      store.setLocal({ ctxMenu: null, settingsOpen: false, historyOpen: false, organizeOpen: false, limitPromptId: null, renamingId: null, externalAsk: null, permissionAsk: null });
+      store.setLocal({ ctxMenu: null, settingsOpen: false, historyOpen: false, downloadsOpen: false, organizeOpen: false, limitPromptId: null, renamingId: null, externalAsk: null, permissionAsk: null });
     }
   });
 }

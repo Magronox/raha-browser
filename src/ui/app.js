@@ -10,6 +10,7 @@ import { initLivebar, render as renderLivebar } from './render/livebar.js';
 import { initGrid, render as renderGrid } from './render/grid.js';
 import { initSettings, render as renderSettings } from './render/settings.js';
 import { initHistory, render as renderHistory, openHistory } from './render/history.js';
+import { initDownloads, render as renderDownloads, openDownloads } from './render/downloads.js';
 import { initOrganize, render as renderOrganize } from './render/organize.js';
 import { initOverlays, showToast, renderCtxMenu, renderLimitPrompt, renderRunaway } from './render/overlays.js';
 
@@ -34,6 +35,7 @@ async function main() {
   initGrid(mustGet('content'));
   initSettings(mustGet('settings'));
   initHistory(mustGet('history'));
+  initDownloads(mustGet('downloads'));
   initOrganize(mustGet('organize'));
   initOverlays(mustGet('toasts'), mustGet('ctxmenu'), mustGet('prompt'), mustGet('runaway'));
 
@@ -59,7 +61,7 @@ async function main() {
   /** @type {boolean|null} */ let overlayWas = null;
   const syncOverlay = () => {
     const l = store.local;
-    const overlay = l.settingsOpen || l.historyOpen || l.organizeOpen
+    const overlay = l.settingsOpen || l.historyOpen || l.downloadsOpen || l.organizeOpen
       || Boolean(l.limitPromptId) || l.defaultBrowserAsk || Boolean(l.externalAsk) || Boolean(l.permissionAsk) || Boolean(store.snap?.runaway);
     if (overlay !== overlayWas) {
       overlayWas = overlay;
@@ -74,6 +76,7 @@ async function main() {
     renderGrid();
     renderSettings();
     renderHistory();
+    renderDownloads();
     renderOrganize();
     renderCtxMenu();
     renderLimitPrompt();
@@ -131,6 +134,7 @@ async function main() {
   document.addEventListener('raha:new-tab', newTab);
   api.onOpenSettings(() => store.setLocal({ settingsOpen: true }));
   api.onOpenHistory(() => openHistory());
+  api.onOpenDownloads(() => openDownloads());
   api.onOpenFind(() => {
     if (!store.snap?.activeTabId) return; // the grid has no page to search
     // With a modal up, the find bar would render (and steal focus) UNDER the

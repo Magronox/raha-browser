@@ -163,7 +163,8 @@ xvfb-run -a npm start          # headless container (add RAHA_NO_SANDBOX=1)
 
 Env knobs: `RAHA_PROFILE_DIR` (isolated profile), `RAHA_TICK_MS` (governor
 period, default 2500), `RAHA_NO_SANDBOX=1` (Chromium sandbox off — dev/CI
-containers only, never ship).
+containers only, never ship), `RAHA_DOWNLOAD_DIR` (save downloads there
+without the dialog — unpackaged runs only; the e2e download test needs it).
 
 Troubleshooting: `npm run dist` can flake with `zip process failed 18` and a
 wall of "zip warning: No such file or directory" — electron-builder builds

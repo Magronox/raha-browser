@@ -12,7 +12,7 @@
 // first window Playwright sees. Web content lives in separate
 // WebContentsViews that Playwright also exposes — see contentPages().
 import { test, expect, _electron as electron } from '@playwright/test';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, existsSync, statSync } from 'node:fs';
 import http from 'node:http';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -20,6 +20,7 @@ import path from 'node:path';
 /** @type {import('playwright').ElectronApplication} */ let app;
 /** @type {import('playwright').Page} */ let ui;
 /** @type {string} */ let profileDir;
+/** @type {string} */ let downloadDir;
 /** @type {import('node:http').Server} */ let pageServer;
 /** @type {string} */ let pageBase;
 /** Every request the loopback server saw, by Host header — how the blocking
@@ -46,6 +47,7 @@ function launchEnv() {
     RAHA_TICK_MS: '700',
     RAHA_NO_SANDBOX: '1',
     RAHA_NO_WELCOME: '1',
+    RAHA_DOWNLOAD_DIR: downloadDir, // R-106: no native save dialog under test (unpackaged only)
   });
   // Inherited from VSCode/agent shells this would run Electron as plain Node
   // and the app would never open a window; Playwright only strips NODE_OPTIONS.
@@ -66,6 +68,13 @@ test.beforeAll(async () => {
         `<script src="http://ad.doubleclick.net:${port}/adscript.js"></script>`);
       return;
     }
+    if (name === 'report.bin') {
+      // A real download: the browser must save it, not render it.
+      res.setHeader('content-type', 'application/octet-stream');
+      res.setHeader('content-disposition', 'attachment; filename="report.bin"');
+      res.end(Buffer.alloc(4096, 7));
+      return;
+    }
     if (name === 'scrollform') {
       res.end(`<title>scrollform</title><body style="margin:0">` +
         `<div style="height:2000px"></div>` +
@@ -80,6 +89,7 @@ test.beforeAll(async () => {
   pageBase = `http://127.0.0.1:${addr.port}`;
 
   profileDir = mkdtempSync(path.join(tmpdir(), 'raha-e2e-'));
+  downloadDir = mkdtempSync(path.join(tmpdir(), 'raha-e2e-dl-'));
   app = await electron.launch({
     args: LAUNCH_ARGS,
     env: launchEnv(),
@@ -92,6 +102,7 @@ test.afterAll(async () => {
   await app.close();
   pageServer.close();
   rmSync(profileDir, { recursive: true, force: true });
+  rmSync(downloadDir, { recursive: true, force: true });
 });
 
 /**
@@ -503,6 +514,34 @@ test('web content is served raha://home but never the chrome or thumbnails', asy
 const chromeState = () => app.evaluate(({ BaseWindow }) => {
   const wc = /** @type {any} */ (BaseWindow.getAllWindows()[0].contentView.children[0]).webContents;
   return { url: wc.getURL(), loading: wc.isLoading(), crashed: wc.isCrashed() };
+});
+
+test('R-106: a real download lands in the Downloads panel, saved to disk, with Open / Show in folder; the tab stays put', async () => {
+  await openTab(PAGE('dl-host'));
+  await ui.click('.omnibox');
+  await ui.fill('.omnibox', PAGE('report.bin'));
+  await ui.keyboard.press('Enter');
+  // Toolbar button opens the panel; the row completes with the real size.
+  await ui.click('#topbar [data-act="downloads"]');
+  await expect(ui.locator('.modal.downloads .dl-row', { hasText: 'report.bin' })).toHaveClass(/state-completed/, { timeout: 15000 });
+  await expect(ui.locator('.dl-row .dl-meta')).toContainText('4.0 KB');
+  const saved = path.join(downloadDir, 'report.bin');
+  expect(existsSync(saved)).toBe(true);
+  expect(statSync(saved).size).toBe(4096);
+  await expect(ui.locator('.dl-row [data-dl-act="open"]')).toBeVisible();
+  await expect(ui.locator('.dl-row [data-dl-act="reveal"]')).toBeVisible();
+  // The download did not navigate the tab: it still shows dl-host.
+  await expect(ui.locator('#sidebar .row.tab.state-active .name')).toContainText('dl-host');
+  await ui.keyboard.press('Escape');
+  await expect(ui.locator('.modal.downloads')).toHaveCount(0);
+  // Ctrl/Cmd+J: drive the REAL accelerator target (menu item -> evt:openDownloads).
+  await app.evaluate(({ Menu }) => {
+    const item = Menu.getApplicationMenu()?.getMenuItemById('downloads');
+    if (!item) throw new Error('downloads menu item missing');
+    item.click();
+  });
+  await expect(ui.locator('.modal.downloads .dl-row', { hasText: 'report.bin' })).toBeVisible({ timeout: 5000 });
+  await ui.keyboard.press('Escape');
 });
 
 test('the chrome view refuses window.open', async () => {
