@@ -260,6 +260,22 @@ img { -webkit-user-drag: none; }
 }
 .empty-state svg { width: 44px; height: 44px; color: var(--accent); opacity: 0.6; }
 
+/* The frozen stage: a static page where the live one was (ADR-0014). */
+.stage { display: flex; flex-direction: column; min-height: 100%; background: var(--bg); }
+.stage-banner {
+  position: sticky; top: 0; z-index: 1;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  padding: 8px 14px; font-size: 12.5px; color: var(--text);
+  background: rgba(127, 184, 216, 0.14); border-bottom: 1px solid rgba(127, 184, 216, 0.45);
+}
+.stage-state { display: inline-flex; align-items: center; gap: 8px; color: #7fb8d8; }
+.stage-state svg { width: 14px; height: 14px; }
+.stage-acts { display: inline-flex; gap: 6px; }
+.stage-frame { display: block; width: 100%; height: auto; cursor: pointer; filter: saturate(0.85); }
+.stage-frame:hover { filter: none; }
+.stage-frame.gone { display: none; }
+.stage-title { padding: 10px 14px; font-size: 12px; color: var(--text-dim); }
+
 /* ---------- livebar ---------- */
 #livebar {
   display: flex; align-items: center; gap: 10px; padding: 0 12px;

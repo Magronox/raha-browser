@@ -62,6 +62,16 @@ treats it that way.
   memory (`stats.frozenCount`, `stats.frozenMemMB` are informational).
 - Thaw failure degrades to sleep + wake (with R-104 restore), freeze failure
   leaves the tab running — browsing never depends on the protocol.
+- **A page freezes only off screen.** Chromium ignores `frozen` for a visible
+  page — silently, with a success reply. So the active tab is set aside
+  first, and the adapter's `freeze()` waits for the detach (which can trail
+  the thumbnail capture by up to 400 ms) before sending the command; v0.3.0
+  did not wait and "froze" a page that kept running. The tab does not drop
+  to the grid: `snapshot.stagedTabId` names it and the UI keeps its last
+  frame up as a static page with a Frozen banner (captured page-sized,
+  `captureThumb({ full: true })`). Any activate, an explicit grid, or sleep
+  clears the stage. `npm run smoke` proves both the background and the
+  active-tab path really stop.
 - `Page.setWebLifecycleState` is experimental: the upgrade playbook re-runs
   the e2e; the failure mode is "tab keeps running", never "tab lost".
 - Known gaps: media never auto-resumes after a thaw; WebRTC calls and

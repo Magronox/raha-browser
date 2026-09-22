@@ -3,6 +3,22 @@
 All notable changes to Raha. Format: [Keep a Changelog](https://keepachangelog.com);
 versions are tags `vX.Y.Z` (tag == package.json version, enforced by CI).
 
+## Unreleased
+
+### Fixed
+- **Freezing the tab you were looking at did not actually freeze it.** The
+  tab said "frozen" but its page kept running, because the freeze command
+  reached Chromium while the page was still on screen (the set-aside trails
+  the thumbnail capture by up to 400 ms) and Chromium quietly ignores a
+  freeze for a visible page. The command now waits for the page to be off
+  screen; `npm run smoke` proves the active-tab path too.
+
+### Changed
+- **Freezing the tab on screen no longer drops you to the grid.** Its last
+  frame stays up as a still page with a "Frozen" banner — click it (or
+  Continue) to carry on where you were; Sleep and Grid are one click away.
+  A page can only be frozen off screen, so the still is its last frame.
+
 ## v0.3.0 — 2026-09-22
 
 ### Added

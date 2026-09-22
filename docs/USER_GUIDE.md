@@ -60,7 +60,7 @@ example tabs — asleep, costing zero memory, loading nothing until you click.
 |---|---|
 | **Running** | Has a live Chromium process right now (shown in the live bar) |
 | **Active** | The one running tab currently on screen |
-| **Frozen** | Still has its process, but paused: 0 CPU, no growth, memory kept (and still counted). The page is exactly as you left it — click it and it continues instantly. Never survives a restart. Some pages notice a stopped clock: live chats, calls, video and uploads can need a reload after thawing |
+| **Frozen** | Still has its process, but paused: 0 CPU, no growth, memory kept (and still counted). The page is exactly as you left it — click it and it continues instantly. Freeze the tab you are looking at and it stays on screen as a still image with a "Frozen" banner (Continue / Sleep / Grid); a page can only be frozen off screen, so what you see is its last frame. Never survives a restart. Some pages notice a stopped clock: live chats, calls, video and uploads can need a reload after thawing |
 | **Asleep** | No process at all — 0 MB, 0 CPU. Keeps URL, title, history, thumbnail, place in your folders |
 | **Pinned / keep-alive** | Never auto-slept (amber pin icon) |
 | **Rule** | A domain pattern that pins or limits every matching tab |

@@ -15,6 +15,36 @@ export function initGrid(/** @type {HTMLElement} */ el) {
   render();
 }
 
+/**
+ * The frozen stage: the tab that was frozen while on screen stays on screen
+ * as its last frame — a static page, not the grid. Clicking it continues;
+ * the banner offers sleep and the grid.
+ * @param {import('../../shared/ipc-contract.js').SnapshotTab} tab
+ */
+function renderStage(tab) {
+  const html = `
+    <div class="stage" data-stage="${esc(tab.id)}">
+      <div class="stage-banner">
+        <span class="stage-state">${icons.snowflake} Frozen — no CPU, memory kept, page exactly as you left it</span>
+        <span class="stage-acts">
+          <button class="btn" data-stage-continue>${icons.sun} Continue</button>
+          <button class="btn subtle" data-stage-sleep title="Free its memory; reloads when you return">${icons.moon} Sleep</button>
+          <button class="btn subtle" data-stage-grid title="Leave the frozen page and show the grid">Grid</button>
+        </span>
+      </div>
+      <img class="thumb stage-frame" src="${thumbUrl(tab)}" alt="" title="Click to continue">
+      <div class="stage-title">${esc(tab.title || tab.url)}</div>
+    </div>`;
+  if (html === lastHtml) return;
+  lastHtml = html;
+  root.innerHTML = html;
+  root.querySelector('.stage-frame')?.addEventListener('click', () => void api.tabActivate(tab.id));
+  root.querySelector('[data-stage-continue]')?.addEventListener('click', () => void api.tabActivate(tab.id));
+  root.querySelector('[data-stage-sleep]')?.addEventListener('click', () => void api.tabSleep(tab.id));
+  root.querySelector('[data-stage-grid]')?.addEventListener('click', () => void api.tabShowGrid());
+  wireImgFallbacks(root); // no frame yet -> .gone: the title below still says what this is
+}
+
 export function render() {
   const snap = store.snap;
   if (!snap) { root.innerHTML = ''; lastHtml = ''; return; }
@@ -22,6 +52,9 @@ export function render() {
 
   // When a tab is active the content view covers this area; skip the work.
   if (snap.activeTabId != null) { root.innerHTML = ''; lastHtml = ''; return; }
+
+  const staged = snap.stagedTabId ? store.tabById(snap.stagedTabId) : null;
+  if (staged) { renderStage(staged); return; }
 
   const folderId = store.local.selectedFolderId;
   const crumbs = store.pathTo(folderId)

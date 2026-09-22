@@ -16,6 +16,8 @@ import { log } from './log.js';
 
 export const WEB_PARTITION = 'persist:main';
 const THUMB_WIDTH = 480;
+/** The frozen stage shows the frame at page size; 1280 stays sharp on a laptop and is ~1 MB of PNG. */
+const STAGE_WIDTH = 1280;
 const NAV_ENTRY_CAP = 25;
 
 /**
@@ -78,6 +80,7 @@ export function createViewsPort(windowHost) {
       /** @type {Promise<unknown>|null} */
       let captureInFlight = null;
       /** @type {Promise<unknown>|null} page-state capture in flight (freeze waits on it) */ let pageStateInFlight = null;
+      /** @type {Promise<unknown>|null} detach deferred behind a thumbnail capture (freeze waits on it) */ let detachPending = null;
       /** Suspended via Page.setWebLifecycleState (ADR-0014). */ let frozen = false;
       /** thaw() happened while detached: re-kick visibility on the next attach. */ let needsVisibilityKick = false;
       /** Hide+show so visibilityState reads 'visible' again after a thaw (measured). */
@@ -269,14 +272,18 @@ export function createViewsPort(windowHost) {
             const doDetach = () => { if (attached && !dead) { windowHost.detach(view); attached = false; } };
             if (captureInFlight) {
               const timeout = new Promise((r) => setTimeout(r, 400));
-              void Promise.race([captureInFlight, timeout]).then(doDetach);
+              const p = Promise.race([captureInFlight, timeout]).then(doDetach)
+                .finally(() => { if (detachPending === p) detachPending = null; });
+              detachPending = p;
             } else {
               doDetach();
             }
           }
         },
-        captureThumb() {
+        /** @param {{ full?: boolean }} [opts] full: the frozen stage shows this frame page-sized */
+        captureThumb(opts) {
           if (dead) return Promise.resolve(false);
+          const width = opts?.full ? STAGE_WIDTH : THUMB_WIDTH;
           // stayHidden: a capture holds Chromium's "capturer count", and a
           // captured page counts as visible until the capture resolves — and
           // a visible page refuses to freeze (ADR-0014). A thumbnail taken as
@@ -288,7 +295,7 @@ export function createViewsPort(windowHost) {
           const p = wc.capturePage(undefined, { stayHidden: true })
             .then((/** @type {Electron.NativeImage} */ img) => {
               if (img.isEmpty()) return false;
-              const resized = img.resize({ width: THUMB_WIDTH });
+              const resized = img.getSize().width > width ? img.resize({ width }) : img;
               fs.writeFileSync(thumbPath(tabId), resized.toPNG());
               return true;
             })
@@ -327,6 +334,11 @@ export function createViewsPort(windowHost) {
           if (pageStateInFlight) {
             await Promise.race([pageStateInFlight, new Promise((r) => setTimeout(r, 400))]);
           }
+          // The active tab is set aside first, and that detach can trail the
+          // thumbnail by up to 400 ms. Chromium quietly ignores 'frozen' for a
+          // page still on screen (measured: the tab said frozen, JS kept
+          // running), so the view must be off screen before the command goes.
+          if (detachPending) await detachPending;
           if (dead) return false;
           try {
             await identity.send('Page.setWebLifecycleState', { state: 'frozen' });

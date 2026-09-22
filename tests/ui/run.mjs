@@ -394,6 +394,37 @@ await t('freeze: sidebar, grid and live bar show a frozen tab; thaw/sleep button
   await pump();
 });
 
+await t('freeze: the ACTIVE tab stays on screen as a static stage; Continue thaws it, Grid leaves it', async () => {
+  const hn = seeded.hn;
+  if (mock.engine.snapshot().activeTabId !== hn) { mock.engine.tabActivate({ tabId: hn }); await pump(); }
+  await page.hover('[data-act="freeze"]');
+  await page.click('[data-act="freeze"]');
+  await pump();
+  let snap = mock.engine.snapshot();
+  assert(snap.activeTabId === null && snap.stagedTabId === hn, `staged: active=${snap.activeTabId} staged=${snap.stagedTabId}`);
+  await page.waitForSelector(`#content .stage[data-stage="${hn}"] .stage-banner`);
+  assert((await page.$('#content .card')) === null, 'the grid is not showing');
+  const banner = await page.$eval('#content .stage-banner', (el) => el.textContent ?? '');
+  assert(banner.includes('Frozen'), `banner: ${banner}`);
+  await page.click('[data-stage-continue]');
+  await pump();
+  snap = mock.engine.snapshot();
+  assert(snap.activeTabId === hn && snap.stagedTabId === null, 'Continue thawed and activated it');
+  assert(snap.tabs.find((t2) => t2.id === hn)?.state === 'active', 'active again');
+  // Grid from the stage: the tab stays frozen, the grid shows.
+  await page.hover('[data-act="freeze"]');
+  await page.click('[data-act="freeze"]');
+  await pump();
+  await page.waitForSelector('#content .stage');
+  await page.click('[data-stage-grid]');
+  await pump();
+  assert(mock.engine.snapshot().stagedTabId === null, 'Grid clears the stage');
+  assert(mock.engine.snapshot().tabs.find((t2) => t2.id === hn)?.state === 'frozen', 'still frozen');
+  await page.waitForSelector('#content .grid-head');
+  mock.engine.tabActivate({ tabId: hn });
+  await pump();
+});
+
 await t('freeze: runaway CPU prompt — Freeze leaves the tab frozen and closes the prompt; settings select writes through', async () => {
   // activate: a background create may land asleep under the running cap and
   // then has no renderer to run away with.

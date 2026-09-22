@@ -121,6 +121,7 @@ export const ALL_EVENT_CHANNELS = Object.values(EVENT);
  * @property {SnapshotFolder[]} folders
  * @property {string} rootId
  * @property {string|null} activeTabId
+ * @property {string|null} stagedTabId  the tab frozen while on screen: no tab is active, and the content area shows its last frame as a static page instead of the grid (ADR-0014). Runtime-only
  * @property {import('./defaults.js').RahaSettings} settings
  * @property {{ runningCount: number, totalMemMB: number, maxLiveTabs: number, frozenCount: number, frozenMemMB: number }} stats  frozen memory is real and already inside totalMemMB
  * @property {{ tabId: string, kind: 'cpu'|'mem' }|null} runaway  open runaway-tab prompt (live values are on the tab itself)

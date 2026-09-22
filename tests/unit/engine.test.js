@@ -1649,6 +1649,32 @@ test('freeze: the first freeze — manual too — warns that some pages need a r
   assert.equal(world.toasts().filter((t) => t.kind === 'freeze').length, 1, 'said once, not per freeze');
 });
 
+test('freeze: freezing the ACTIVE tab stages it (static page, not the grid); activate, grid, sleep clear the stage', () => {
+  const { engine, world, a, b } = bootTwo();
+  assert.equal(engine.snapshot().activeTabId, a);
+  engine.tabFreeze({ tabId: a });
+  const s = engine.snapshot();
+  assert.equal(s.activeTabId, null, 'set aside: Chromium only freezes an off-screen page');
+  assert.equal(s.stagedTabId, a, 'but it stays on screen as the stage');
+  assert.equal(must(world.viewsByTab.get(a)).lastThumbFull, true, 'the stage frame is captured page-sized');
+  assert.equal(must(world.viewsByTab.get(a)).attached, false);
+  // Freezing a BACKGROUND tab never stages it.
+  engine.tabActivate({ tabId: a });
+  assert.equal(engine.snapshot().stagedTabId, null, 'activate clears the stage');
+  engine.tabFreeze({ tabId: b });
+  assert.equal(engine.snapshot().stagedTabId, null, 'background freeze: no stage');
+  assert.equal(must(world.viewsByTab.get(b)).lastThumbFull, false);
+  // Grid clears it; so does sleeping the staged tab.
+  engine.tabFreeze({ tabId: a });
+  assert.equal(engine.snapshot().stagedTabId, a);
+  engine.tabShowGrid();
+  assert.equal(engine.snapshot().stagedTabId, null, 'explicit grid leaves the stage');
+  engine.tabActivate({ tabId: a });
+  engine.tabFreeze({ tabId: a });
+  engine.tabSleep({ tabId: a });
+  assert.equal(engine.snapshot().stagedTabId, null, 'a slept tab has no frame to stage');
+});
+
 test('freeze: manual thaw resumes in the background and refreshes lastActiveAt', () => {
   const { engine, world, b } = bootTwo();
   engine.tabFreeze({ tabId: b });

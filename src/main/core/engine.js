@@ -26,7 +26,8 @@
 //                 focus(), back(), forward(), reload(), hardReload(), stop(),
 //                 getNav()->{canGoBack,canGoForward,navJson},
 //                 getOSPid()->number|null, setAttached(bool),
-//                 captureThumb()->Promise<boolean>, zoom(dir),
+//                 captureThumb({full?})->Promise<boolean>  full: keep the
+//                                  frame large (the frozen stage shows it), zoom(dir),
 //                 findInPage(text, {forward, newSession}), stopFind(action),
 //                 capturePageState()->Promise<unknown|null>,
 //                 restorePageState(state)->void,
@@ -224,6 +225,10 @@ export class Engine {
     this.downloads = new Map();
     /** @type {Map<string, { cancel: () => void }>} live download handles, adapter-owned */
     this.downloadControls = new Map();
+    /** @type {string|null} the tab frozen while it was on screen: the UI keeps
+     * its last frame up as a static page instead of dropping to the grid.
+     * Runtime-only; any activate or an explicit grid clears it. */
+    this.stagedTabId = null;
     /** All tabs start asleep after a restart — that is the product philosophy. */
     this.state.activeTabId = null;
     this.dirty = false;
@@ -308,6 +313,7 @@ export class Engine {
     if (!rt) return { error: 'wake failed' };
 
     this.state.activeTabId = p.tabId;
+    this.stagedTabId = null;
     node.lastActiveAt = this.now();
     rt.view.setAttached(true);
     rt.view.focus();
@@ -533,11 +539,23 @@ export class Engine {
 
   /** Hide content, show the UI grid. */
   tabShowGrid() {
+    this.stagedTabId = null;
+    this.setAside(false);
+    this.emitSnapshot();
+    return { ok: true };
+  }
+
+  /**
+   * Take the active tab off screen: thumbnail + page state while it is still
+   * visible, then detach. `full` keeps the frame large for the frozen stage.
+   * @param {boolean} full
+   */
+  setAside(full) {
     const prevId = this.state.activeTabId;
     if (prevId) {
       const prev = this.runtime.get(prevId);
       if (prev) {
-        void prev.view.captureThumb().then((/** @type {boolean} */ saved) => {
+        void prev.view.captureThumb(full ? { full: true } : undefined).then((/** @type {boolean} */ saved) => {
           if (saved) this.bumpThumb(prevId);
         });
         this.capturePageState(prevId);
@@ -546,8 +564,6 @@ export class Engine {
     }
     this.state.activeTabId = null;
     this.syncPermissionAsk(); // no page on screen -> no ask on screen
-    this.emitSnapshot();
-    return { ok: true };
   }
 
   // ------------------------------------------------------------- navigation
@@ -1324,7 +1340,11 @@ export class Engine {
     if (!node || !rt) return { error: 'not running' };
     if (rt.frozen) return { ok: true };
     if (this.state.activeTabId === p.tabId) {
-      this.tabShowGrid(); // captures thumb + page state, detaches, activeTabId = null
+      // Chromium only freezes a page that is off screen, so the tab is set
+      // aside — but its last frame stays up as the static page (the stage),
+      // not the grid: "freeze" must not read as "leave".
+      this.setAside(true);
+      this.stagedTabId = p.tabId;
     } else {
       this.capturePageState(p.tabId); // refresh: the last exact snapshot before the clock stops
     }
@@ -1689,6 +1709,7 @@ export class Engine {
       folders,
       rootId: t.rootId,
       activeTabId: this.state.activeTabId,
+      stagedTabId: this.stagedTabId && this.runtime.get(this.stagedTabId)?.frozen ? this.stagedTabId : null,
       settings: this.settings,
       stats: {
         runningCount: this.runtime.size,

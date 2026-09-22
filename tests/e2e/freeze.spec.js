@@ -6,7 +6,7 @@
 // every 100 ms — the cheapest observable "is this page running?" signal that
 // the sidebar (title) and the content page (evaluate) can both read.
 import { test, expect, _electron as electron } from '@playwright/test';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, appendFileSync } from 'node:fs';
 import http from 'node:http';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -21,7 +21,7 @@ function launchEnv() {
   /** @type {Record<string, string>} */
   const env = {};
   for (const [k, v] of Object.entries(process.env)) if (v !== undefined) env[k] = v;
-  Object.assign(env, { RAHA_PROFILE_DIR: profileDir, RAHA_TICK_MS: '700', RAHA_NO_SANDBOX: '1', RAHA_NO_WELCOME: '1' });
+  Object.assign(env, { RAHA_PROFILE_DIR: profileDir, RAHA_TICK_MS: '700', RAHA_NO_SANDBOX: '1', RAHA_NO_WELCOME: '1', RAHA_BACKGROUND: '1' });
   delete env.ELECTRON_RUN_AS_NODE;
   return env;
 }
@@ -44,6 +44,10 @@ test.beforeAll(async () => {
   base = `http://127.0.0.1:${/** @type {import('node:net').AddressInfo} */ (server.address()).port}`;
   profileDir = mkdtempSync(path.join(tmpdir(), 'raha-e2e-freeze-'));
   app = await electron.launch({ args: ['.', '--no-sandbox'], env: launchEnv() });
+  if (process.env.RAHA_E2E_STDERR) {
+    const out = /** @type {string} */ (process.env.RAHA_E2E_STDERR);
+    app.process().stderr?.on('data', (d) => { try { appendFileSync(out, String(d)); } catch { /* noop */ } });
+  }
   ui = await app.firstWindow();
   await ui.waitForSelector('#sidebar .side-head', { timeout: 20000 });
 });
@@ -94,9 +98,11 @@ test('manual freeze from the toolbar: the page stops (title and counter stand st
   const page = await contentPage('/ticker');
   await expect.poll(() => tickerN(page)).toBeGreaterThan(2);
   await page.evaluate(() => { window.scrollTo(0, 1200); const t = /** @type {HTMLTextAreaElement} */ (document.getElementById('note')); t.value = 'kept while frozen'; });
-  // Freeze the ACTIVE tab from the toolbar: it is set aside (grid) and frozen.
+  // Freeze the ACTIVE tab from the toolbar: it is set aside and frozen, and
+  // its last frame stays up as the static stage — not the grid.
   await ui.click('[data-act="freeze"]');
-  await expect(ui.locator('#content .card, #content .empty-state')).toBeVisible({ timeout: 10000 });
+  await expect(ui.locator('#content .stage .stage-banner')).toContainText('Frozen', { timeout: 10000 });
+  expect(await ui.locator('#content .card').count()).toBe(0);
   await expect(tickerRow()).toHaveClass(/state-frozen/, { timeout: 10000 });
   await expect(tickerRow().locator('.mini.frost')).toBeVisible();
   await expect(ui.locator('#livebar .live-stats')).toContainText('1 frozen');

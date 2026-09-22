@@ -131,6 +131,26 @@ export async function runSmokeTest(engine) {
     await until(() => titleOf() !== t1, 5000, 'page resumes after thaw');
   });
 
+  await t('freeze the ACTIVE tab: set aside and really stopped (JS stands still), thaws on click', async () => {
+    const active = snap().tabs.find((x) => x.state === 'active');
+    if (!active) throw new Error('no active tab');
+    const titleOf = () => snap().tabs.find((x) => x.id === active.id)?.title ?? '';
+    const t0 = titleOf();
+    await until(() => titleOf() !== t0, 5000, 'page ticking before freeze');
+    const r = engine.tabFreeze({ tabId: active.id });
+    if ('error' in r) throw new Error(r.error);
+    await until(() => stateOf(active.id) === 'frozen', 8000, 'frozen state');
+    if (snap().activeTabId !== null) throw new Error('freezing the active tab must show the grid');
+    await wait(800); // CDP round-trip + the deferred detach
+    if (stateOf(active.id) !== 'frozen') throw new Error('freeze was refused by the protocol');
+    const t1 = titleOf();
+    await wait(1500);
+    if (titleOf() !== t1) throw new Error(`frozen ACTIVE page kept running: "${t1}" -> "${titleOf()}"`);
+    engine.tabActivate({ tabId: active.id });
+    await until(() => stateOf(active.id) === 'active', 8000, 'thaw on activate');
+    await until(() => titleOf() !== t1, 5000, 'page resumes after thaw');
+  });
+
   await t('metrics tick attributes real memory to real pids', async () => {
     engine.tick();
     await wait(300);

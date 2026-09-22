@@ -19,6 +19,7 @@ export class FakeView {
     this.historyIndex = -1;
     this.zoomLevel = 0;
     this.thumbCaptures = 0;
+    this.lastThumbFull = false;
     /** @type {number|null} active find ordinal; null = no session */
     this.findOrdinal = null;
     /** Suspended via freeze() (ADR-0014). A frozen page cannot navigate. */
@@ -97,7 +98,8 @@ export class FakeView {
   getOSPid() { return this.destroyed ? null : this.pid; }
   /** @param {boolean} b */
   setAttached(b) { this.attached = b; }
-  captureThumb() { this.thumbCaptures += 1; return Promise.resolve(true); }
+  /** @param {{ full?: boolean }} [opts] */
+  captureThumb(opts) { this.thumbCaptures += 1; this.lastThumbFull = Boolean(opts?.full); return Promise.resolve(true); }
   /** @param {'in'|'out'|'reset'} dir */
   zoom(dir) { this.zoomLevel = dir === 'reset' ? 0 : this.zoomLevel + (dir === 'in' ? 1 : -1); }
 
