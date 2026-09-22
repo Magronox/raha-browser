@@ -164,7 +164,11 @@ xvfb-run -a npm start          # headless container (add RAHA_NO_SANDBOX=1)
 Env knobs: `RAHA_PROFILE_DIR` (isolated profile), `RAHA_TICK_MS` (governor
 period, default 2500), `RAHA_NO_SANDBOX=1` (Chromium sandbox off — dev/CI
 containers only, never ship), `RAHA_DOWNLOAD_DIR` (save downloads there
-without the dialog — unpackaged runs only; the e2e download test needs it).
+without the dialog — unpackaged runs only; the e2e download test needs it),
+`RAHA_BACKGROUND=1` (show the window without taking focus and hide the Dock
+icon — the e2e specs and `npm run smoke` set it so a suite on a dev machine
+leaves the working window alone), `RAHA_E2E_STDERR=/path` (freeze.spec tees
+the app's stderr — the `[raha:*]` log — into that file; Playwright swallows it).
 
 Troubleshooting: `npm run dist` can flake with `zip process failed 18` and a
 wall of "zip warning: No such file or directory" — electron-builder builds

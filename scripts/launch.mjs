@@ -46,6 +46,7 @@ if (env.RAHA_NO_SANDBOX === '1' && !args.includes('--no-sandbox')) {
 
 // `npm run smoke` without a profile dir would hard-fail smoke check 8
 // (src/main/smoke.js requires RAHA_PROFILE_DIR): default to a throwaway dir.
+if (args.includes('--raha-smoke')) env.RAHA_BACKGROUND ??= '1'; // no focus steal, no Dock icon
 if (args.includes('--raha-smoke') && !env.RAHA_PROFILE_DIR) {
   env.RAHA_PROFILE_DIR = mkdtempSync(path.join(os.tmpdir(), 'raha-smoke-'));
 }

@@ -147,6 +147,11 @@ export function createMainWindow() {
   };
 
   // BaseWindow has no 'ready-to-show'; show once the UI chrome has rendered.
-  uiView.webContents.once('did-finish-load', () => { if (!win.isDestroyed()) win.show(); });
+  // RAHA_BACKGROUND=1 (tests, smoke): come up without stealing focus or a
+  // Dock icon, so a suite running on a dev machine leaves the working window alone.
+  uiView.webContents.once('did-finish-load', () => {
+    if (win.isDestroyed()) return;
+    if (process.env.RAHA_BACKGROUND === '1') { app.dock?.hide(); win.showInactive(); } else win.show();
+  });
   return { win, uiView, windowHost };
 }

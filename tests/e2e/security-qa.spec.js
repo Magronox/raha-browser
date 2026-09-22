@@ -51,6 +51,7 @@ function launchEnv() {
     RAHA_TICK_MS: '700',
     RAHA_NO_SANDBOX: '1',
     RAHA_NO_WELCOME: '1',
+    RAHA_BACKGROUND: '1',
   });
   delete env.ELECTRON_RUN_AS_NODE;
   return env;

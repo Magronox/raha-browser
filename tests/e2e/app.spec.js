@@ -47,6 +47,7 @@ function launchEnv() {
     RAHA_TICK_MS: '700',
     RAHA_NO_SANDBOX: '1',
     RAHA_NO_WELCOME: '1',
+    RAHA_BACKGROUND: '1',
     RAHA_DOWNLOAD_DIR: downloadDir, // R-106: no native save dialog under test (unpackaged only)
   });
   // Inherited from VSCode/agent shells this would run Electron as plain Node
