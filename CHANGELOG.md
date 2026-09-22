@@ -3,7 +3,7 @@
 All notable changes to Raha. Format: [Keep a Changelog](https://keepachangelog.com);
 versions are tags `vX.Y.Z` (tag == package.json version, enforced by CI).
 
-## Unreleased
+## v0.3.0 — 2026-09-22
 
 ### Added
 - **Command palette** (R-111). `Ctrl/⌘+K`: fuzzy-jump to any open tab or
@@ -30,10 +30,15 @@ versions are tags `vX.Y.Z` (tag == package.json version, enforced by CI).
   the right), the toolbar snowflake, the tab's right-click menu, or
   `⌘/Ctrl+Shift+F`. The first freeze says once that some pages notice a
   stopped clock — live chats, calls, video and uploads can need a reload
-  after thawing. The runaway prompt now offers
-  **Freeze** first for a CPU hog (Sleep for a memory hog). Frozen memory is
-  real memory: the live bar counts it and says how many tabs are frozen.
-  Sleep is still the only thing that returns memory.
+  after thawing. The runaway prompt now offers **Freeze** first for a CPU hog
+  (Sleep for a memory hog). Frozen memory is real memory: the live bar counts
+  it and says how many tabs are frozen. Sleep is still the only thing that
+  returns memory.
+
+### Changed
+- **Bundled ad/tracker blocklists refreshed** (EasyList/EasyPrivacy as of
+  2026-09-22). They ship with the app and are never fetched at runtime
+  (ADR-0009), so a release is the only time they move.
 
 ## v0.2.0 — 2026-09-15
 

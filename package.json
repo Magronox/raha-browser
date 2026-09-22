@@ -1,7 +1,7 @@
 {
   "name": "raha-browser",
   "productName": "Raha",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Raha — a light, private, open-source browser where you decide which tabs get to spend your RAM and CPU.",
   "license": "GPL-3.0-only",
   "author": {
