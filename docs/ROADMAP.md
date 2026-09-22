@@ -322,6 +322,26 @@ source of what's next, issues track execution (R-125).
 
 ## v0.3 — power and polish
 
+- **R-130 Update checker + Update button. NEXT UP (2026-09-22).** Today
+  updates are silent: a packaged build checks GitHub Releases 30 s after
+  boot and every 4 h (when `autoUpdate` is on), Windows/Linux download in
+  the background and install on quit, macOS only toasts "download it from
+  GitHub" (unsigned: Squirrel.Mac refuses, R-108). Nothing lets the user
+  ask, and nothing shows what version they run or whether a check happened.
+  Deliver: (1) Settings → About row: current version, "last checked …",
+  a **Check for updates** button that runs the check now (packaged only —
+  unpackaged says so) and reports found / up to date / offline, never
+  silently; (2) when an update is downloaded (Win/Linux) an **Update and
+  restart** button (`quitAndInstall`) in that row and in the toast; on
+  macOS the button opens the release page until signing lands; (3) the
+  `autoUpdate` toggle stays the only thing that authorizes network — the
+  button is a manual check, it never re-enables the periodic one.
+  Engine gets an `update` status (`idle | checking | available | downloaded
+  | none | error`, version, checkedAt) in the snapshot; IPC `updateCheck`
+  and `updateInstall` (playbook add-an-ipc-channel). INVARIANTS #6 already
+  names GitHub Releases as the one server; the row must say so in a line.
+  AC: unit test on the engine status machine with a fake updater port;
+  ui-harness: button → status text; e2e skipped (packaged-only).
 - **R-109 Rules UI v2.** Per-rule priority drag, test-a-URL box, import/export
   rules as JSON.
 - **R-110 Virtualized sidebar/grid** for 1000+ tabs.
