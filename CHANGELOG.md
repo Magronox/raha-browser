@@ -3,7 +3,7 @@
 All notable changes to Raha. Format: [Keep a Changelog](https://keepachangelog.com);
 versions are tags `vX.Y.Z` (tag == package.json version, enforced by CI).
 
-## Unreleased
+## v0.3.1 — 2026-09-22
 
 ### Fixed
 - **Freezing the tab you were looking at did not actually freeze it.** The
