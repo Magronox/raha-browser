@@ -83,8 +83,11 @@ it had no window-open handler either. Any origin it reached would inherit
 The plausible trigger is mundane: Chromium's default for an unhandled file
 drop is to navigate the frame to that file, and `src/ui/dnd.js` only calls
 `preventDefault` for internal row drags. *(The guard's absence was verified;
-the drop path itself was not reproduced — synthetic drop events are untrusted
-and cannot trigger it. It needs a real drag onto a running app.)*
+the drop path was not reproduced at the time — DOM-dispatched drop events are
+untrusted and cannot trigger it. Since 2026-09-21 the `R-128:` tests in
+`tests/e2e/security-qa.spec.js` drive trusted file drags through CDP
+`Input.dispatchDragEvent` at both the chrome and a page; the OS → view hop
+remains a hands-on check on the QA page.)*
 
 Fix: `will-navigate` + `will-redirect` cancel anything that is not the chrome
 page, `setWindowOpenHandler` denies, and the UI swallows unclaimed drops.
