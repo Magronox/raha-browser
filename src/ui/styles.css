@@ -278,8 +278,12 @@ img { -webkit-user-drag: none; }
 .chip:hover { border-color: #33405a; }
 .chip.active { border-color: var(--accent); background: var(--accent-soft); }
 .chip-title { max-width: 110px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; }
-.chip .sleepbtn { display: none; }
-.chip:hover .sleepbtn { display: inline-flex; }
+.chip .chipbtn { display: none; }
+.chip:hover .chipbtn { display: inline-flex; }
+.chip [data-chipfreeze], .chip [data-chipthaw] { color: #7fb8d8; }
+/* The frost badge marks a frozen chip at rest; on hover the thaw button in
+   the same corner says it, so showing both would read as two states. */
+.chip:hover .mini.frost { display: none; }
 .live-empty { color: var(--text-dim); font-size: 12px; padding-left: 4px; }
 
 /* ---------- modals ---------- */

@@ -168,6 +168,21 @@ await t('clicking an asleep card wakes the tab (engine + livebar agree)', async 
   assert(chips.length === before + 1, 'livebar reflects wake');
 });
 
+await t('live chip carries freeze on the left and sleep on the right; frozen chips offer thaw', async () => {
+  const id = seeded.music;
+  await page.hover(`#livebar .chip[data-chip="${id}"]`);
+  const order = await page.$$eval(`#livebar .chip[data-chip="${id}"] .mini.act`,
+    (els) => els.map((el) => Object.keys(/** @type {HTMLElement} */ (el).dataset)[0]));
+  assert(order[0] === 'chipfreeze' && order[order.length - 1] === 'chipsleep', `order=${order.join()}`);
+  await page.click(`#livebar .chip [data-chipfreeze="${id}"]`);
+  await pump();
+  assert(mock.engine.snapshot().tabs.find((x) => x.id === id)?.state === 'frozen', 'chip froze it');
+  await page.hover(`#livebar .chip[data-chip="${id}"]`);
+  await page.click(`#livebar .chip [data-chipthaw="${id}"]`);
+  await pump();
+  assert(mock.engine.snapshot().tabs.find((x) => x.id === id)?.state !== 'frozen', 'chip thawed it');
+});
+
 await t('sleep button on a live chip sleeps the tab', async () => {
   const before = mock.engine.snapshot().stats.runningCount;
   await page.hover(`#livebar .chip[data-chip="${seeded.music}"]`);

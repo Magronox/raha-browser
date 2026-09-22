@@ -1341,13 +1341,21 @@ export class Engine {
       this.toast('warn', `Could not freeze “${node.title || node.url}” — it keeps running`);
       this.emitSnapshot();
     });
-    if (reason === 'idle-freeze' && !this.settings.freezeExplained) {
-      this.toast('freeze', `Background tabs now freeze after ${this.settings.freezeIdleMinutes} min idle: no CPU, no growth — click one to continue where you left it. Change this in Settings.`);
-      this.settingsSet({ freezeExplained: true });
-    } else if (reason === 'runaway') {
-      this.toast('freeze', `Frozen at your request: “${node.title || node.url}” keeps its memory, stops running`);
-    } else if (wasAudible) {
-      this.toast('freeze', `Frozen: “${node.title || node.url}” — audio paused, press play after thawing`);
+    const explained = this.settings.freezeExplained;
+    let say = '';
+    if (reason === 'idle-freeze' && !explained) say = `Background tabs now freeze after ${this.settings.freezeIdleMinutes} min idle: no CPU, no growth — click one to continue where you left it. Change this in Settings.`;
+    else if (reason === 'runaway') say = `Frozen at your request: “${node.title || node.url}” keeps its memory, stops running`;
+    else if (wasAudible) say = `Frozen: “${node.title || node.url}” — audio paused, press play after thawing`;
+    else if (!explained) say = `Frozen: “${node.title || node.url}” keeps its memory, stops running`;
+    if (say) {
+      // The first freeze of any kind carries the caveat: a stopped clock is not
+      // free, and that should come from us once rather than arrive as a dropped
+      // chat later.
+      if (!explained) {
+        say += ' Some pages notice a freeze: live chats, calls, video and uploads can need a reload after thawing.';
+        this.settingsSet({ freezeExplained: true });
+      }
+      this.toast('freeze', say);
     }
     this.markDirty();
     this.governNow();

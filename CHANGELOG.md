@@ -26,8 +26,11 @@ versions are tags `vX.Y.Z` (tag == package.json version, enforced by CI).
   their own after 2 minutes idle (Settings → "Freeze background tabs after";
   Never / 1–30 min); pinned, audio and loading tabs are never frozen
   automatically, and pinning a frozen tab thaws it. Freeze by hand from the
-  sidebar, the grid, the live bar, the toolbar snowflake, the tab's
-  right-click menu, or `⌘/Ctrl+Shift+F`. The runaway prompt now offers
+  sidebar, the grid, the live bar (snowflake on the left of a chip, moon on
+  the right), the toolbar snowflake, the tab's right-click menu, or
+  `⌘/Ctrl+Shift+F`. The first freeze says once that some pages notice a
+  stopped clock — live chats, calls, video and uploads can need a reload
+  after thawing. The runaway prompt now offers
   **Freeze** first for a CPU hog (Sleep for a memory hog). Frozen memory is
   real memory: the live bar counts it and says how many tabs are frozen.
   Sleep is still the only thing that returns memory.

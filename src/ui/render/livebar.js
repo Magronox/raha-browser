@@ -21,13 +21,16 @@ export function render() {
   const chips = running.map((t) => `
     <button class="chip ${t.state === 'active' ? 'active' : ''} ${t.state === 'frozen' ? 'frozen' : ''}" data-chip="${esc(t.id)}"
             title="${esc(t.title)}\n${fmtMB(t.memMB)}${t.memShared ? ' (shared process)' : ''} · CPU ${t.cpuPct ?? '—'}%${t.keepAliveEffective ? '\nKept alive' : ''}${t.state === 'frozen' ? '\nFrozen: no CPU, memory kept' : ''}">
+      ${t.state === 'frozen'
+    ? `<span class="mini act chipbtn" data-chipthaw="${esc(t.id)}" title="Continue (thaw)">${icons.sun}</span>`
+    : `<span class="mini act chipbtn" data-chipfreeze="${esc(t.id)}" title="Freeze: stop it cold, keep it exactly">${icons.snowflake}</span>`}
       <span class="fav">${faviconHtml(t)}</span>
       ${t.state === 'frozen' ? `<span class="mini frost">${icons.snowflake}</span>` : ''}
       <span class="chip-title">${esc(t.title)}</span>
       ${t.audible ? `<span class="mini audio">${icons.audio}</span>` : ''}
       ${t.keepAliveEffective ? `<span class="mini pin">${icons.pin}</span>` : ''}
       <span class="membadge ${memClass(t.memMB)}">${t.memMB == null ? '…' : fmtMB(t.memMB)}${t.memShared ? '*' : ''}</span>
-      <span class="mini act sleepbtn" data-chipsleep="${esc(t.id)}" title="Sleep now">${icons.moon}</span>
+      <span class="mini act chipbtn sleepbtn" data-chipsleep="${esc(t.id)}" title="Sleep now">${icons.moon}</span>
     </button>`).join('');
 
   root.innerHTML = `
@@ -58,6 +61,16 @@ export function render() {
     el.addEventListener('click', (e) => {
       e.stopPropagation();
       void api.tabSleep(/** @type {string} */ (/** @type {HTMLElement} */ (el).dataset.chipsleep));
+    }));
+  root.querySelectorAll('[data-chipfreeze]').forEach((el) =>
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      void api.tabFreeze(/** @type {string} */ (/** @type {HTMLElement} */ (el).dataset.chipfreeze));
+    }));
+  root.querySelectorAll('[data-chipthaw]').forEach((el) =>
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      void api.tabThaw(/** @type {string} */ (/** @type {HTMLElement} */ (el).dataset.chipthaw));
     }));
   wireImgFallbacks(root);
 }

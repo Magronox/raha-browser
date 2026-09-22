@@ -1638,6 +1638,17 @@ test('freeze: activating a frozen tab thaws it — same view, attached, focused,
   assert.equal(stateOf(engine, a), 'running');
 });
 
+test('freeze: the first freeze — manual too — warns that some pages need a reload after thawing, once', () => {
+  const { engine, world, b, a } = bootTwo();
+  engine.tabFreeze({ tabId: b });
+  const first = world.toasts().filter((t) => t.kind === 'freeze');
+  assert.equal(first.length, 1);
+  assert.match(first[0].text, /reload after thawing/i, 'the caveat is in the explainer');
+  assert.equal(engine.settings.freezeExplained, true);
+  engine.tabFreeze({ tabId: a });
+  assert.equal(world.toasts().filter((t) => t.kind === 'freeze').length, 1, 'said once, not per freeze');
+});
+
 test('freeze: manual thaw resumes in the background and refreshes lastActiveAt', () => {
   const { engine, world, b } = bootTwo();
   engine.tabFreeze({ tabId: b });
@@ -1665,7 +1676,7 @@ test('freeze: sleeping a frozen tab destroys it directly — no thaw, navJson + 
     const node = must(engine.tabNode(b));
     assert.ok(node.navJson, 'nav history saved (browser-side, readable while frozen)');
     assert.equal(node.pageState?.sy, 99, 'page state from the pre-freeze capture');
-    assert.equal(world.toasts().length, 0, 'a manual sleep is silent');
+    assert.deepEqual(world.toasts().map((t) => t.kind), ['freeze'], 'the first freeze explains itself; the manual sleep after it is silent');
   });
 });
 

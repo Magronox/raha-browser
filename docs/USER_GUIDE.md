@@ -43,7 +43,10 @@ example tabs — asleep, costing zero memory, loading nothing until you click.
 
 1. **Go somewhere.** `Ctrl+L`, type `wikipedia.org` or any search, `Enter`.
 2. **Watch the bottom strip** — the **live bar**. Every running tab appears
-   there with its real memory (MB) and CPU. This is the honest meter.
+   there with its real memory (MB) and CPU. This is the honest meter. Hover a
+   chip for its two buttons: **freeze** (snowflake, on the left) stops the tab
+   where it is, **sleep** (moon, on the right) frees its memory. A frozen chip
+   shows a sun on the left — click it to continue.
 3. **Open five more tabs.** When you pass the cap (6 by default), the tab you
    touched longest ago quietly goes to sleep — a toast tells you why.
 4. **Click a sleeping card** (grid) or row (sidebar) — it wakes exactly where
@@ -57,7 +60,7 @@ example tabs — asleep, costing zero memory, loading nothing until you click.
 |---|---|
 | **Running** | Has a live Chromium process right now (shown in the live bar) |
 | **Active** | The one running tab currently on screen |
-| **Frozen** | Still has its process, but paused: 0 CPU, no growth, memory kept (and still counted). The page is exactly as you left it — click it and it continues instantly. Never survives a restart |
+| **Frozen** | Still has its process, but paused: 0 CPU, no growth, memory kept (and still counted). The page is exactly as you left it — click it and it continues instantly. Never survives a restart. Some pages notice a stopped clock: live chats, calls, video and uploads can need a reload after thawing |
 | **Asleep** | No process at all — 0 MB, 0 CPU. Keeps URL, title, history, thumbnail, place in your folders |
 | **Pinned / keep-alive** | Never auto-slept (amber pin icon) |
 | **Rule** | A domain pattern that pins or limits every matching tab |

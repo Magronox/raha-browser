@@ -74,7 +74,7 @@ export function render() {
         <small>When running tabs together exceed this, Raha sleeps the least-recent ones until it fits.</small>
       </label>
       <label class="setting">
-        <span>Freeze background tabs after <small>(a frozen tab stops running — no CPU, no memory growth — but keeps everything exactly as it was; click it to continue instantly. Pinned and audio tabs are never frozen automatically)</small></span>
+        <span>Freeze background tabs after <small>(a frozen tab stops running — no CPU, no memory growth — but keeps everything exactly as it was; click it to continue instantly. Pinned and audio tabs are never frozen automatically. Some pages notice a stopped clock — live chats, calls, video and uploads can need a reload after thawing)</small></span>
         <select data-set="freezeIdleMinutes">
           ${freezeOpts.map((v) => `<option value="${v}" ${s.freezeIdleMinutes === v ? 'selected' : ''}>${v === 0 ? 'Never' : `${v} min idle`}</option>`).join('')}
         </select>

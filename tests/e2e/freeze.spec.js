@@ -101,6 +101,8 @@ test('manual freeze from the toolbar: the page stops (title and counter stand st
   await expect(tickerRow().locator('.mini.frost')).toBeVisible();
   await expect(ui.locator('#livebar .live-stats')).toContainText('1 frozen');
   await expect(ui.locator('#livebar .chip.frozen')).toHaveCount(1);
+  // First freeze of the run: the one-time explainer, caveat included.
+  await expect(ui.locator('#toasts .toast-freeze')).toContainText(/reload after thawing/i, { timeout: 5000 });
   // The page is really stopped: the title the sidebar shows stops changing.
   if (!(await harnessPinsVisible())) {
     await ui.waitForTimeout(600); // let any in-flight title event land
@@ -164,13 +166,13 @@ test('governor: a background tab freezes on its own after freezeIdleMinutes; a f
   // ticker is asleep from the previous test and 'other' is active. Wake
   // ticker, go back to 'other': ticker is now a background tab whose
   // lastActiveAt is "now" — the governor must freeze it ~60 s later, with
-  // the one-time explainer toast.
+  // (the explainer is already spent on the manual freeze above — said once).
   await tickerRow().locator('.name').click();
   await expect(tickerRow()).toHaveClass(/state-active/, { timeout: 10000 });
   await ui.locator('#sidebar .row.tab', { hasText: 'other' }).first().locator('.name').click();
   await expect(tickerRow()).toHaveClass(/state-running/, { timeout: 10000 });
   await expect(tickerRow()).toHaveClass(/state-frozen/, { timeout: 90_000 });
-  await expect(ui.locator('#toasts .toast-freeze')).toHaveCount(1, { timeout: 5000 });
+  expect(await ui.locator('#toasts .toast-freeze').count()).toBe(0);
   // Cap still applies to frozen tabs: cap 1 sleeps the frozen background tab.
   await ui.click('[data-act="settings"]');
   await ui.$eval('input[data-set="maxLiveTabs"]', (el) => {
