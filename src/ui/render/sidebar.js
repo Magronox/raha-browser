@@ -45,7 +45,7 @@ export function render() {
         rows.push(`
           <div class="row tab state-${t.state}" draggable="true"
                data-id="${esc(t.id)}" data-kind="tab" data-depth="${depth}" title="${esc(t.title)}\n${esc(t.url)}">
-            <span class="dot" title="${t.state}"></span>
+            ${t.state === 'frozen' ? `<span class="mini frost" title="Frozen: no CPU, memory kept — click to continue">${icons.snowflake}</span>` : `<span class="dot" title="${t.state}"></span>`}
             <span class="fav">${faviconHtml(t)}</span>
             <span class="name" data-activate="${esc(t.id)}">${esc(t.title)}</span>
             ${t.audible ? `<span class="mini audio" title="Playing audio">${icons.audio}</span>` : ''}
@@ -53,7 +53,9 @@ export function render() {
             <span class="rowbtns">
               ${t.state === 'asleep'
                 ? `<button class="mini act" data-wake="${esc(t.id)}" title="Wake">${icons.sun}</button>`
-                : `<button class="mini act" data-sleep="${esc(t.id)}" title="Sleep now">${icons.moon}</button>`}
+                : t.state === 'frozen'
+                  ? `<button class="mini act" data-thaw="${esc(t.id)}" title="Thaw (resume)">${icons.sun}</button><button class="mini act" data-sleep="${esc(t.id)}" title="Sleep now (free its memory)">${icons.moon}</button>`
+                  : `<button class="mini act" data-freeze="${esc(t.id)}" title="Freeze: stop it cold, keep it exactly">${icons.snowflake}</button><button class="mini act" data-sleep="${esc(t.id)}" title="Sleep now">${icons.moon}</button>`}
               <button class="mini act danger" data-close="${esc(t.id)}" title="Close">${icons.close}</button>
             </span>
           </div>`);
@@ -132,6 +134,11 @@ export function render() {
     el.addEventListener('click', (e) => { e.stopPropagation(); void api.tabSleep(/** @type {string} */ (/** @type {HTMLElement} */ (el).dataset.sleep)); }));
   root.querySelectorAll('[data-close]').forEach((el) =>
     el.addEventListener('click', (e) => { e.stopPropagation(); void api.tabClose(/** @type {string} */ (/** @type {HTMLElement} */ (el).dataset.close)); }));
+
+  root.querySelectorAll('[data-freeze]').forEach((el) =>
+    el.addEventListener('click', (e) => { e.stopPropagation(); void api.tabFreeze(/** @type {string} */ (/** @type {HTMLElement} */ (el).dataset.freeze)); }));
+  root.querySelectorAll('[data-thaw]').forEach((el) =>
+    el.addEventListener('click', (e) => { e.stopPropagation(); void api.tabThaw(/** @type {string} */ (/** @type {HTMLElement} */ (el).dataset.thaw)); }));
 
   // Inline rename
   const renameInput = /** @type {HTMLInputElement|null} */ (root.querySelector('[data-rename]'));

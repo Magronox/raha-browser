@@ -25,6 +25,10 @@ export const api = {
   tabActivate: (tabId) => bridge().invoke(INVOKE.tabActivate, { tabId }),
   /** @param {string} tabId */
   tabSleep: (tabId) => bridge().invoke(INVOKE.tabSleep, { tabId }),
+  /** @param {string} tabId */
+  tabFreeze: (tabId) => bridge().invoke(INVOKE.tabFreeze, { tabId }),
+  /** @param {string} tabId */
+  tabThaw: (tabId) => bridge().invoke(INVOKE.tabThaw, { tabId }),
   /** @param {string} tabId @param {boolean} keepAlive */
   tabSetKeepAlive: (tabId, keepAlive) => bridge().invoke(INVOKE.tabSetKeepAlive, { tabId, keepAlive }),
   /** @param {string} tabId @param {number|null} memLimitMB */
@@ -100,7 +104,7 @@ export const api = {
   organizeApply: () => bridge().invoke(INVOKE.organizeApply),
 
   // --- runaway-tab guard
-  /** @param {string} tabId @param {'sleep'|'snooze'} action */
+  /** @param {string} tabId @param {'sleep'|'freeze'|'snooze'} action */
   runawayResolve: (tabId, action) => bridge().invoke(INVOKE.runawayResolve, { tabId, action }),
 
   // --- site permissions (R-103)

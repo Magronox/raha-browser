@@ -236,3 +236,77 @@ test('runawayAssess: memory wins when both streaks are hot', () => {
   const both = { cpuHotTicks: RUNAWAY.cpuTicks + 5, memHotTicks: RUNAWAY.memTicks, audible: false };
   assert.equal(runawayAssess(both, SETTINGS), 'mem');
 });
+
+// ---------------------------------------------------------------- Rule 5: idle freeze (ADR-0014)
+
+const FREEZE = { ...SETTINGS, maxLiveTabs: 10, freezeIdleMinutes: 2 };
+
+test('freeze: a background tab idle past freezeIdleMinutes is frozen, not slept', () => {
+  const tabs = [mkTab('a', { isActive: true }), mkTab('b', { lastActiveAt: NOW - 3 * MIN }), mkTab('c', { lastActiveAt: NOW - 1 * MIN })];
+  const { actions } = decide(tabs, FREEZE, NOW);
+  assert.deepEqual(actions, [{ type: 'freeze', tabId: 'b', reason: 'idle-freeze' }]);
+});
+
+test('freeze: never the active, keepAlive, audible (protectAudio), loading, or already-frozen tab', () => {
+  const old = NOW - 30 * MIN;
+  const tabs = [
+    mkTab('active', { isActive: true, lastActiveAt: old }),
+    mkTab('pinned', { keepAlive: true, lastActiveAt: old }),
+    mkTab('music', { audible: true, lastActiveAt: old }),
+    mkTab('loading', { loading: true, lastActiveAt: old }),
+    mkTab('frozen', { frozen: true, lastActiveAt: old }),
+    mkTab('never', { lastActiveAt: 0 }),
+    mkTab('asleep', { running: false, lastActiveAt: old }),
+    mkTab('plain', { lastActiveAt: old }),
+  ];
+  const { actions } = decide(tabs, FREEZE, NOW);
+  assert.deepEqual(actions, [{ type: 'freeze', tabId: 'plain', reason: 'idle-freeze' }]);
+});
+
+test('freeze: an audible tab IS frozen when protectAudio is off', () => {
+  const tabs = [mkTab('a', { isActive: true }), mkTab('music', { audible: true, lastActiveAt: NOW - 30 * MIN })];
+  const { actions } = decide(tabs, { ...FREEZE, protectAudio: false }, NOW);
+  assert.deepEqual(actions, [{ type: 'freeze', tabId: 'music', reason: 'idle-freeze' }]);
+});
+
+test('freeze: sleep rules win — a tab chosen to sleep this round is never also frozen', () => {
+  // idle sleep at 2 min beats freeze at 2 min for the same tab
+  const tabs = [mkTab('a', { isActive: true }), mkTab('b', { lastActiveAt: NOW - 5 * MIN })];
+  const { actions } = decide(tabs, { ...FREEZE, idleSleepMinutes: 2 }, NOW);
+  assert.deepEqual(actions, [{ type: 'sleep', tabId: 'b', reason: 'idle' }]);
+  // cap eviction picks b; c (also idle) is frozen — one action each, never both on one tab
+  const tabs2 = [mkTab('a', { isActive: true }), mkTab('b', { lastActiveAt: NOW - 20 * MIN }), mkTab('c', { lastActiveAt: NOW - 10 * MIN })];
+  const r = decide(tabs2, { ...FREEZE, maxLiveTabs: 2 }, NOW);
+  assert.deepEqual(r.actions, [
+    { type: 'sleep', tabId: 'b', reason: 'cap' },
+    { type: 'freeze', tabId: 'c', reason: 'idle-freeze' },
+  ]);
+});
+
+test('freeze: frozen tabs are ordinary running tabs to the sleep rules (they hold RAM)', () => {
+  // idle sleep: a frozen tab past idleSleepMinutes sleeps
+  const tabs = [mkTab('a', { isActive: true }), mkTab('f', { frozen: true, lastActiveAt: NOW - 30 * MIN })];
+  assert.deepEqual(decide(tabs, { ...FREEZE, idleSleepMinutes: 10 }, NOW).actions, [{ type: 'sleep', tabId: 'f', reason: 'idle' }]);
+  // per-tab limit: a frozen tab over its limit sleeps
+  const tabs2 = [mkTab('a', { isActive: true }), mkTab('f', { frozen: true, memMB: 900, memLimitMB: 500 })];
+  assert.deepEqual(decide(tabs2, FREEZE, NOW).actions, [{ type: 'sleep', tabId: 'f', reason: 'tab-limit' }]);
+  // LRU order ignores frozenness: the least-recently-active tab goes first, frozen or not
+  const tabs3 = [
+    mkTab('a', { isActive: true }),
+    mkTab('warm', { lastActiveAt: NOW - 5 * MIN }),
+    mkTab('frozenNewer', { frozen: true, lastActiveAt: NOW - 3 * MIN }),
+  ];
+  const r = decide(tabs3, { ...FREEZE, maxLiveTabs: 2, freezeIdleMinutes: 0 }, NOW);
+  assert.deepEqual(r.actions, [{ type: 'sleep', tabId: 'warm', reason: 'cap' }]);
+});
+
+test('freeze: freezeIdleMinutes = 0 (or absent) disables rule 5; output is deterministic', () => {
+  const tabs = [mkTab('a', { isActive: true }), mkTab('b', { lastActiveAt: NOW - 60 * MIN })];
+  assert.deepEqual(decide(tabs, { ...FREEZE, freezeIdleMinutes: 0 }, NOW).actions, []);
+  assert.deepEqual(decide(tabs, SETTINGS, NOW).actions, []);
+  const many = ['z', 'y', 'x'].map((id) => mkTab(id, { lastActiveAt: NOW - 60 * MIN }));
+  const a1 = decide([mkTab('a', { isActive: true }), ...many], FREEZE, NOW).actions;
+  const a2 = decide([mkTab('a', { isActive: true }), ...many], FREEZE, NOW).actions;
+  assert.deepEqual(a1, a2);
+  assert.equal(a1.length, 3);
+});

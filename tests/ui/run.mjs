@@ -293,6 +293,106 @@ await t('shield button: per-site off writes noBlockHosts and restyles; global-of
   await pump();
 });
 
+await t('freeze: sidebar, grid and live bar show a frozen tab; thaw/sleep buttons swap; context menu offers Thaw', async () => {
+  const gh = seeded.gh;
+  // Earlier scenarios may leave the grid showing (no active tab): put hn on
+  // screen so gh is a BACKGROUND running tab, which is what the buttons test.
+  const before = mock.engine.snapshot().activeTabId;
+  if (!before || before === gh) { mock.engine.tabActivate({ tabId: seeded.hn }); await pump(); }
+  const active = must(mock.engine.snapshot().activeTabId, 'an active tab');
+  assert(active !== gh, 'gh must be a background running tab for this scenario');
+  if (mock.engine.snapshot().tabs.find((t2) => t2.id === gh)?.state !== 'running') { mock.engine.tabActivate({ tabId: gh }); mock.engine.tabActivate({ tabId: active }); await pump(); }
+  assert(mock.engine.snapshot().tabs.find((t2) => t2.id === gh)?.state === 'running', 'gh running');
+  // Running row: a Freeze button, no Thaw.
+  assert((await page.$(`#sidebar .row[data-id="${gh}"] [data-freeze]`)) !== null, 'running row offers Freeze');
+  assert((await page.$(`#sidebar .row[data-id="${gh}"] [data-thaw]`)) === null, 'no Thaw on a running row');
+  await page.hover(`#sidebar .row[data-id="${gh}"]`); // row buttons show on hover
+  await page.click(`#sidebar .row[data-id="${gh}"] [data-freeze]`);
+  await pump();
+  const snap = mock.engine.snapshot();
+  assert(snap.tabs.find((t2) => t2.id === gh)?.state === 'frozen', 'engine froze it');
+  assert(snap.stats.frozenCount === 1, `frozenCount: ${snap.stats.frozenCount}`);
+  await page.waitForSelector(`#sidebar .row[data-id="${gh}"].state-frozen .mini.frost`);
+  assert((await page.$(`#sidebar .row[data-id="${gh}"] [data-thaw]`)) !== null, 'frozen row offers Thaw');
+  assert((await page.$(`#sidebar .row[data-id="${gh}"] [data-sleep]`)) !== null, 'and Sleep');
+  assert((await page.$(`#sidebar .row[data-id="${gh}"] [data-freeze]`)) === null, 'no second Freeze');
+  await page.waitForSelector(`#livebar .chip.frozen[data-chip="${gh}"] .mini.frost`);
+  const stats = await page.$eval('#livebar .live-stats', (el) => el.textContent ?? '');
+  assert(stats.includes('1 frozen'), `live stats name the frozen count: ${stats}`);
+  // Context menu on the frozen row: Thaw + Sleep now, no Freeze.
+  await page.click(`#sidebar .row[data-id="${gh}"] .name`, { button: 'right' });
+  await pump();
+  let items = await page.$$eval('.ctx-item', (els) => els.map((e) => e.textContent ?? ''));
+  assert(items.some((i) => i.startsWith('Thaw')) && items.some((i) => i === 'Sleep now') && !items.some((i) => i.startsWith('Freeze')), `frozen menu: ${items}`);
+  await page.click('[data-ctx="thaw"]');
+  await pump();
+  assert(mock.engine.snapshot().tabs.find((t2) => t2.id === gh)?.state === 'running', 'context-menu Thaw resumed it');
+  await page.waitForSelector(`#sidebar .row[data-id="${gh}"].state-running`);
+  // Grid: the frozen chip. Freeze again, show the grid, check the card.
+  mock.engine.tabFreeze({ tabId: gh });
+  mock.engine.tabShowGrid();
+  await pump();
+  // The grid remembers the folder an earlier scenario browsed to; gh lives in
+  // "Project Raha" — select that folder so its card is on screen.
+  const proj = must(mock.engine.snapshot().folders.find((f) => f.name === 'Project Raha'), 'seeded folder');
+  await page.click(`#sidebar .row[data-id="${proj.id}"] .name`);
+  await pump();
+  await page.waitForSelector(`#content .tabcard.state-frozen[data-opentab="${gh}"] .state-chip.frozen`);
+  // Running row's context menu offers Freeze.
+  await page.hover(`#sidebar .row[data-id="${gh}"]`);
+  await page.click(`#sidebar .row[data-id="${gh}"] [data-thaw]`);
+  await pump();
+  await page.click(`#sidebar .row[data-id="${gh}"] .name`, { button: 'right' });
+  await pump();
+  items = await page.$$eval('.ctx-item', (els) => els.map((e) => e.textContent ?? ''));
+  assert(items.some((i) => i.startsWith('Freeze')), `running menu offers Freeze: ${items}`);
+  await page.keyboard.press('Escape');
+  // Leave the world as found.
+  if (before) mock.engine.tabActivate({ tabId: before }); else mock.engine.tabShowGrid();
+  await pump();
+});
+
+await t('freeze: runaway CPU prompt — Freeze leaves the tab frozen and closes the prompt; settings select writes through', async () => {
+  // activate: a background create may land asleep under the running cap and
+  // then has no renderer to run away with.
+  const before = mock.engine.snapshot().activeTabId;
+  const created = ok(mock.engine.tabCreate({ url: 'https://spin.example/', activate: true }));
+  for (let i = 0; i < 4; i += 1) {
+    mock.world.setTabMetrics(created.tabId, 120, 380);
+    mock.engine.tick();
+  }
+  await pump();
+  await page.waitForSelector('.modal.runaway');
+  await page.click('[data-runaway-freeze]');
+  await pump();
+  assert((await page.$('.modal.runaway')) === null, 'prompt gone after Freeze');
+  assert(mock.engine.snapshot().tabs.find((t2) => t2.id === created.tabId)?.state === 'frozen', 'tab is frozen');
+  mock.world.setTabMetrics(created.tabId, 120, 380);
+  for (let i = 0; i < 4; i += 1) mock.engine.tick();
+  await pump();
+  assert((await page.$('.modal.runaway')) === null, 'a frozen tab never prompts again');
+  // Settings: the freeze select exists and writes through.
+  await page.click('[data-act="settings"]');
+  await page.waitForSelector('.modal.settings select[data-set="freezeIdleMinutes"]');
+  await page.$eval('select[data-set="freezeIdleMinutes"]', (el) => {
+    const sel = /** @type {HTMLSelectElement} */ (el);
+    sel.value = '5';
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  await pump();
+  assert(mock.engine.settings.freezeIdleMinutes === 5, `freezeIdleMinutes: ${mock.engine.settings.freezeIdleMinutes}`);
+  await page.$eval('select[data-set="freezeIdleMinutes"]', (el) => {
+    const sel = /** @type {HTMLSelectElement} */ (el);
+    sel.value = '0';
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  await pump();
+  await page.keyboard.press('Escape');
+  mock.engine.tabClose({ tabId: created.tabId });
+  if (before) mock.engine.tabActivate({ tabId: before }); else mock.engine.tabShowGrid();
+  await pump();
+});
+
 await t('context menu appears on right-click with tab actions', async () => {
   await page.click(`#sidebar .row[data-id="${seeded.gh}"] .name`, { button: 'right' });
   await pump();
@@ -1194,7 +1294,10 @@ await t('runaway prompt: appears on sustained CPU, Terminate sleeps the tab', as
   mock.engine.tick();
   await pump();
   await page.waitForSelector('.modal.runaway');
-  await page.click('[data-runaway-kill]');
+  // CPU kind: Freeze is the primary (first) answer, Sleep is one click away.
+  const first = await page.$eval('.modal.runaway .mini-row button', (el) => el.getAttribute('data-runaway-freeze') !== null);
+  assert(first, 'CPU prompt must offer Freeze first');
+  await page.click('[data-runaway-sleep]');
   await pump();
   assert((await page.$('.modal.runaway')) === null, 'prompt gone after terminate');
   const hog = mock.engine.snapshot().tabs.find((t2) => t2.id === hogId);

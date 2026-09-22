@@ -107,6 +107,7 @@ export function installMenu(engine, ui, openSettings) {
           })),
         },
         { type: /** @type {const} */ ('separator') },
+        { label: 'Freeze This Tab', accelerator: 'CmdOrCtrl+Shift+F', click: withActive((id) => engine.tabFreeze({ tabId: id })) },
         { label: 'Sleep This Tab', accelerator: 'CmdOrCtrl+Shift+S', click: withActive((id) => engine.tabSleep({ tabId: id })) },
         { label: 'Sleep All Tabs', accelerator: 'CmdOrCtrl+Shift+A', click: () => engine.folderSleepAll({ folderId: engine.state.tree.rootId }) },
         { label: 'Keep This Tab Alive (toggle)', accelerator: 'CmdOrCtrl+Shift+K', click: withActive((id) => {

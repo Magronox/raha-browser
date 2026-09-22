@@ -42,6 +42,15 @@ RAHA_TICK_MS=800 RAHA_PROFILE_DIR=/tmp/raha-dbg RAHA_DEV=1 npm start
 
 ## Known sharp edges (check before "fixing")
 
+- **Frozen tabs (ADR-0014).** `executeJavaScript` on a frozen page QUEUES
+  silently until thaw — never await it there (the adapter answers `null`
+  for `capturePageState()` while frozen; state is captured before the
+  freeze). After a thaw `visibilityState` stays `hidden` until the view is
+  hidden and shown again — the adapter does that kick (`setVisible`) on
+  thaw or on the next attach. Media paused by a freeze never auto-resumes.
+  A frozen tab's `cpuHotTicks`/`memHotTicks` are held at 0, so it can never
+  raise the runaway prompt.
+
 - Same-site tabs may SHARE a renderer pid → both show the full process
   memory with a `*`; the governor may sleep one and free nothing. Documented
   tradeoff (ARCHITECTURE.md), not a bug.

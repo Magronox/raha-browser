@@ -22,6 +22,7 @@ Alternatives considered:
 ## Consequences
 - The memory number in the live bar is honest; "everything asleep" after a
   restart costs ~0 tab RAM (boot restores all tabs asleep by design).
-- Invariant #9 forbids introducing hidden half-asleep states casually; a
-  future "frozen" middle tier (e.g. for sub-minute suspends) needs a new ADR
-  and its own UI state vocabulary.
+- Invariant #9 forbids introducing hidden half-asleep states casually; the
+  "frozen" middle tier arrived with its own ADR and vocabulary (ADR-0014):
+  it suspends CPU and keeps memory counted — sleep stays the only state
+  that returns memory.

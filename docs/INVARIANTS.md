@@ -39,8 +39,9 @@ Tab WebContentsViews: `sandbox: true`, `contextIsolation: true`,
 `nodeIntegration: false`, **no preload**. Only the UI view gets the preload
 bridge, and main validates every invoke. The main process may hold a
 DevTools-protocol session on a tab (`src/main/electron/chrome-identity.js`,
-which tells the renderer what browser to claim to be) — that is not a
-bridge: nothing is exposed to the page, and the page cannot reach it.
+which tells the renderer what browser to claim to be; the same session
+freezes and thaws the page, ADR-0014) — that is not a bridge: nothing is
+exposed to the page, and the page cannot reach it.
 *Why:* a compromised page must find nothing to escalate through.
 
 ## #6 — Raha is silent on the network, except the optional update check
@@ -74,6 +75,10 @@ immutable) plus a fixture test feeding a real old document through.
 OS), never merely hidden/throttled. What survives sleep: URL, title, favicon
 URL, navigation history (capped), thumbnail, per-tab settings, position in
 the tree. Do not introduce a half-asleep state without an ADR.
+The one such state that exists is **frozen** (ADR-0014): the renderer is
+alive but suspended — no CPU, memory kept and still counted, the page
+exactly as left. It is a *running* tab to every memory rule and to the live
+bar, never a substitute for sleep, and never persisted.
 *Why:* the memory promise in the README must stay literally true.
 
 ## #10 — The active tab is sacred

@@ -44,6 +44,12 @@ plus calm organization on top.
 ```
               tabCreate / activate(asleep)                 governor or user
    (no state) ────────────► RUNNING (active) ──────────────► ASLEEP
+                                  │  ▲
+                 governor (idle)  │  │ activate / thaw          (ADR-0014)
+                 or user          ▼  │
+                               FROZEN ── sleep ──────────────► ASLEEP
+                (renderer alive, suspended: no CPU, memory kept + counted;
+                 never persisted — a restart lands every tab ASLEEP)
                               ▲   │ switch away               │  renderer destroyed;
                               │   ▼                           │  keeps: url, title,
                               │ RUNNING (background) ─────────┘  navJson, thumb, tree pos

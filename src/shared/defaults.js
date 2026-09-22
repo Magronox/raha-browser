@@ -11,6 +11,8 @@ export const HISTORY_SCHEMA_VERSION = 1;
  * @property {number} schemaVersion
  * @property {number} maxLiveTabs      Hard cap on simultaneously running tabs (active tab included). 1..64.
  * @property {number} idleSleepMinutes Sleep a background tab after N idle minutes. 0 = off. 0..720.
+ * @property {number} freezeIdleMinutes Freeze (suspend, keep everything) a background tab after N idle minutes (R-127, ADR-0014). 0 = off. 0..720.
+ * @property {boolean} freezeExplained  Internal: the one-time "background tabs now freeze" explainer toast has been shown. Not in the Settings UI.
  * @property {number} globalBudgetMB   Total memory budget for all running tabs. 0 = off. 0..65536.
  * @property {boolean} protectAudio    Never auto-sleep a tab that is playing sound.
  * @property {boolean} runawayGuard    Ask to terminate a tab whose CPU/memory use explodes (thresholds: RUNAWAY in policy.js).
@@ -42,6 +44,8 @@ export function defaultSettings() {
     schemaVersion: SETTINGS_SCHEMA_VERSION,
     maxLiveTabs: 6,
     idleSleepMinutes: 0,
+    freezeIdleMinutes: 2,
+    freezeExplained: false,
     globalBudgetMB: 0,
     protectAudio: true,
     runawayGuard: true,
@@ -65,6 +69,7 @@ export function defaultSettings() {
 export const RANGES = {
   maxLiveTabs: [1, 64],
   idleSleepMinutes: [0, 720],
+  freezeIdleMinutes: [0, 720],
   globalBudgetMB: [0, 65536],
   memLimitMB: [0, 16384],
 };

@@ -21,9 +21,12 @@ export class FakeView {
     this.thumbCaptures = 0;
     /** @type {number|null} active find ordinal; null = no session */
     this.findOrdinal = null;
+    /** Suspended via freeze() (ADR-0014). A frozen page cannot navigate. */
+    this.frozen = false;
   }
   /** @param {string} url */
   loadURL(url) {
+    if (this.frozen) throw new Error(`loadURL on frozen view ${this.tabId} — the engine must thaw first`);
     this.url = url;
     this.history = this.history.slice(0, this.historyIndex + 1);
     this.history.push(url);
@@ -98,8 +101,23 @@ export class FakeView {
   /** @param {'in'|'out'|'reset'} dir */
   zoom(dir) { this.zoomLevel = dir === 'reset' ? 0 : this.zoomLevel + (dir === 'in' ? 1 : -1); }
 
+  /** Suspend (mirrors views.js: Page.setWebLifecycleState 'frozen'). */
+  freeze() {
+    this.world.ops.push(`freeze:${this.tabId}`);
+    if (this.destroyed || this.world.freezeFails) return Promise.resolve(false);
+    this.frozen = true;
+    return Promise.resolve(true);
+  }
+  /** Resume. */
+  thaw() {
+    this.world.ops.push(`thaw:${this.tabId}`);
+    if (this.destroyed || this.world.thawFails) return Promise.resolve(false);
+    this.frozen = false;
+    return Promise.resolve(true);
+  }
+
   capturePageState() {
-    if (this.destroyed) return Promise.resolve(null);
+    if (this.destroyed || this.frozen) return Promise.resolve(null);
     const sy = this.scrollY ?? 0;
     const sx = this.scrollX ?? 0;
     const fields = this.fields ?? [];
@@ -160,6 +178,9 @@ export class FakeWorld {
     this.shellThrows = false;
     /** Matches every FakeView reports for any non-empty find needle. */
     this.findMatches = 3;
+    /** Knobs: make freeze()/thaw() report failure (protocol unavailable). */
+    this.freezeFails = false;
+    this.thawFails = false;
     /** @type {Array<{ id: string, browser: string, label: string, kind: string }>} */
     this.historySources = [];
     /** @type {Array<{ id: string, browser: string, label: string, kind: string }>} */

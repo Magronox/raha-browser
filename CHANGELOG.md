@@ -3,6 +3,22 @@
 All notable changes to Raha. Format: [Keep a Changelog](https://keepachangelog.com);
 versions are tags `vX.Y.Z` (tag == package.json version, enforced by CI).
 
+## Unreleased
+
+### Added
+- **Freeze — make a tab static instead of killing it** (R-127, ADR-0014).
+  A frozen tab keeps its process but stops running: no CPU, no memory
+  growth, the page exactly as you left it — scroll, typed text, JS state —
+  and it continues instantly when you click it. Background tabs freeze on
+  their own after 2 minutes idle (Settings → "Freeze background tabs after";
+  Never / 1–30 min); pinned, audio and loading tabs are never frozen
+  automatically, and pinning a frozen tab thaws it. Freeze by hand from the
+  sidebar, the grid, the live bar, the toolbar snowflake, the tab's
+  right-click menu, or `⌘/Ctrl+Shift+F`. The runaway prompt now offers
+  **Freeze** first for a CPU hog (Sleep for a memory hog). Frozen memory is
+  real memory: the live bar counts it and says how many tabs are frozen.
+  Sleep is still the only thing that returns memory.
+
 ## v0.2.0 — 2026-09-15
 
 ### Fixed

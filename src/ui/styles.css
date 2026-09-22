@@ -173,6 +173,9 @@ body.sidebar-hidden #toasts .toast {
 .row.state-running .dot { background: var(--accent); opacity: 0.55; }
 .row.state-active .dot { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
 .row.state-asleep .name { color: var(--text-dim); }
+.row.state-frozen .name { color: var(--text-dim); }
+.mini.frost { color: #7fb8d8; }
+.mini.frost svg { width: 11px; height: 11px; }
 .row.dragging { opacity: 0.4; }
 .row.drop-into { outline: 1.5px solid var(--accent); outline-offset: -1.5px; }
 .row.drop-before::before, .row.drop-after::after {
@@ -222,6 +225,9 @@ img { -webkit-user-drag: none; }
 .thumb-fallback .letterchip { width: 44px; height: 44px; font-size: 22px; border-radius: 10px; }
 .thumb-fallback .favicon { width: 44px; height: 44px; border-radius: 10px; }
 .card.state-asleep .thumb { filter: grayscale(0.75) brightness(0.6); }
+.card.state-frozen .thumb { filter: saturate(0.4) brightness(0.8); }
+.state-chip.frozen { color: #7fb8d8; }
+.chip.frozen { border-color: rgba(127, 184, 216, 0.45); }
 .state-chip {
   position: absolute; z-index: 2; top: 8px; left: 8px;
   display: inline-flex; gap: 4px; align-items: center;
@@ -412,6 +418,8 @@ img { -webkit-user-drag: none; }
 .toast svg { color: var(--accent); }
 .toast-warn { border-left-color: var(--pin); }
 .toast-warn svg { color: var(--pin); }
+.toast-freeze { border-left-color: #7fb8d8; }
+.toast-freeze svg { color: #7fb8d8; }
 .toast-sleep { border-left-color: #7d8ba1; }
 .toast-sleep svg { color: #7d8ba1; }
 

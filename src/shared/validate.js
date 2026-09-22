@@ -24,7 +24,7 @@ export function validateSettings(raw) {
   }
   const o = /** @type {Record<string, unknown>} */ (raw);
 
-  /** @param {'maxLiveTabs'|'idleSleepMinutes'|'globalBudgetMB'} key */
+  /** @param {'maxLiveTabs'|'idleSleepMinutes'|'freezeIdleMinutes'|'globalBudgetMB'} key */
   const num = (key) => {
     const v = o[key];
     const [min, max] = RANGES[key];
@@ -37,7 +37,7 @@ export function validateSettings(raw) {
     return clamped;
   };
 
-  /** @param {'protectAudio'|'runawayGuard'|'blockAds'|'blockTrackers'|'gpc'|'httpsFirst'|'autoUpdate'|'recordHistory'|'defaultBrowserPrompted'|'restorePageState'} key */
+  /** @param {'protectAudio'|'runawayGuard'|'blockAds'|'blockTrackers'|'gpc'|'httpsFirst'|'autoUpdate'|'recordHistory'|'defaultBrowserPrompted'|'restorePageState'|'freezeExplained'} key */
   const bool = (key) => {
     const v = o[key];
     if (typeof v !== 'boolean') {
@@ -56,6 +56,8 @@ export function validateSettings(raw) {
       schemaVersion: SETTINGS_SCHEMA_VERSION,
       maxLiveTabs: num('maxLiveTabs'),
       idleSleepMinutes: num('idleSleepMinutes'),
+      freezeIdleMinutes: num('freezeIdleMinutes'),
+      freezeExplained: bool('freezeExplained'),
       globalBudgetMB: num('globalBudgetMB'),
       protectAudio: bool('protectAudio'),
       runawayGuard: bool('runawayGuard'),

@@ -1570,3 +1570,229 @@ test('page state: tabShowGrid captures page state of the previous active tab', a
   assert.ok(rt?.pageState, 'grid transition captured page state');
   assert.equal(rt.pageState.sy, 150);
 });
+
+// ---------------------------------------------------------------- freeze (ADR-0014, R-127)
+
+/** Boot with two running tabs: `a` active, `b` background. */
+function bootTwo(settingsPatch = {}) {
+  const world = new FakeWorld();
+  const { engine } = boot(world, { maxLiveTabs: 10, freezeIdleMinutes: 0, ...settingsPatch });
+  const a = ok(engine.tabCreate({ url: 'https://a.example/', activate: true })).tabId;
+  const b = ok(engine.tabCreate({ url: 'https://b.example/', activate: true })).tabId;
+  engine.tabActivate({ tabId: a });
+  world.ops.length = 0;
+  return { engine, world, a, b };
+}
+const stateOf = (/** @type {Engine} */ engine, /** @type {string} */ id) =>
+  must(engine.snapshot().tabs.find((t) => t.id === id), 'tab').state;
+
+test('freeze: a background tab freezes in place — frozen state, same view, still running, memory still counted', () => {
+  const { engine, world, a, b } = bootTwo();
+  world.setTabMetrics(b, 300);
+  engine.tick();
+  const viewB = must(world.viewsByTab.get(b), 'view b');
+  assert.deepEqual(engine.tabFreeze({ tabId: b }), { ok: true });
+  assert.equal(stateOf(engine, b), 'frozen');
+  assert.equal(stateOf(engine, a), 'active');
+  assert.ok(viewB.frozen, 'the fake view is suspended');
+  assert.ok(!viewB.destroyed, 'no process death');
+  assert.deepEqual(world.ops, [`freeze:${b}`]);
+  const snap = engine.snapshot();
+  assert.equal(snap.stats.runningCount, 2, 'frozen counts as running');
+  assert.equal(snap.stats.frozenCount, 1);
+  assert.equal(snap.stats.frozenMemMB, 300);
+  assert.equal(snap.stats.totalMemMB, 300, 'frozen memory is real memory');
+  assert.equal(engine.policyView().find((t) => t.id === b)?.frozen, true);
+  // idempotent
+  assert.deepEqual(engine.tabFreeze({ tabId: b }), { ok: true });
+  assert.deepEqual(world.ops, [`freeze:${b}`]);
+});
+
+test('freeze: the ACTIVE tab is set aside first (thumb + page state, grid), then frozen', () => {
+  const { engine, world, a } = bootTwo();
+  const viewA = must(world.viewsByTab.get(a), 'view a');
+  viewA.simulateScroll(420);
+  const thumbsBefore = viewA.thumbCaptures;
+  assert.deepEqual(engine.tabFreeze({ tabId: a }), { ok: true });
+  assert.equal(engine.snapshot().activeTabId, null, 'grid is showing');
+  assert.equal(stateOf(engine, a), 'frozen');
+  assert.equal(viewA.thumbCaptures, thumbsBefore + 1, 'thumbnail taken while still visible');
+  assert.equal(viewA.attached, false);
+  return Promise.resolve().then(() => {
+    // page state was captured BEFORE the freeze (the fake answers null while frozen)
+    assert.equal(engine.runtime.get(a)?.pageState?.sy, 420);
+  });
+});
+
+test('freeze: activating a frozen tab thaws it — same view, attached, focused, no reload', () => {
+  const { engine, world, a, b } = bootTwo();
+  engine.tabFreeze({ tabId: b });
+  const viewB = must(world.viewsByTab.get(b), 'view b');
+  world.ops.length = 0;
+  engine.tabActivate({ tabId: b });
+  assert.equal(stateOf(engine, b), 'active');
+  assert.ok(!viewB.frozen);
+  assert.equal(viewB.attached, true);
+  assert.deepEqual(world.ops, [`thaw:${b}`], 'thaw only — never a loadURL');
+  assert.equal(world.focusLog.at(-1), b);
+  assert.equal(stateOf(engine, a), 'running');
+});
+
+test('freeze: manual thaw resumes in the background and refreshes lastActiveAt', () => {
+  const { engine, world, b } = bootTwo();
+  engine.tabFreeze({ tabId: b });
+  const before = must(engine.tabNode(b)).lastActiveAt;
+  world.advanceMinutes(3);
+  assert.deepEqual(engine.tabThaw({ tabId: b }), { ok: true });
+  assert.equal(stateOf(engine, b), 'running');
+  assert.ok(must(engine.tabNode(b)).lastActiveAt > before, 'touched, so the governor does not re-freeze it next tick');
+  assert.deepEqual(engine.tabThaw({ tabId: b }), { ok: true }, 'thawing a running tab is a no-op');
+  assert.deepEqual(engine.tabThaw({ tabId: 'nope' }), { error: 'not running' });
+});
+
+test('freeze: sleeping a frozen tab destroys it directly — no thaw, navJson + pre-freeze page state saved', () => {
+  const { engine, world, b } = bootTwo();
+  const viewB = must(world.viewsByTab.get(b), 'view b');
+  viewB.simulateScroll(99);
+  engine.capturePageState(b);
+  return Promise.resolve().then(() => {
+    engine.tabFreeze({ tabId: b });
+    world.ops.length = 0;
+    assert.deepEqual(engine.tabSleep({ tabId: b }), { ok: true });
+    assert.equal(stateOf(engine, b), 'asleep');
+    assert.ok(viewB.destroyed);
+    assert.ok(!world.ops.includes(`thaw:${b}`), 'never thawed first');
+    const node = must(engine.tabNode(b));
+    assert.ok(node.navJson, 'nav history saved (browser-side, readable while frozen)');
+    assert.equal(node.pageState?.sy, 99, 'page state from the pre-freeze capture');
+    assert.equal(world.toasts().length, 0, 'a manual sleep is silent');
+  });
+});
+
+test('freeze: the governor freezes idle background tabs after freezeIdleMinutes, with a one-time explainer', () => {
+  const { engine, world, a, b } = bootTwo({ freezeIdleMinutes: 2 });
+  const c = ok(engine.tabCreate({ url: 'https://c.example/', activate: false })).tabId;
+  engine.tabActivate({ tabId: c }); engine.tabActivate({ tabId: a }); // c has a lastActiveAt
+  engine.tick();
+  assert.equal(stateOf(engine, b), 'running', 'not idle yet');
+  world.advanceMinutes(3);
+  const r = engine.tick();
+  assert.deepEqual(r.actions.map((x) => x.type), ['freeze', 'freeze']);
+  assert.equal(stateOf(engine, b), 'frozen');
+  assert.equal(stateOf(engine, c), 'frozen');
+  assert.equal(stateOf(engine, a), 'active', 'never the active tab');
+  const freezeToasts = world.toasts().filter((t) => t.kind === 'freeze');
+  assert.equal(freezeToasts.length, 1, 'one explainer for two freezes');
+  assert.match(freezeToasts[0].text, /2 min idle/);
+  assert.equal(engine.settings.freezeExplained, true, 'persisted');
+  assert.equal(world.files.get(SETTINGS_FILE)?.freezeExplained, true);
+  // Next tick: nothing new, no second explainer.
+  world.advanceMinutes(3);
+  assert.deepEqual(engine.tick().actions, []);
+  assert.equal(world.toasts().filter((t) => t.kind === 'freeze').length, 1);
+});
+
+test('freeze: keepAlive, audible (protectAudio) and active tabs are never auto-frozen; pinning thaws', () => {
+  const { engine, world, a, b } = bootTwo({ freezeIdleMinutes: 1 });
+  const c = ok(engine.tabCreate({ url: 'https://c.example/', activate: true })).tabId;
+  engine.tabActivate({ tabId: a });
+  engine.tabSetKeepAlive({ tabId: b, keepAlive: true });
+  must(world.viewsByTab.get(c)).simulateAudio(true);
+  world.advanceMinutes(5);
+  engine.tick();
+  assert.equal(stateOf(engine, b), 'running', 'pinned');
+  assert.equal(stateOf(engine, c), 'running', 'audible');
+  assert.equal(stateOf(engine, a), 'active');
+  // unpin b -> it freezes; pinning it again thaws it
+  engine.tabSetKeepAlive({ tabId: b, keepAlive: false });
+  engine.tick();
+  assert.equal(stateOf(engine, b), 'frozen');
+  world.ops.length = 0;
+  engine.tabSetKeepAlive({ tabId: b, keepAlive: true });
+  assert.equal(stateOf(engine, b), 'running');
+  assert.deepEqual(world.ops, [`thaw:${b}`]);
+});
+
+test('freeze: navigate / back / zoom / find on a frozen tab thaw it first (the fake throws on a frozen loadURL)', () => {
+  const { engine, world, b } = bootTwo();
+  engine.tabFreeze({ tabId: b });
+  world.ops.length = 0;
+  assert.deepEqual(engine.navOmnibox({ input: 'https://b2.example/', tabId: b, mode: 'here' }), { ok: true });
+  assert.equal(stateOf(engine, b), 'running');
+  assert.equal(must(engine.tabNode(b)).url, 'https://b2.example/');
+  assert.equal(world.ops[0], `thaw:${b}`);
+  for (const call of [
+    () => { engine.tabFreeze({ tabId: b }); return engine.navOp({ tabId: b }, 'reload'); },
+    () => { engine.tabFreeze({ tabId: b }); return engine.zoomSet({ tabId: b, direction: 'in' }); },
+    () => { engine.tabFreeze({ tabId: b }); return engine.findStart({ tabId: b, text: 'x', newSession: true }); },
+  ]) {
+    assert.deepEqual(call(), { ok: true });
+    assert.equal(stateOf(engine, b), 'running');
+  }
+});
+
+test('freeze: the runaway guard offers freeze — a frozen tab never prompts, and the answer clears it', () => {
+  const { engine, world, a, b } = bootTwo();
+  world.setTabMetrics(a, 100, 1);
+  world.setTabMetrics(b, 100, 400);
+  for (let i = 0; i < 5; i += 1) engine.tick();
+  assert.equal(engine.snapshot().runaway?.tabId, b, 'CPU prompt open for b');
+  assert.deepEqual(engine.runawayResolve({ tabId: b, action: 'freeze' }), { ok: true });
+  assert.equal(stateOf(engine, b), 'frozen');
+  assert.equal(engine.snapshot().runaway, null);
+  assert.ok(world.toasts().some((t) => t.kind === 'freeze' && /Frozen at your request/.test(t.text)));
+  for (let i = 0; i < 5; i += 1) engine.tick();
+  assert.equal(engine.snapshot().runaway, null, 'metrics still say hot, but a frozen tab never prompts');
+  assert.deepEqual(engine.runawayResolve({ tabId: 'nope', action: 'freeze' }), { error: 'not running' });
+});
+
+test('freeze: thaw failure degrades to sleep + wake (with page-state restore) and a warn toast', () => {
+  const { engine, world, b } = bootTwo();
+  const viewB = must(world.viewsByTab.get(b), 'view b');
+  viewB.simulateScroll(77);
+  engine.capturePageState(b);
+  return Promise.resolve().then(async () => {
+    engine.tabFreeze({ tabId: b });
+    world.thawFails = true;
+    engine.tabActivate({ tabId: b }); // needs the page -> thaw -> fails asynchronously
+    await Promise.resolve(); await Promise.resolve();
+    assert.ok(viewB.destroyed, 'the stuck renderer was slept');
+    const cur = must(world.viewsByTab.get(b), 'fresh view');
+    assert.notEqual(cur, viewB, 're-woken into a new view');
+    assert.equal(stateOf(engine, b), 'active', 'the user was activating it, so it comes back');
+    assert.equal(cur.restoredPageState?.sy, 77, 'R-104 restore carried through');
+    assert.ok(world.toasts().some((t) => t.kind === 'sleep' && /Could not resume/.test(t.text)));
+  });
+});
+
+test('freeze: freeze failure leaves the tab running with a warn toast', () => {
+  const { engine, world, b } = bootTwo();
+  world.freezeFails = true;
+  assert.deepEqual(engine.tabFreeze({ tabId: b }), { ok: true });
+  return Promise.resolve().then(async () => {
+    await Promise.resolve();
+    assert.equal(stateOf(engine, b), 'running');
+    assert.ok(world.toasts().some((t) => t.kind === 'warn' && /Could not freeze/.test(t.text)));
+  });
+});
+
+test('freeze: crash while frozen, folderSleepAll, shutdown, and a persisted restart all treat frozen like running', () => {
+  const { engine, world, a, b } = bootTwo();
+  engine.tabFreeze({ tabId: b });
+  // crash
+  must(world.viewsByTab.get(b)).simulateCrash();
+  assert.equal(stateOf(engine, b), 'asleep');
+  assert.ok(world.toasts().some((t) => /crashed/.test(t.text)));
+  // folderSleepAll covers a frozen tab
+  engine.tabActivate({ tabId: b }); engine.tabActivate({ tabId: a });
+  engine.tabFreeze({ tabId: b });
+  assert.equal(engine.folderSleepAll({ folderId: engine.snapshot().rootId }).slept, 2);
+  // shutdown with a frozen tab saves its nav, and frozen is never persisted
+  engine.tabActivate({ tabId: b }); engine.tabActivate({ tabId: a });
+  engine.tabFreeze({ tabId: b });
+  engine.shutdown();
+  const saved = world.files.get(STATE_FILE);
+  assert.ok(!JSON.stringify(saved).includes('frozen'), 'runtime-only state');
+  const { engine: e2 } = boot(world);
+  assert.equal(stateOf(e2, b), 'asleep', 'everything is asleep after a restart');
+});

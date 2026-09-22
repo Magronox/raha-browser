@@ -17,7 +17,8 @@ async function startPageServer() {
   const server = http.createServer((req, res) => {
     const name = (req.url ?? '/').replace(/^\/+/, '') || 'page';
     res.writeHead(200, { 'content-type': 'text/html' });
-    res.end(`<title>${name}</title><body style="background:#222;color:#eee"><h1>${name}</h1>`);
+    // The title ticks so the freeze check below can see JS actually stop.
+    res.end(`<title>${name}</title><body style="background:#222;color:#eee"><h1>${name}</h1><script>let n=0;setInterval(()=>{n++;document.title='${name} '+n},100)</script>`);
   });
   await new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve(null)));
   const addr = /** @type {import('node:net').AddressInfo} */ (server.address());
@@ -100,6 +101,34 @@ export async function runSmokeTest(engine) {
     await wait(600);
     if (stateOf(ids[0]) === 'asleep') throw new Error('pinned tab was evicted');
     if (snap().stats.runningCount > 3) throw new Error('cap exceeded');
+  });
+
+  await t('freeze a background tab: suspended in place (JS really stops), still counted, thaws on activate', async () => {
+    const bg = snap().tabs.find((x) => x.state === 'running');
+    if (!bg) throw new Error('no background running tab to freeze');
+    const titleOf = () => snap().tabs.find((x) => x.id === bg.id)?.title ?? '';
+    // Prove the page is alive first, or "stands still" below proves nothing.
+    const t0 = titleOf();
+    await until(() => titleOf() !== t0, 5000, 'page ticking before freeze');
+    const r = engine.tabFreeze({ tabId: bg.id });
+    if ('error' in r) throw new Error(r.error);
+    await until(() => stateOf(bg.id) === 'frozen', 8000, 'frozen state');
+    await wait(500); // the CDP round-trip; a refusal would flip it back with a warn toast
+    if (stateOf(bg.id) !== 'frozen') throw new Error('freeze was refused by the protocol');
+    if (snap().stats.runningCount !== 3) throw new Error('frozen tab must still count as running');
+    if (snap().stats.frozenCount !== 1) throw new Error(`frozenCount ${snap().stats.frozenCount}`);
+    // The page is really stopped: its ticking title stands still. This is
+    // the one place that can prove it — under Playwright (tests/e2e) every
+    // page counts as "being captured", Chromium then treats it as visible,
+    // and a visible page refuses to freeze (ADR-0014).
+    const t1 = titleOf();
+    await wait(1500);
+    if (titleOf() !== t1) throw new Error(`frozen page kept running: "${t1}" -> "${titleOf()}"`);
+    engine.tabActivate({ tabId: bg.id });
+    await until(() => stateOf(bg.id) === 'active', 8000, 'thaw on activate');
+    await wait(500);
+    if (stateOf(bg.id) !== 'active') throw new Error('thaw failed (fell back to sleep)');
+    await until(() => titleOf() !== t1, 5000, 'page resumes after thaw');
   });
 
   await t('metrics tick attributes real memory to real pids', async () => {

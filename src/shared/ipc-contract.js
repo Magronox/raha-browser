@@ -16,6 +16,8 @@ export const INVOKE = {
   tabClose: 'tab:close',              // ({tabId}) -> {ok}
   tabActivate: 'tab:activate',        // ({tabId}) -> {ok}   wakes if asleep
   tabSleep: 'tab:sleep',              // ({tabId}) -> {ok}   manual sleep
+  tabFreeze: 'tab:freeze',            // ({tabId}) -> {ok}|{error}  suspend a running tab in place (ADR-0014): no CPU, memory kept, page exactly as left; the active tab goes to the grid first
+  tabThaw: 'tab:thaw',                // ({tabId}) -> {ok}|{error}  resume a frozen tab (activating one thaws it anyway)
   tabSetKeepAlive: 'tab:setKeepAlive',// ({tabId, keepAlive}) -> {ok}
   tabSetMemLimit: 'tab:setMemLimit',  // ({tabId, memLimitMB|null}) -> {ok}
   tabShowGrid: 'tab:showGrid',        // () -> {ok}          deactivate content view, show grid
@@ -52,7 +54,7 @@ export const INVOKE = {
   historyClear: 'history:clear',      // () -> {ok}
   organizePreview: 'organize:preview',// () -> {groups: [{name, folderId|null, tabs: [{id, title}]}], loose, leftover}
   organizeApply: 'organize:apply',    // () -> {moved, foldersCreated}   recomputes the plan, never trusts one from the UI
-  runawayResolve: 'runaway:resolve',  // ({tabId, action: 'sleep'|'snooze'}) -> {ok}   answer the runaway-tab prompt
+  runawayResolve: 'runaway:resolve',  // ({tabId, action: 'sleep'|'freeze'|'snooze'}) -> {ok}   answer the runaway-tab prompt
   permissionAnswer: 'permission:answer', // ({id, decision: 'once'|'always'|'never'|'dismiss'}) -> {ok}|{error}  answer the site-permission ask `id` names (stale id = error, nothing granted); always/never persist per kind under the site
   permissionForget: 'permission:forget', // ({host, kind?}) -> {ok}|{error}  drop a remembered decision (one kind, or the whole site when kind is omitted)
 };
@@ -60,7 +62,7 @@ export const INVOKE = {
 /** main -> UI events. */
 export const EVENT = {
   snapshot: 'evt:snapshot',           // full Snapshot push (state or metrics changed)
-  toast: 'evt:toast',                 // {kind:'info'|'warn'|'sleep'|'download', text}
+  toast: 'evt:toast',                 // {kind:'info'|'warn'|'sleep'|'freeze'|'download', text}
   focusOmnibox: 'evt:focusOmnibox',   // {} (keyboard shortcut routed from main)
   newTab: 'evt:newTab',               // {} (Cmd/Ctrl+T routed from main — UI picks the folder, shows the grid, focuses the omnibox)
   openSettings: 'evt:openSettings',   // {} (menu/shortcut routed from main)
@@ -89,7 +91,7 @@ export const ALL_EVENT_CHANNELS = Object.values(EVENT);
  * @property {string} url
  * @property {string} title
  * @property {string|null} faviconUrl
- * @property {'active'|'running'|'asleep'} state
+ * @property {'active'|'running'|'frozen'|'asleep'} state  frozen = renderer alive but suspended (ADR-0014): counts as running for the cap and the live bar
  * @property {boolean} keepAlive        the persisted per-tab flag
  * @property {boolean} keepAliveEffective includes domain rules
  * @property {number|null} memLimitMB
@@ -117,7 +119,7 @@ export const ALL_EVENT_CHANNELS = Object.values(EVENT);
  * @property {string} rootId
  * @property {string|null} activeTabId
  * @property {import('./defaults.js').RahaSettings} settings
- * @property {{ runningCount: number, totalMemMB: number, maxLiveTabs: number }} stats
+ * @property {{ runningCount: number, totalMemMB: number, maxLiveTabs: number, frozenCount: number, frozenMemMB: number }} stats  frozen memory is real and already inside totalMemMB
  * @property {{ tabId: string, kind: 'cpu'|'mem' }|null} runaway  open runaway-tab prompt (live values are on the tab itself)
  *
  * @typedef {Object} PermissionAsk  A pending "site wants X" ask (R-103, ADR-0013), as the UI sees it.

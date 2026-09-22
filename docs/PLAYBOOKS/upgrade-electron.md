@@ -63,9 +63,20 @@ adapter layer is our only exposure.
      WebSocket handshakes or worker requests) and which high-entropy
      hints it sends when asked.
 
-7. Update the version in this repo's docs if referenced, note the bump in
+7. **Freeze fidelity** (ADR-0014): `Page.setWebLifecycleState` is an
+   experimental CDP method. `npm run smoke` proves the one fact no
+   Playwright test can — a frozen page's timers really stop and resume on
+   thaw (Playwright's own session leaves every page "being captured", which
+   Chromium counts as visible, and a visible page silently refuses to
+   freeze). `tests/e2e/freeze.spec.js` covers the rest (state, badges,
+   thaw's `visibilityState` kick, a frozen view destroys cleanly, the
+   governor's idle freeze). Red in either after a bump = the protocol
+   moved; the failure mode in the app is "tab keeps running" (freeze
+   returns false or is a no-op), never a lost tab.
+
+8. Update the version in this repo's docs if referenced, note the bump in
    CHANGELOG.md under Changed.
 
-8. One PR, subject `Upgrade Electron 43 → 44`, body = your breaking-changes
+9. One PR, subject `Upgrade Electron 43 → 44`, body = your breaking-changes
    audit list with each item checked off. Never mix an Electron major with
    feature work.

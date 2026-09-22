@@ -322,6 +322,7 @@ export function render() {
     ${t ? `
       <button class="iconbtn ${t.keepAlive ? 'on' : ''}" data-act="pin" title="${t.keepAlive ? 'Unpin: allow auto-sleep' : `Keep alive: never auto-sleep (${MOD}+Shift+K)`}">${icons.pin}</button>
       <button class="iconbtn ${t.memLimitMB ? 'on' : ''}" data-act="limit" title="${t.memLimitMB ? `Memory limit: ${t.memLimitMB} MB — click to change` : 'Set a memory limit for this tab'}">${icons.gauge}</button>
+      <button class="iconbtn" data-act="freeze" title="Freeze this tab (${MOD}+Shift+F) — keep it exactly as is, stop its CPU">${icons.snowflake}</button>
       <button class="iconbtn" data-act="sleep" title="Sleep this tab (${MOD}+Shift+S)">${icons.moon}</button>
     ` : ''}
     <button class="iconbtn" data-act="grid" title="Grid / Home (${MOD}+E)">${icons.grid}</button>
@@ -427,6 +428,7 @@ export function render() {
       else if (act === 'pin' && tab) void api.tabSetKeepAlive(tab.id, !tab.keepAlive);
       else if (act === 'limit' && tab) store.setLocal({ limitPromptId: tab.id });
       else if (act === 'sleep' && tab) void api.tabSleep(tab.id);
+      else if (act === 'freeze' && tab) void api.tabFreeze(tab.id);
       else if (act === 'shield' && tab) {
         const st = store.snap?.settings;
         if (!st) return;

@@ -27,6 +27,7 @@ export function render() {
   const engines = ['duckduckgo', 'brave', 'startpage', 'ecosia', 'google', 'bing', 'kagi'];
   const budgetOpts = [0, 1024, 2048, 4096, 8192];
   const idleOpts = [0, 5, 15, 30, 60, 120];
+  const freezeOpts = [0, 1, 2, 5, 15, 30];
 
   const rulesRows = s.rules.map((r, i) => `
     <div class="rule-row" data-rule-i="${i}">
@@ -73,6 +74,12 @@ export function render() {
         <small>When running tabs together exceed this, Raha sleeps the least-recent ones until it fits.</small>
       </label>
       <label class="setting">
+        <span>Freeze background tabs after <small>(a frozen tab stops running — no CPU, no memory growth — but keeps everything exactly as it was; click it to continue instantly. Pinned and audio tabs are never frozen automatically)</small></span>
+        <select data-set="freezeIdleMinutes">
+          ${freezeOpts.map((v) => `<option value="${v}" ${s.freezeIdleMinutes === v ? 'selected' : ''}>${v === 0 ? 'Never' : `${v} min idle`}</option>`).join('')}
+        </select>
+      </label>
+      <label class="setting">
         <span>Sleep background tabs after</span>
         <select data-set="idleSleepMinutes">
           ${idleOpts.map((v) => `<option value="${v}" ${s.idleSleepMinutes === v ? 'selected' : ''}>${v === 0 ? 'Never (cap only)' : `${v} min idle`}</option>`).join('')}
@@ -80,7 +87,7 @@ export function render() {
       </label>
       <label class="setting toggle">
         <input type="checkbox" ${s.protectAudio ? 'checked' : ''} data-set-bool="protectAudio">
-        <span>Never auto-sleep tabs that are playing sound</span>
+        <span>Never auto-sleep or auto-freeze tabs that are playing sound</span>
       </label>
       <label class="setting toggle">
         <input type="checkbox" ${s.restorePageState ? 'checked' : ''} data-set-bool="restorePageState">

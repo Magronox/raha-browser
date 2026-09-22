@@ -102,7 +102,7 @@ There is deliberately **no build step** — what's in `src/` is what runs
 `Ctrl/Cmd+Shift+T` reopen closed tab · `Ctrl/Cmd+L` address bar · `Ctrl/Cmd+F` find in page ·
 `Ctrl/Cmd+Shift+R` hard reload · `Ctrl/Cmd+E` grid/home · `Ctrl/Cmd+Shift+B` toggle sidebar ·
 `Cmd+Y` (`Ctrl+H`) history · `Ctrl+Tab` cycle running tabs · `Ctrl/Cmd+1…9` jump to running tab ·
-`Ctrl/Cmd+Shift+S` sleep this tab · `Ctrl/Cmd+Shift+A` sleep everything ·
+`Ctrl/Cmd+Shift+F` freeze this tab · `Ctrl/Cmd+Shift+S` sleep this tab · `Ctrl/Cmd+Shift+A` sleep everything ·
 `Ctrl/Cmd+Shift+K` pin (keep alive) · `Ctrl/Cmd+,` settings · `F12` devtools
 
 ## Status

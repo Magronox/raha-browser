@@ -22,6 +22,8 @@ export function wireIpc(engine, uiView) {
     [INVOKE.tabClose]: (p) => engine.tabClose(p),
     [INVOKE.tabActivate]: (p) => engine.tabActivate(p),
     [INVOKE.tabSleep]: (p) => engine.tabSleep(p),
+    [INVOKE.tabFreeze]: (p) => engine.tabFreeze(p),
+    [INVOKE.tabThaw]: (p) => engine.tabThaw(p),
     [INVOKE.tabSetKeepAlive]: (p) => engine.tabSetKeepAlive(p),
     [INVOKE.tabSetMemLimit]: (p) => engine.tabSetMemLimit(p),
     [INVOKE.tabShowGrid]: () => engine.tabShowGrid(),
