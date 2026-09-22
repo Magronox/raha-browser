@@ -3,6 +3,38 @@
 All notable changes to Raha. Format: [Keep a Changelog](https://keepachangelog.com);
 versions are tags `vX.Y.Z` (tag == package.json version, enforced by CI).
 
+## Unreleased
+
+### Added
+- **Command palette** (R-111). `Ctrl/⌘+K`: fuzzy-jump to any open tab or
+  folder, or run a command (new tab, sleep/freeze/pin this tab, sleep all,
+  organize, history, downloads, settings, find, toggle sidebar).
+- **Downloads panel** (R-106). Toolbar button / `Ctrl+J`: this session's
+  downloads with progress, Open, Show in folder, Cancel and Clear finished.
+  Session-only by design — never written to disk.
+- **Wake preview** (R-105). Rest the pointer on a sleeping or frozen tab in
+  the sidebar and a preview of the page appears — without waking it.
+- **Spellcheck** (R-118). Text fields are checked again — with the system
+  dictionary on macOS (offline; right-click a red word for corrections or
+  *Add to Dictionary*). Windows/Linux stay off by default because Chromium
+  would download a dictionary from Google; Settings → Spellcheck → *Always*
+  allows that one-time fetch and says so.
+- **Freeze — make a tab static instead of killing it** (R-127, ADR-0014).
+  A frozen tab keeps its process but stops running: no CPU, no memory
+  growth, the page exactly as you left it — scroll, typed text, JS state —
+  and it continues instantly when you click it. Background tabs freeze on
+  their own after 2 minutes idle (Settings → "Freeze background tabs after";
+  Never / 1–30 min); pinned, audio and loading tabs are never frozen
+  automatically, and pinning a frozen tab thaws it. Freeze by hand from the
+  sidebar, the grid, the live bar (snowflake on the left of a chip, moon on
+  the right), the toolbar snowflake, the tab's right-click menu, or
+  `⌘/Ctrl+Shift+F`. The first freeze says once that some pages notice a
+  stopped clock — live chats, calls, video and uploads can need a reload
+  after thawing. The runaway prompt now offers
+  **Freeze** first for a CPU hog (Sleep for a memory hog). Frozen memory is
+  real memory: the live bar counts it and says how many tabs are frozen.
+  Sleep is still the only thing that returns memory.
+
 ## v0.2.0 — 2026-09-15
 
 ### Fixed

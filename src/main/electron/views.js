@@ -49,13 +49,11 @@ export function createViewsPort(windowHost) {
           sandbox: true,
           contextIsolation: true,
           nodeIntegration: false,
-          // Electron defaults this to true, and on Windows/Linux Chromium then
-          // fetches Hunspell dictionaries from Google's servers on first use —
-          // app-initiated network traffic, which invariant #6 says we do not
-          // do. macOS would use the native checker with no download, but a
-          // browser whose spellchecking depends on your OS is worse than one
-          // without it. Restoring it without the network is ROADMAP R-118.
-          spellcheck: false,
+          // Spellcheck (R-118) is governed per SESSION by applySpellcheck
+          // (privacy.js) from the `spellcheck` setting — off by default
+          // anywhere it would download a dictionary. This flag only says the
+          // view is allowed to take part; it decides nothing on its own.
+          spellcheck: true,
         },
       });
       const wc = view.webContents;
@@ -79,6 +77,11 @@ export function createViewsPort(windowHost) {
       let dead = false;
       /** @type {Promise<unknown>|null} */
       let captureInFlight = null;
+      /** @type {Promise<unknown>|null} page-state capture in flight (freeze waits on it) */ let pageStateInFlight = null;
+      /** Suspended via Page.setWebLifecycleState (ADR-0014). */ let frozen = false;
+      /** thaw() happened while detached: re-kick visibility on the next attach. */ let needsVisibilityKick = false;
+      /** Hide+show so visibilityState reads 'visible' again after a thaw (measured). */
+      const visibilityKick = () => { try { view.setVisible(false); view.setVisible(true); } catch { /* gone */ } };
 
       const navState = () => {
         try {
@@ -260,6 +263,7 @@ export function createViewsPort(windowHost) {
           if (want) {
             windowHost.attach(view);
             attached = true;
+            if (needsVisibilityKick) { needsVisibilityKick = false; visibilityKick(); }
           } else {
             // Let an in-flight thumbnail finish before the view goes invisible.
             const doDetach = () => { if (attached && !dead) { windowHost.detach(view); attached = false; } };
@@ -273,7 +277,15 @@ export function createViewsPort(windowHost) {
         },
         captureThumb() {
           if (dead) return Promise.resolve(false);
-          const p = wc.capturePage()
+          // stayHidden: a capture holds Chromium's "capturer count", and a
+          // captured page counts as visible until the capture resolves — and
+          // a visible page refuses to freeze (ADR-0014). A thumbnail taken as
+          // the tab is set aside can outlive the detach (setAttached waits
+          // 400ms at most); stayHidden means the page may still go hidden
+          // while that capture is pending. The frame itself is taken while
+          // the page is on screen, so the thumbnail is unaffected.
+          // https://www.electronjs.org/docs/latest/api/web-contents#contentscapturepagerect-opts
+          const p = wc.capturePage(undefined, { stayHidden: true })
             .then((/** @type {Electron.NativeImage} */ img) => {
               if (img.isEmpty()) return false;
               const resized = img.resize({ width: THUMB_WIDTH });
@@ -292,8 +304,58 @@ export function createViewsPort(windowHost) {
           } catch { /* noop */ }
         },
         capturePageState() {
-          if (dead) return Promise.resolve(null);
-          return wc.executeJavaScript(CAPTURE_SCRIPT).catch(() => null);
+          // A frozen page never runs the script — executeJavaScript would
+          // queue silently until thaw (measured). The engine captured state
+          // before freezing; answer null so nothing waits on it.
+          if (dead || frozen) return Promise.resolve(null);
+          const p = wc.executeJavaScript(CAPTURE_SCRIPT).catch(() => null)
+            .finally(() => { if (pageStateInFlight === p) pageStateInFlight = null; });
+          pageStateInFlight = p;
+          return p;
+        },
+        /**
+         * Suspend the page (ADR-0014): Chromium's page lifecycle 'frozen'
+         * through this tab's ONE CDP session (chrome-identity.js). JS,
+         * timers, rAF and workers stop; DOM, JS state and inputs stay; RAM
+         * stays resident. Waits (bounded) for an in-flight page-state
+         * capture so the last snapshot before the freeze is exact.
+         * https://chromedevtools.github.io/devtools-protocol/tot/Page/#method-setWebLifecycleState
+         * @returns {Promise<boolean>} false = protocol unavailable, tab stays running
+         */
+        async freeze() {
+          if (dead) return false;
+          if (pageStateInFlight) {
+            await Promise.race([pageStateInFlight, new Promise((r) => setTimeout(r, 400))]);
+          }
+          if (dead) return false;
+          try {
+            await identity.send('Page.setWebLifecycleState', { state: 'frozen' });
+            frozen = true;
+            return true;
+          } catch (err) {
+            log('views', `freeze failed for ${tabId}: ${String(err).split('\n')[0]}`);
+            return false;
+          }
+        },
+        /**
+         * Resume. After 'active' the page's visibilityState stays 'hidden'
+         * until the view is hidden and shown again (measured), so an
+         * attached view gets the kick now; a detached one gets it on its
+         * next setAttached(true).
+         * https://www.electronjs.org/docs/latest/api/view#viewsetvisiblevisible
+         * @returns {Promise<boolean>} false = could not resume (engine falls back to sleep+wake)
+         */
+        async thaw() {
+          if (dead) return false;
+          try {
+            await identity.send('Page.setWebLifecycleState', { state: 'active' });
+          } catch (err) {
+            log('views', `thaw failed for ${tabId}: ${String(err).split('\n')[0]}`);
+            return false;
+          }
+          frozen = false;
+          if (attached) visibilityKick(); else needsVisibilityKick = true;
+          return true;
         },
         /** @param {import('../../shared/page-state.js').PageState} state */
         restorePageState(state) {

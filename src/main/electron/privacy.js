@@ -139,6 +139,34 @@ export function alignSessionClientHints(ses) {
 }
 
 /**
+ * Spellcheck (R-118) without undisclosed traffic. macOS uses the OS checker
+ * and never downloads anything; on Windows/Linux Chromium fetches a Hunspell
+ * dictionary from Google's CDN the first time the checker is enabled — so
+ * there 'system' keeps it off and only an explicit 'on' (whose Settings text
+ * says exactly that) turns it on. Idempotent: called on boot and on every
+ * snapshot, it touches the session only when the answer changes.
+ * https://www.electronjs.org/docs/latest/api/session#sessetspellcheckerenabledenable
+ * @param {Electron.Session} ses
+ * @param {import('../../shared/defaults.js').RahaSettings['spellcheck']} mode
+ * @param {NodeJS.Platform} [platform]
+ * @returns {boolean} what the checker is now set to
+ */
+export function applySpellcheck(ses, mode, platform = process.platform) {
+  const want = mode === 'on' || (mode === 'system' && platform === 'darwin');
+  const cur = spellcheckApplied.get(ses);
+  if (cur !== want) {
+    ses.setSpellCheckerEnabled(want);
+    spellcheckApplied.set(ses, want);
+  }
+  return want;
+}
+/** @type {WeakMap<Electron.Session, boolean>} */
+const spellcheckApplied = new WeakMap();
+/** Download progress reports to the engine are spaced by this (R-106). */
+const DOWNLOAD_TICK_MS = 250;
+let downloadSeq = 0;
+
+/**
  * @param {Electron.Session} ses the persist:main web session
  * @param {{
  *   getSettings: () => import('../../shared/defaults.js').RahaSettings,
@@ -146,9 +174,13 @@ export function alignSessionClientHints(ses) {
  *   topHostForWebContentsId: (wcId: number|undefined) => string|null,
  *   onBlocked: (wcId: number|undefined) => void,
  *   toast: (kind: 'info'|'warn'|'download', text: string) => void,
+ *   onDownload: (view: import('../../shared/ipc-contract.js').DownloadView, controls: { cancel: () => void }|null) => void,
+ *   downloadDir?: string|null,
  *   askPermission: (wcId: number|undefined, kinds: import('../../shared/permissions.js').PermissionKind[], requestingUrl: string, isMainFrame: boolean) => Promise<boolean>,
  *   checkPermission: (wcId: number|undefined, kind: import('../../shared/permissions.js').PermissionKind) => boolean,
  * }} hooks   `matchers` null = engines failed to load; blocking fails OPEN
+ *            downloadDir: dev/CI seam (RAHA_DOWNLOAD_DIR, never packaged) —
+ *            save there without the dialog, so the e2e can download.
  *            (the wiring in index.js logs and toasts). askPermission /
  *            checkPermission reach engine.permissionRequest / permissionCheck
  *            (R-103): the engine decides, asks the user when it must, and
@@ -305,13 +337,42 @@ export function hardenWebSession(ses, hooks) {
     return false;
   });
 
-  // --- Downloads: default save dialog + progress toasts
+  // --- Downloads: default save dialog + progress toasts + the session list
+  // (R-106). Progress reaches the engine at most every DOWNLOAD_TICK_MS —
+  // every report is a snapshot to the UI — and always on start and end.
+  // https://www.electronjs.org/docs/latest/api/download-item
   ses.on('will-download', (_event, item) => {
     const name = item.getFilename();
+    const id = `dl_${Date.now().toString(36)}_${(downloadSeq += 1)}`;
+    const startedAt = Date.now();
+    /** @returns {import('../../shared/ipc-contract.js').DownloadView} */
+    const view = () => ({
+      id,
+      filename: item.getFilename(),
+      url: item.getURL(),
+      path: item.getSavePath(),
+      totalBytes: item.getTotalBytes(),
+      receivedBytes: item.getReceivedBytes(),
+      state: item.getState() === 'completed' ? 'completed' : item.getState() === 'cancelled' ? 'cancelled' : item.getState() === 'interrupted' ? 'interrupted' : 'progressing',
+      startedAt,
+    });
+    const controls = { cancel: () => { try { item.cancel(); } catch { /* already done */ } } };
+    // Tests cannot answer a native save dialog: index.js hands a directory
+    // here only for unpackaged runs with RAHA_DOWNLOAD_DIR set.
+    if (hooks.downloadDir) item.setSavePath(`${hooks.downloadDir}/${name}`);
+    let lastReport = 0;
     hooks.toast('download', `Downloading ${name}…`);
+    hooks.onDownload(view(), controls);
+    item.on('updated', () => {
+      const now = Date.now();
+      if (now - lastReport < DOWNLOAD_TICK_MS) return;
+      lastReport = now;
+      hooks.onDownload(view(), controls);
+    });
     item.on('done', (_e, state) => {
       if (state === 'completed') hooks.toast('download', `Downloaded ${name}`);
       else if (state === 'interrupted') hooks.toast('warn', `Download failed: ${name}`);
+      hooks.onDownload({ ...view(), state: state === 'completed' ? 'completed' : state === 'cancelled' ? 'cancelled' : 'interrupted' }, null);
     });
   });
 

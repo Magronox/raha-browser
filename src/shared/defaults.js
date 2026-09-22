@@ -11,6 +11,8 @@ export const HISTORY_SCHEMA_VERSION = 1;
  * @property {number} schemaVersion
  * @property {number} maxLiveTabs      Hard cap on simultaneously running tabs (active tab included). 1..64.
  * @property {number} idleSleepMinutes Sleep a background tab after N idle minutes. 0 = off. 0..720.
+ * @property {number} freezeIdleMinutes Freeze (suspend, keep everything) a background tab after N idle minutes (R-127, ADR-0014). 0 = off. 0..720.
+ * @property {boolean} freezeExplained  Internal: the one-time freeze explainer toast (what freezing does, and that some pages need a reload after) has been shown. Not in the Settings UI.
  * @property {number} globalBudgetMB   Total memory budget for all running tabs. 0 = off. 0..65536.
  * @property {boolean} protectAudio    Never auto-sleep a tab that is playing sound.
  * @property {boolean} runawayGuard    Ask to terminate a tab whose CPU/memory use explodes (thresholds: RUNAWAY in policy.js).
@@ -26,6 +28,7 @@ export const HISTORY_SCHEMA_VERSION = 1;
  * @property {import('./permissions.js').SitePermissions} sitePermissions  Remembered answers to per-site permission asks (R-103, ADR-0013): site host (normalized like noBlockHosts) -> kind -> 'allow'|'deny'. Undecided = ask when a page requests, "denied" to a mere check. Max 200 sites, oldest dropped. Schema v3.
  * @property {boolean} restorePageState Restore scroll position and unsaved form text when a sleeping tab wakes (R-104). Kept in the profile only — never passwords. Turning it off wipes stored state.
  * @property {'duckduckgo'|'brave'|'startpage'|'ecosia'|'google'|'bing'|'kagi'} searchEngine
+ * @property {'system'|'on'|'off'} spellcheck  R-118. 'system' (default): spellcheck only where the OS provides it with no download (macOS); 'on': everywhere — on Windows/Linux Chromium fetches a Hunspell dictionary from Google once, which the setting says in so many words; 'off': never.
  * @property {DomainRule[]} rules      Programmable per-domain policies, first match wins.
  */
 
@@ -42,6 +45,8 @@ export function defaultSettings() {
     schemaVersion: SETTINGS_SCHEMA_VERSION,
     maxLiveTabs: 6,
     idleSleepMinutes: 0,
+    freezeIdleMinutes: 2,
+    freezeExplained: false,
     globalBudgetMB: 0,
     protectAudio: true,
     runawayGuard: true,
@@ -57,6 +62,7 @@ export function defaultSettings() {
     sitePermissions: {},
     restorePageState: true,
     searchEngine: 'duckduckgo',
+    spellcheck: 'system',
     rules: [],
   };
 }
@@ -65,9 +71,13 @@ export function defaultSettings() {
 export const RANGES = {
   maxLiveTabs: [1, 64],
   idleSleepMinutes: [0, 720],
+  freezeIdleMinutes: [0, 720],
   globalBudgetMB: [0, 65536],
   memLimitMB: [0, 16384],
 };
+
+/** Spellcheck modes (R-118), in Settings order. */
+export const SPELLCHECK_MODES = /** @type {const} */ (['system', 'on', 'off']);
 
 /** Search engine name -> URL template. %s is the encoded query. */
 export const SEARCH_ENGINES = {

@@ -39,15 +39,19 @@ Tab WebContentsViews: `sandbox: true`, `contextIsolation: true`,
 `nodeIntegration: false`, **no preload**. Only the UI view gets the preload
 bridge, and main validates every invoke. The main process may hold a
 DevTools-protocol session on a tab (`src/main/electron/chrome-identity.js`,
-which tells the renderer what browser to claim to be) — that is not a
-bridge: nothing is exposed to the page, and the page cannot reach it.
+which tells the renderer what browser to claim to be; the same session
+freezes and thaws the page, ADR-0014) — that is not a bridge: nothing is
+exposed to the page, and the page cannot reach it.
 *Why:* a compromised page must find nothing to escalate through.
 
 ## #6 — Raha is silent on the network, except the optional update check
 No telemetry, no list downloads, no favicon *proxying* (the chrome loads them
 straight from the site, so nothing is routed through us). The only server Raha
 itself contacts is GitHub Releases, for the security-update check (ADR-0008) — on by default, off with the `autoUpdate`
-setting, packaged builds only. Everything else on the wire is what pages
+setting, packaged builds only. One disclosed opt-in exists beside it:
+spellcheck set to *Always* on Windows/Linux fetches a Hunspell dictionary
+from Google's CDN once (R-118; the setting's own text says so, and the
+default never does it — macOS uses the OS checker offline). Everything else on the wire is what pages
 the user opened generate (plus favicons fetched by the UI `<img>` tags from
 the sites themselves). The ad/tracker filter lists are bundled with the app
 and refreshed only via app releases — never downloaded at runtime
@@ -74,6 +78,10 @@ immutable) plus a fixture test feeding a real old document through.
 OS), never merely hidden/throttled. What survives sleep: URL, title, favicon
 URL, navigation history (capped), thumbnail, per-tab settings, position in
 the tree. Do not introduce a half-asleep state without an ADR.
+The one such state that exists is **frozen** (ADR-0014): the renderer is
+alive but suspended — no CPU, memory kept and still counted, the page
+exactly as left. It is a *running* tab to every memory rule and to the live
+bar, never a substitute for sleep, and never persisted.
 *Why:* the memory promise in the README must stay literally true.
 
 ## #10 — The active tab is sacred

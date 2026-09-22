@@ -37,9 +37,12 @@ CI as "the task is not finished", never as "flaky infra".
 >
 > Latest feature work: **R-104 scroll + form state** (state schema 1→2,
 > `src/shared/page-state.js`, engine capture/persist/restore lifecycle,
-> adapter ports in triplicate, `restorePageState` setting). Its part B
-> (freezing a background tab over CDP instead of sleeping it) is a
-> post-launch item on the roadmap, not built.
+> adapter ports in triplicate, `restorePageState` setting). Its part B,
+> **freeze (R-127, ADR-0014)**, shipped 2026-09-16: governor rule 5
+> (`freezeIdleMinutes`, default 2), `tabFreeze`/`tabThaw` in the engine,
+> `freeze()`/`thaw()` on the view port, snowflake UI, `tests/e2e/freeze.spec.js`
+> (plus `npm run smoke` for "the page really stops" — Playwright keeps pages
+> visible, and Chromium refuses to freeze a visible page).
 >
 > Electron majors arrive from Dependabot every ~8 weeks. They are routine
 > when done by `docs/PLAYBOOKS/upgrade-electron.md` (an hour: breaking-
@@ -160,7 +163,8 @@ xvfb-run -a npm start          # headless container (add RAHA_NO_SANDBOX=1)
 
 Env knobs: `RAHA_PROFILE_DIR` (isolated profile), `RAHA_TICK_MS` (governor
 period, default 2500), `RAHA_NO_SANDBOX=1` (Chromium sandbox off — dev/CI
-containers only, never ship).
+containers only, never ship), `RAHA_DOWNLOAD_DIR` (save downloads there
+without the dialog — unpackaged runs only; the e2e download test needs it).
 
 Troubleshooting: `npm run dist` can flake with `zip process failed 18` and a
 wall of "zip warning: No such file or directory" — electron-builder builds
@@ -188,6 +192,8 @@ invoke the electron binary by hand, `unset ELECTRON_RUN_AS_NODE` first.
 
 - **running** — tab has a live renderer process (active or background)
 - **active** — the one running tab currently shown
+- **frozen** — renderer alive but suspended (Chromium page lifecycle `frozen` over the tab's CDP session, ADR-0014): zero CPU, memory kept AND counted, page exactly as left; still "running" to the cap and the live bar; never persisted
+- **thaw** — resume a frozen tab (instant; activating one thaws it)
 - **asleep** — renderer destroyed; zero RAM/CPU; URL + history + thumbnail kept
 - **keepAlive / pinned** — excluded from automatic sleeping (except its own memory limit)
 - **rule** — a domain pattern granting keepAlive and/or a memory limit

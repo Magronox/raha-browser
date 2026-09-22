@@ -105,6 +105,17 @@ Losing the back button = the regression is back.</p>
 <div class="row"><button onclick="buildHistory()">build history (adds a blob: page + 2 steps)</button>
   <span class="want">expect: <b class="good">Back works after wake</b></span></div>
 
+<h2>File drop — do this by hand (R-128)</h2>
+<p class="want">Only a real drag from Finder/Explorer walks the OS → view hop; synthetic drops (CDP, dispatchEvent)
+stop at Chromium and cannot show this. Drag any file from Finder onto the box, then onto the page outside it,
+then onto Raha's sidebar.</p>
+<div class="row"><div id="dropzone" style="border:2px dashed #7a869a;padding:22px;text-align:center">drop a file here</div>
+  <span class="want">expect: <b class="good">a “drop: &lt;name&gt; (N bytes)” line below</b> — nothing = the OS-level drop never reached the page</span></div>
+<div class="row"><span>drop the file on the page OUTSIDE the box</span>
+  <span class="want">expect: <b class="bad">nothing happens</b> — this page must never turn into <code>file://…</code></span></div>
+<div class="row"><span>drop the file on Raha's sidebar / omnibox</span>
+  <span class="want">expect: <b class="bad">nothing happens</b> — the chrome stays put (INVARIANTS #13)</span></div>
+
 <div id="log">ready.</div>
 
 <script>
@@ -164,6 +175,24 @@ async function media(kind) {
     log(`getUserMedia(${kind}) -> stream (granted; a device exists)`);
   } catch (e) {
     log(`getUserMedia(${kind}) -> ${e.name}`);
+  }
+}
+// File drop probe. Only the box claims the drop (preventDefault); the rest of
+// the page leaves it to the browser default, which in Raha must be a no-op.
+{
+  const dz = document.getElementById('dropzone');
+  const seen = new Set();
+  for (const type of ['dragenter', 'dragover', 'drop']) {
+    dz.addEventListener(type, (e) => {
+      e.preventDefault();
+      if (type === 'drop') {
+        const f = e.dataTransfer.files;
+        log(`drop: ${f.length ? [...f].map((x) => `${x.name} (${x.size} bytes)`).join(', ') : 'no files'}`, f.length > 0);
+      } else if (!seen.has(type)) {
+        seen.add(type);
+        log(`${type}: types=${[...e.dataTransfer.types].join(',')}`);
+      }
+    });
   }
 }
 // History chain. A naive location.href + setTimeout loop dies with the

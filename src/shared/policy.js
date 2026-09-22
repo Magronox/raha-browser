@@ -12,6 +12,11 @@
 // - "asleep"   = no renderer process. Zero RAM, zero CPU. Thumbnail + URL kept.
 // - "keepAlive"= user or a domain rule pinned this tab: LRU/cap/idle never
 //                touch it. Only its own per-tab memory limit can sleep it.
+// - "frozen"   = renderer alive but SUSPENDED (Chromium page lifecycle
+//                'frozen'): zero CPU, no growth, memory kept AND STILL
+//                COUNTED, page exactly as left. Still "running" to every
+//                sleep rule — freeze is the CPU tool, sleep the memory tool
+//                (ADR-0014).
 //
 // Rule order (highest precedence first):
 //   1. per-tab memory limit  — a running tab above its own limit sleeps,
@@ -22,8 +27,15 @@
 //      until the count of running tabs fits settings.maxLiveTabs.
 //   4. global memory budget  — if the sum of running tabs' memory exceeds
 //      settings.globalBudgetMB, evict LRU background tabs until it fits.
-// Audio: tabs currently playing sound are skipped by rules 2-4 when
+//   5. idle freeze           — background tabs idle longer than
+//      settings.freezeIdleMinutes are FROZEN (not slept): never the active,
+//      keepAlive, audible (protectAudio), loading or already-frozen tab,
+//      and never a tab rules 1-4 chose to sleep this round. 0 = off.
+// Audio: tabs currently playing sound are skipped by rules 2-5 when
 // settings.protectAudio is on (music keeps playing). Rule 1 still applies.
+// Frozen tabs are ordinary running tabs to rules 1-4: they hold RAM, so a
+// frozen tab past idleSleepMinutes sleeps, and LRU order ignores frozenness
+// (with auto-freeze on, the frozen tabs ARE the LRU tabs anyway).
 //
 // Separate from the sleep rules: the RUNAWAY GUARD (runawayAssess below).
 // It never sleeps anything by itself — it decides when sustained CPU/memory
@@ -42,6 +54,8 @@
  * @property {number}  lastActiveAt ms epoch of last time this tab was the active tab
  * @property {number|null} memMB    latest sampled working-set, null = not sampled yet
  * @property {number|null} memLimitMB effective per-tab limit (per-tab or domain rule), null = none
+ * @property {boolean} [frozen]  renderer suspended (running is still true)
+ * @property {boolean} [loading] main frame still loading (never frozen mid-load)
  */
 
 /**
@@ -49,6 +63,13 @@
  * @property {'sleep'} type
  * @property {string} tabId
  * @property {'tab-limit'|'idle'|'cap'|'global-budget'} reason
+ *
+ * @typedef {Object} FreezeAction
+ * @property {'freeze'} type
+ * @property {string} tabId
+ * @property {'idle-freeze'} reason
+ *
+ * @typedef {SleepAction|FreezeAction} GovernorAction
  */
 
 /**
@@ -59,12 +80,12 @@
 
 /**
  * @param {PolicyTab[]} tabs snapshot of ALL tabs (running and asleep)
- * @param {{ maxLiveTabs: number, idleSleepMinutes: number, globalBudgetMB: number, protectAudio: boolean }} settings
+ * @param {{ maxLiveTabs: number, idleSleepMinutes: number, globalBudgetMB: number, protectAudio: boolean, freezeIdleMinutes?: number }} settings
  * @param {number} now ms epoch
- * @returns {{ actions: SleepAction[], warnings: PolicyWarning[] }}
+ * @returns {{ actions: GovernorAction[], warnings: PolicyWarning[] }}
  */
 export function decide(tabs, settings, now) {
-  /** @type {SleepAction[]} */ const actions = [];
+  /** @type {GovernorAction[]} */ const actions = [];
   /** @type {PolicyWarning[]} */ const warnings = [];
   const sleeping = new Set(); // tabIds already chosen to sleep this round
 
@@ -131,6 +152,19 @@ export function decide(tabs, settings, now) {
       }
       if (usedMB() > settings.globalBudgetMB) {
         warnings.push({ tabId: '', kind: 'budget-unsatisfiable' });
+      }
+    }
+  }
+
+  // ---- Rule 5: idle freeze (after the sleep rules: a tab picked to sleep
+  // this round is never also frozen; freeze reclaims no memory, so it can
+  // never stand in for a sleep the rules above demanded)
+  const freezeMin = settings.freezeIdleMinutes ?? 0;
+  if (freezeMin > 0) {
+    const cutoff = now - freezeMin * 60_000;
+    for (const t of running) {
+      if (evictable(t) && !t.frozen && !t.loading && t.lastActiveAt > 0 && t.lastActiveAt < cutoff) {
+        actions.push({ type: 'freeze', tabId: t.id, reason: 'idle-freeze' });
       }
     }
   }

@@ -27,6 +27,7 @@ export function render() {
   const engines = ['duckduckgo', 'brave', 'startpage', 'ecosia', 'google', 'bing', 'kagi'];
   const budgetOpts = [0, 1024, 2048, 4096, 8192];
   const idleOpts = [0, 5, 15, 30, 60, 120];
+  const freezeOpts = [0, 1, 2, 5, 15, 30];
 
   const rulesRows = s.rules.map((r, i) => `
     <div class="rule-row" data-rule-i="${i}">
@@ -73,6 +74,12 @@ export function render() {
         <small>When running tabs together exceed this, Raha sleeps the least-recent ones until it fits.</small>
       </label>
       <label class="setting">
+        <span>Freeze background tabs after <small>(a frozen tab stops running — no CPU, no memory growth — but keeps everything exactly as it was; click it to continue instantly. Pinned and audio tabs are never frozen automatically. Some pages notice a stopped clock — live chats, calls, video and uploads can need a reload after thawing)</small></span>
+        <select data-set="freezeIdleMinutes">
+          ${freezeOpts.map((v) => `<option value="${v}" ${s.freezeIdleMinutes === v ? 'selected' : ''}>${v === 0 ? 'Never' : `${v} min idle`}</option>`).join('')}
+        </select>
+      </label>
+      <label class="setting">
         <span>Sleep background tabs after</span>
         <select data-set="idleSleepMinutes">
           ${idleOpts.map((v) => `<option value="${v}" ${s.idleSleepMinutes === v ? 'selected' : ''}>${v === 0 ? 'Never (cap only)' : `${v} min idle`}</option>`).join('')}
@@ -80,7 +87,7 @@ export function render() {
       </label>
       <label class="setting toggle">
         <input type="checkbox" ${s.protectAudio ? 'checked' : ''} data-set-bool="protectAudio">
-        <span>Never auto-sleep tabs that are playing sound</span>
+        <span>Never auto-sleep or auto-freeze tabs that are playing sound</span>
       </label>
       <label class="setting toggle">
         <input type="checkbox" ${s.restorePageState ? 'checked' : ''} data-set-bool="restorePageState">
@@ -148,6 +155,15 @@ export function render() {
           ${engines.map((e) => `<option value="${e}" ${s.searchEngine === e ? 'selected' : ''}>${e}</option>`).join('')}
         </select>
       </label>
+      <label class="setting">
+        <span>Spellcheck</span>
+        <select data-set-str="spellcheck">
+          <option value="system" ${s.spellcheck === 'system' ? 'selected' : ''}>System checker only (macOS)</option>
+          <option value="on" ${s.spellcheck === 'on' ? 'selected' : ''}>Always</option>
+          <option value="off" ${s.spellcheck === 'off' ? 'selected' : ''}>Off</option>
+        </select>
+        <small>macOS checks with the system dictionary — nothing is downloaded. On Windows and Linux, “Always” makes Chromium fetch a dictionary from Google once; the default keeps spellcheck off there so Raha makes no request you didn't ask for.</small>
+      </label>
 
       <h3>Domain rules <small class="h3sub">first match wins · <code>site.com</code> or <code>*.site.com</code></small></h3>
       <div class="rules">${rulesRows || '<div class="rules-empty">No rules yet. Example: keep <code>*.music.youtube.com</code> alive, or cap <code>*.slack.com</code> at 800 MB.</div>'}</div>
@@ -158,7 +174,7 @@ export function render() {
         <button class="btn" data-rule-addbtn>${icons.plus} Add rule</button>
       </div>
 
-      <p class="settings-note">Raha sends no telemetry, ever. Its only own network request is the security-update check above — turn it off and Raha is fully silent.</p>
+      <p class="settings-note">Raha sends no telemetry, ever. Its only own network request is the security-update check above (plus, on Windows/Linux, the one-time dictionary download if spellcheck is set to Always) — turn those off and Raha is fully silent.</p>
 
       <h3>About</h3>
       <p class="about-line">

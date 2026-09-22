@@ -12,7 +12,7 @@
 // opener page never sees a cancelled renderer navigation and stays healthy
 // for Playwright — unlike the chrome-navigation case app.spec.js warns about.
 import { test, expect, _electron as electron } from '@playwright/test';
-import { mkdtempSync, rmSync, readFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
 import http from 'node:http';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -766,6 +766,58 @@ test('R-122: WebRTC candidates never expose local/private IPs to a page', async 
   const leaky = candidates.filter((c) =>
     /(?:^|\s)(?:10\.|192\.168\.|172\.(?:1[6-9]|2\d|3[01])\.|169\.254\.|fe80:)/i.test(c));
   expect(leaky).toEqual([]);
+});
+
+// ------------------------------------------------- R-128: file drag and drop
+
+/**
+ * A file drag at the Chromium layer: CDP Input.dispatchDragEvent is what the
+ * OS hop hands the renderer, so the events reach the page as TRUSTED
+ * DragEvents (a DOM-dispatched drop is untrusted and cannot navigate). It
+ * proves everything from the WebContentsView inward; only a real Finder
+ * drag walks the OS → NSView hop (the QA page's hands-on drop box).
+ * @param {import('playwright').Page} page @param {number} x @param {number} y
+ */
+async function dragFileTo(page, x, y) {
+  const filePath = path.join(profileDir, 'dropped.txt');
+  writeFileSync(filePath, 'hello from R-128');
+  const cdp = await page.context().newCDPSession(page);
+  const data = { items: [{ mimeType: 'text/uri-list', data: 'file://' + filePath }], files: [filePath], dragOperationsMask: 1 };
+  await cdp.send('Input.dispatchDragEvent', { type: 'dragEnter', x, y, data });
+  await cdp.send('Input.dispatchDragEvent', { type: 'dragOver', x, y, data });
+  await cdp.send('Input.dispatchDragEvent', { type: 'drop', x, y, data });
+  await cdp.detach();
+}
+
+test('R-128: a file dragged onto an in-page drop zone reaches the page with the file', async () => {
+  const qa = await contentPage('/security-qa.html');
+  await qa.locator('#dropzone').scrollIntoViewIfNeeded(); // CDP points are viewport-relative
+  const box = await qa.locator('#dropzone').boundingBox();
+  if (!box) throw new Error('no drop zone');
+  await dragFileTo(qa, box.x + box.width / 2, box.y + box.height / 2);
+  await expect(qa.locator('#log span.good', { hasText: 'drop: dropped.txt (16 bytes)' })).toBeVisible({ timeout: 5000 });
+  expect(qa.url()).toContain('/security-qa.html');
+});
+
+test('R-128: a file dropped on the page outside any drop zone never navigates it to file://', async () => {
+  const qa = await contentPage('/security-qa.html');
+  await qa.locator('h1').first().scrollIntoViewIfNeeded();
+  const box = await qa.locator('h1').first().boundingBox();
+  if (!box) throw new Error('no heading');
+  await dragFileTo(qa, box.x + 5, box.y + 5);
+  await qa.waitForTimeout(600);
+  expect(qa.url()).toContain('/security-qa.html');
+  expect(await qa.locator('#log span', { hasText: 'drop:' }).count()).toBe(1); // still only the one from above
+  await expect(ui.locator('#sidebar .row.tab.state-active .name')).toContainText('Raha security QA');
+});
+
+test('R-128: a file dropped on the chrome itself leaves the chrome on its own page', async () => {
+  const box = await ui.locator('#sidebar').boundingBox();
+  if (!box) throw new Error('no sidebar');
+  await dragFileTo(ui, box.x + box.width / 2, box.y + box.height - 20);
+  await ui.waitForTimeout(600);
+  expect(ui.url()).toContain('raha://app/index.html');
+  await expect(ui.locator('#sidebar .row.tab.state-active .name')).toContainText('Raha security QA');
 });
 
 // ------------------------------------- history: the af76be8 regression guard

@@ -5,10 +5,13 @@ import { store } from './store.js';
 import { SIDEBAR_WIDTH, TOPBAR_HEIGHT, LIVEBAR_HEIGHT } from '../shared/layout.js';
 import { initTopbar, render as renderTopbar, focusOmnibox, focusFind, setFindResult } from './render/topbar.js';
 import { initSidebar, render as renderSidebar } from './render/sidebar.js';
+import { initPreview } from './render/preview.js';
 import { initLivebar, render as renderLivebar } from './render/livebar.js';
 import { initGrid, render as renderGrid } from './render/grid.js';
 import { initSettings, render as renderSettings } from './render/settings.js';
 import { initHistory, render as renderHistory, openHistory } from './render/history.js';
+import { initDownloads, render as renderDownloads, openDownloads } from './render/downloads.js';
+import { initPalette, render as renderPalette, openPalette } from './render/palette.js';
 import { initOrganize, render as renderOrganize } from './render/organize.js';
 import { initOverlays, showToast, renderCtxMenu, renderLimitPrompt, renderRunaway } from './render/overlays.js';
 
@@ -28,10 +31,12 @@ async function main() {
 
   initTopbar(mustGet('topbar'));
   initSidebar(mustGet('sidebar'));
+  initPreview(mustGet('sidebar')); // R-105 hover preview, delegated on the sidebar
   initLivebar(mustGet('livebar'));
   initGrid(mustGet('content'));
   initSettings(mustGet('settings'));
   initHistory(mustGet('history'));
+  initDownloads(mustGet('downloads'));
   initOrganize(mustGet('organize'));
   initOverlays(mustGet('toasts'), mustGet('ctxmenu'), mustGet('prompt'), mustGet('runaway'));
 
@@ -57,7 +62,7 @@ async function main() {
   /** @type {boolean|null} */ let overlayWas = null;
   const syncOverlay = () => {
     const l = store.local;
-    const overlay = l.settingsOpen || l.historyOpen || l.organizeOpen
+    const overlay = l.settingsOpen || l.historyOpen || l.downloadsOpen || l.paletteOpen || l.organizeOpen
       || Boolean(l.limitPromptId) || l.defaultBrowserAsk || Boolean(l.externalAsk) || Boolean(l.permissionAsk) || Boolean(store.snap?.runaway);
     if (overlay !== overlayWas) {
       overlayWas = overlay;
@@ -72,6 +77,8 @@ async function main() {
     renderGrid();
     renderSettings();
     renderHistory();
+    renderDownloads();
+    renderPalette();
     renderOrganize();
     renderCtxMenu();
     renderLimitPrompt();
@@ -129,21 +136,28 @@ async function main() {
   document.addEventListener('raha:new-tab', newTab);
   api.onOpenSettings(() => store.setLocal({ settingsOpen: true }));
   api.onOpenHistory(() => openHistory());
-  api.onOpenFind(() => {
+  api.onOpenDownloads(() => openDownloads());
+  const openFind = () => {
     if (!store.snap?.activeTabId) return; // the grid has no page to search
     // With a modal up, the find bar would render (and steal focus) UNDER the
     // backdrop — same predicate as syncOverlay.
     const l = store.local;
-    if (l.settingsOpen || l.historyOpen || l.organizeOpen
+    if (l.settingsOpen || l.historyOpen || l.downloadsOpen || l.paletteOpen || l.organizeOpen
       || Boolean(l.limitPromptId) || l.defaultBrowserAsk || Boolean(l.externalAsk) || Boolean(l.permissionAsk) || Boolean(store.snap?.runaway)) return;
     store.setLocal({ findOpen: true });
     focusFind();
-  });
+  };
+  api.onOpenFind(openFind);
+  const toggleSidebar = () => store.setLocal({ sidebarHidden: !store.local.sidebarHidden });
+  // Command palette (R-111): its chrome-level moves are handed in, the rest
+  // it reaches through api/store like any panel.
+  initPalette(mustGet('palette'), { newTab, openFind, toggleSidebar });
+  api.onOpenPalette(() => openPalette());
   // Results patch the count span in place — never a re-render (IME safety).
   api.onFindResult((r) => {
     if (store.local.findOpen && r.tabId === store.snap?.activeTabId) setFindResult(r);
   });
-  api.onToggleSidebar(() => store.setLocal({ sidebarHidden: !store.local.sidebarHidden }));
+  api.onToggleSidebar(toggleSidebar);
   api.onAskDefaultBrowser(() => store.setLocal({ defaultBrowserAsk: true }));
   api.onAskExternal((r) => store.setLocal({ externalAsk: r }));
   // null withdraws the ask (its tab left the screen); the engine re-sends

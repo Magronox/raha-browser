@@ -22,6 +22,8 @@ export function wireIpc(engine, uiView) {
     [INVOKE.tabClose]: (p) => engine.tabClose(p),
     [INVOKE.tabActivate]: (p) => engine.tabActivate(p),
     [INVOKE.tabSleep]: (p) => engine.tabSleep(p),
+    [INVOKE.tabFreeze]: (p) => engine.tabFreeze(p),
+    [INVOKE.tabThaw]: (p) => engine.tabThaw(p),
     [INVOKE.tabSetKeepAlive]: (p) => engine.tabSetKeepAlive(p),
     [INVOKE.tabSetMemLimit]: (p) => engine.tabSetMemLimit(p),
     [INVOKE.tabShowGrid]: () => engine.tabShowGrid(),
@@ -97,6 +99,7 @@ export function wireIpc(engine, uiView) {
     [INVOKE.organizePreview]: () => engine.organizePreview(),
     [INVOKE.organizeApply]: () => engine.organizeApply(),
     [INVOKE.runawayResolve]: (p) => engine.runawayResolve(p ?? {}),
+    [INVOKE.downloadAct]: (p) => engine.downloadAct(p ?? {}),
     // Like app links: the UI answers an id, never names a site or a kind —
     // the engine holds the ask and is the only place that grants.
     [INVOKE.permissionAnswer]: (p) => engine.permissionAnswer(p ?? {}),
@@ -148,6 +151,8 @@ export function wireIpc(engine, uiView) {
     askDefaultBrowser() { send(EVENT.askDefaultBrowser, {}); },
     openSettings() { send(EVENT.openSettings, {}); },
     openHistory() { send(EVENT.openHistory, {}); },
+    openDownloads() { send(EVENT.openDownloads, {}); },
+    openPalette() { send(EVENT.openPalette, {}); },
     openFind() { send(EVENT.openFind, {}); },
     /** @param {{ id: number, url: string, scheme: string|null, app: string }} r */
     askExternal(r) { send(EVENT.askExternal, { id: r.id, url: r.url, scheme: r.scheme, app: r.app }); },

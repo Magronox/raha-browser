@@ -43,7 +43,10 @@ example tabs — asleep, costing zero memory, loading nothing until you click.
 
 1. **Go somewhere.** `Ctrl+L`, type `wikipedia.org` or any search, `Enter`.
 2. **Watch the bottom strip** — the **live bar**. Every running tab appears
-   there with its real memory (MB) and CPU. This is the honest meter.
+   there with its real memory (MB) and CPU. This is the honest meter. Hover a
+   chip for its two buttons: **freeze** (snowflake, on the left) stops the tab
+   where it is, **sleep** (moon, on the right) frees its memory. A frozen chip
+   shows a sun on the left — click it to continue.
 3. **Open five more tabs.** When you pass the cap (6 by default), the tab you
    touched longest ago quietly goes to sleep — a toast tells you why.
 4. **Click a sleeping card** (grid) or row (sidebar) — it wakes exactly where
@@ -57,6 +60,7 @@ example tabs — asleep, costing zero memory, loading nothing until you click.
 |---|---|
 | **Running** | Has a live Chromium process right now (shown in the live bar) |
 | **Active** | The one running tab currently on screen |
+| **Frozen** | Still has its process, but paused: 0 CPU, no growth, memory kept (and still counted). The page is exactly as you left it — click it and it continues instantly. Never survives a restart. Some pages notice a stopped clock: live chats, calls, video and uploads can need a reload after thawing |
 | **Asleep** | No process at all — 0 MB, 0 CPU. Keeps URL, title, history, thumbnail, place in your folders |
 | **Pinned / keep-alive** | Never auto-slept (amber pin icon) |
 | **Rule** | A domain pattern that pins or limits every matching tab |
@@ -71,6 +75,19 @@ by the cap/idle/budget rules (turn off in Settings if you want).
 **Sleep something now** — hover it (live-bar chip, sidebar row, or grid card)
 and hit the moon. Whole folder: right-click → *Sleep all tabs inside*.
 Everything: `Ctrl+Shift+A`.
+
+**Jump anywhere** — `Ctrl+K` opens the command palette: type a few letters
+of a tab's title or site, a folder name, or a command (*sleep all*,
+*settings*, *freeze*…), arrow to it, Enter. Picking a sleeping tab wakes it.
+
+**Downloads** — the arrow button in the toolbar (`Ctrl+J`) lists what you
+downloaded this session: progress, *Open*, *Show in folder*, *Cancel*. A dot
+on the button means something is still coming in. The list is not saved —
+when Raha quits it is gone; the files stay where you put them.
+
+**Peek before you wake** — rest the pointer on a sleeping or frozen tab in
+the sidebar and a preview of the page appears under it. Nothing wakes; move
+away and it's gone.
 
 **Keep something alive** — the pin icon in the toolbar, `Ctrl+Shift+K`, or
 right-click → *Keep alive*. Pinned tabs survive the cap, idle, and budget —
@@ -218,7 +235,25 @@ subdomains. First matching rule wins. A tab pinned by rule shows a faded pin.
   push, a code, a password) instead of waiting on a passkey that cannot
   arrive. USB security keys are included in this for now. See the roadmap
   (R-108).
+
+  *Why can Chrome and Zen do passkeys when Raha can't?* Not a Chromium
+  limitation — a trust one. On macOS the Touch ID passkey store is only
+  opened to apps that are code-signed with a `keychain-access-groups`
+  entitlement (Electron's `app.configureWebAuthn` needs it too; without it
+  `isUserVerifyingPlatformAuthenticatorAvailable()` stays `false`). Chrome
+  and Zen ship signed; Raha's builds are unsigned until R-108, so rather than
+  let sign-in pages hang on a passkey prompt that can never resolve, Raha
+  reports no passkey support at all. Once signing lands, passkeys **created
+  in Raha** will work with Touch ID (device-bound, not synced). Passkeys
+  already in iCloud Keychain, and the "use your phone" QR flow, stay out of
+  reach: those need Apple's browser entitlement and Chrome-layer UI that no
+  Electron app has.
 - **Search engine** — DuckDuckGo (default), Brave, Startpage, Ecosia, Google, Bing, Kagi (Kagi needs your own Kagi account; sign in at kagi.com in a tab).
+- **Spellcheck** — *System checker only* (default): on macOS, text fields
+  are checked with the system dictionary and right-click offers
+  corrections; nothing is downloaded. On Windows and Linux the default is
+  off, because Chromium would fetch a dictionary from Google — choose
+  *Always* to allow that one-time download, or *Off* to never check.
 - **App links opened without asking** — appears once you've ticked *always
   allow* on an app-link prompt (Zoom, Teams, …): one chip per link kind,
   click the × to make Raha ask again.
@@ -266,9 +301,12 @@ are Chromium's session data alongside it).
 | Grid / home | `Ctrl+E` | `⌘E` |
 | Toggle sidebar | `Ctrl+Shift+B` | `⌘⇧B` |
 | History | `Ctrl+H` | `⌘Y` |
+| Downloads | `Ctrl+J` | `⌘J` |
+| Command palette (jump to any tab or folder, run a command) | `Ctrl+K` | `⌘K` |
 | Hard reload (ignore cache) | `Ctrl+Shift+R` | `⌘⇧R` |
 | Cycle running tabs | `Ctrl+Tab` / `Ctrl+Shift+Tab` | same |
 | Jump to Nth running tab (9 = last) | `Ctrl+1…9` | `⌘1…9` |
+| Freeze this tab (keep it exactly, stop its CPU) | `Ctrl+Shift+F` | `⌘⇧F` |
 | Sleep this tab | `Ctrl+Shift+S` | `⌘⇧S` |
 | Sleep all tabs | `Ctrl+Shift+A` | `⌘⇧A` |
 | Pin (keep alive) | `Ctrl+Shift+K` | `⌘⇧K` |

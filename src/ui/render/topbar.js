@@ -9,6 +9,7 @@ import { hostOf } from '../../shared/rules.js';
 import { isShieldOff } from '../../shared/blocking.js';
 import { normalizeSiteHost } from '../../shared/validate.js';
 import { openHistory } from './history.js';
+import { openDownloads } from './downloads.js';
 
 /** @type {HTMLElement} */ let root;
 let omniboxHasFocus = false;
@@ -91,7 +92,7 @@ let suggestSeq = 0;
 /** Overlay the modals need — the dropdown must not lower the chrome under one. */
 function modalOverlayUp() {
   const l = store.local;
-  return l.settingsOpen || l.historyOpen || l.organizeOpen
+  return l.settingsOpen || l.historyOpen || l.downloadsOpen || l.paletteOpen || l.organizeOpen
     || Boolean(l.limitPromptId) || l.defaultBrowserAsk || Boolean(l.externalAsk) || Boolean(l.permissionAsk) || Boolean(store.snap?.runaway);
 }
 
@@ -322,10 +323,12 @@ export function render() {
     ${t ? `
       <button class="iconbtn ${t.keepAlive ? 'on' : ''}" data-act="pin" title="${t.keepAlive ? 'Unpin: allow auto-sleep' : `Keep alive: never auto-sleep (${MOD}+Shift+K)`}">${icons.pin}</button>
       <button class="iconbtn ${t.memLimitMB ? 'on' : ''}" data-act="limit" title="${t.memLimitMB ? `Memory limit: ${t.memLimitMB} MB — click to change` : 'Set a memory limit for this tab'}">${icons.gauge}</button>
+      <button class="iconbtn" data-act="freeze" title="Freeze this tab (${MOD}+Shift+F) — keep it exactly as is, stop its CPU">${icons.snowflake}</button>
       <button class="iconbtn" data-act="sleep" title="Sleep this tab (${MOD}+Shift+S)">${icons.moon}</button>
     ` : ''}
     <button class="iconbtn" data-act="grid" title="Grid / Home (${MOD}+E)">${icons.grid}</button>
     <button class="iconbtn" data-act="history" title="History">${icons.clock}</button>
+    <button class="iconbtn ${store.snap?.downloads.some((d) => d.state === 'progressing') ? 'busy' : ''}" data-act="downloads" title="Downloads (${MOD}+J)">${icons.download}</button>
     <button class="iconbtn" data-act="settings" title="Settings (${MOD}+,)">${icons.gear}</button>
   `;
 
@@ -427,6 +430,7 @@ export function render() {
       else if (act === 'pin' && tab) void api.tabSetKeepAlive(tab.id, !tab.keepAlive);
       else if (act === 'limit' && tab) store.setLocal({ limitPromptId: tab.id });
       else if (act === 'sleep' && tab) void api.tabSleep(tab.id);
+      else if (act === 'freeze' && tab) void api.tabFreeze(tab.id);
       else if (act === 'shield' && tab) {
         const st = store.snap?.settings;
         if (!st) return;
@@ -453,6 +457,7 @@ export function render() {
       else if (act === 'findclose') closeFind();
       else if (act === 'grid') void api.tabShowGrid();
       else if (act === 'history') openHistory();
+      else if (act === 'downloads') openDownloads();
       else if (act === 'settings') store.setLocal({ settingsOpen: true });
     });
   });

@@ -38,6 +38,8 @@ export function createMockMain() {
     [INVOKE.tabClose]: (p) => engine.tabClose(p),
     [INVOKE.tabActivate]: (p) => engine.tabActivate(p),
     [INVOKE.tabSleep]: (p) => engine.tabSleep(p),
+    [INVOKE.tabFreeze]: (p) => engine.tabFreeze(p),
+    [INVOKE.tabThaw]: (p) => engine.tabThaw(p),
     [INVOKE.tabSetKeepAlive]: (p) => engine.tabSetKeepAlive(p),
     [INVOKE.tabSetMemLimit]: (p) => engine.tabSetMemLimit(p),
     [INVOKE.tabShowGrid]: () => engine.tabShowGrid(),
@@ -78,6 +80,7 @@ export function createMockMain() {
     [INVOKE.organizePreview]: () => engine.organizePreview(),
     [INVOKE.organizeApply]: () => engine.organizeApply(),
     [INVOKE.runawayResolve]: (p) => engine.runawayResolve(p ?? {}),
+    [INVOKE.downloadAct]: (p) => engine.downloadAct(p ?? {}),
     [INVOKE.permissionAnswer]: (p) => engine.permissionAnswer(p ?? {}),
     [INVOKE.permissionForget]: (p) => engine.permissionForget(p ?? {}),
   };
@@ -102,6 +105,9 @@ export function createMockMain() {
 
 /** Seed a believable workspace for tests + screenshots. @param {ReturnType<typeof createMockMain>} m */
 export function seedDemo(m) {
+  // Auto-freeze off in the harness: scenarios advance the clock freely and
+  // must not find background tabs frozen underneath them.
+  m.engine.settingsSet({ freezeIdleMinutes: 0 });
   const { engine, world } = m;
   engine.settingsSet({
     maxLiveTabs: 5,

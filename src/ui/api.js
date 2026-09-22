@@ -25,6 +25,10 @@ export const api = {
   tabActivate: (tabId) => bridge().invoke(INVOKE.tabActivate, { tabId }),
   /** @param {string} tabId */
   tabSleep: (tabId) => bridge().invoke(INVOKE.tabSleep, { tabId }),
+  /** @param {string} tabId */
+  tabFreeze: (tabId) => bridge().invoke(INVOKE.tabFreeze, { tabId }),
+  /** @param {string} tabId */
+  tabThaw: (tabId) => bridge().invoke(INVOKE.tabThaw, { tabId }),
   /** @param {string} tabId @param {boolean} keepAlive */
   tabSetKeepAlive: (tabId, keepAlive) => bridge().invoke(INVOKE.tabSetKeepAlive, { tabId, keepAlive }),
   /** @param {string} tabId @param {number|null} memLimitMB */
@@ -99,8 +103,12 @@ export const api = {
   organizePreview: () => bridge().invoke(INVOKE.organizePreview),
   organizeApply: () => bridge().invoke(INVOKE.organizeApply),
 
+  // --- downloads (R-106)
+  /** @param {string} id @param {'cancel'|'open'|'reveal'|'remove'|'clear'} action */
+  downloadAct: (id, action) => bridge().invoke(INVOKE.downloadAct, { id, action }),
+
   // --- runaway-tab guard
-  /** @param {string} tabId @param {'sleep'|'snooze'} action */
+  /** @param {string} tabId @param {'sleep'|'freeze'|'snooze'} action */
   runawayResolve: (tabId, action) => bridge().invoke(INVOKE.runawayResolve, { tabId, action }),
 
   // --- site permissions (R-103)
@@ -122,6 +130,10 @@ export const api = {
   onOpenSettings: (h) => bridge().on(EVENT.openSettings, () => h()),
   /** @param {() => void} h */
   onOpenHistory: (h) => bridge().on(EVENT.openHistory, () => h()),
+  /** @param {() => void} h */
+  onOpenDownloads: (h) => bridge().on(EVENT.openDownloads, () => h()),
+  /** @param {() => void} h */
+  onOpenPalette: (h) => bridge().on(EVENT.openPalette, () => h()),
   /** @param {() => void} h */
   onOpenFind: (h) => bridge().on(EVENT.openFind, () => h()),
   /** @param {(r: { tabId: string, matches: number, activeMatchOrdinal: number }) => void} h */

@@ -51,6 +51,40 @@ source of what's next, issues track execution (R-125).
 
 ## v0.2 — daily-driver polish
 
+- **R-128 Fix drag-and-drop file upload (TOP PRIORITY — needs a hands-on
+  repro).** Amir's report: dragging a file onto a page's upload widget (e.g.
+  Overleaf) does nothing in Raha. **2026-09-21: the suspected cause is ruled
+  out.** The audit's P2 drop-swallow (`src/ui/app.js`) lives only in the
+  chrome `WebContentsView`; tab pages are a separate view stacked above it,
+  and a Chromium-level file drag (CDP `Input.dispatchDragEvent`, the same
+  path the OS hands the renderer) onto a page inside a real Raha tab delivers
+  trusted `dragenter`/`dragover`/`drop` with the `File` attached and never
+  navigates — pinned by three `R-128:` tests in `tests/e2e/security-qa.spec.js`
+  (drop zone gets the file; drop outside a zone doesn't navigate the page;
+  drop on the chrome doesn't move the chrome). What remains unproven is the
+  one hop no automation reaches: the OS → NSView delivery when two
+  `WebContentsView`s overlap in a `BaseWindow` (CGEvent injection needs
+  Accessibility permission; Electron adds no drop code of its own on macOS,
+  so a bug there is Chromium's `WebContentsViewMac`). **2026-09-22: Amir ran
+  the hands-on drop on the QA page (`npm run qa`) — the file arrived.** So
+  Raha's drop path is sound end to end; the Overleaf symptom is site-side
+  (their drop zone may key on something Raha's Chrome identity/permissions
+  differ in). Next: reproduce on Overleaf itself with devtools open
+  (`RAHA_DEV=1`), watch for console errors on drop, and compare a plain
+  `<input type=file>` upload there. Downgraded from top priority.
+- **R-129 Passkey parity question — ANSWERED 2026-09-21** (USER_GUIDE →
+  Privacy → Passkeys). Not a Chromium limit: macOS opens the Touch ID
+  passkey store only to code-signed apps with the `keychain-access-groups`
+  entitlement (`app.configureWebAuthn` needs it; until then
+  `isUserVerifyingPlatformAuthenticatorAvailable()` is `false`). Chrome/Zen
+  ship signed; Raha is unsigned until R-108, so WebAuthn is switched off
+  (`--disable-blink-features=WebAuth`) rather than leave sign-in pages
+  hanging. Unblocked by R-108 (Amir's Apple Developer enrollment). Then:
+  build the Touch ID tier (`design-passkeys-signing.md`,
+  `src/shared/webauthn.js` draft + `select-webauthn-account` picker) and
+  make the flag a setting. Ceiling to stay upfront about: existing
+  iCloud-Keychain passkeys and the cross-device/QR flow are unreachable in
+  any stock Electron (Apple's browser entitlement + `//chrome`-layer UI).
 - **R-101 Find in page.** Ctrl+F bar in the UI driving
   `webContents.findInPage` via new IPC channels. AC: search, next/prev,
   match count, Esc clears; e2e test.
@@ -96,10 +130,16 @@ source of what's next, issues track execution (R-125).
 - **R-104 Scroll + form state on wake.** *Delivered 2026-09-05* (`src/shared/page-state.js`,
   state schema 2, `restorePageState` setting). Scroll position and unsent
   form text captured before sleep, restored after wake; passwords never
-  captured. e2e scrolls, sleeps, wakes, asserts position. Part B (freezing a
-  background tab over CDP instead of sleeping it) is not started.
+  captured. e2e scrolls, sleeps, wakes, asserts position. Part B became
+  R-127 (freeze), delivered 2026-09-16.
 - **R-105 Wake-preview hover.** Hovering an asleep tab shows its thumbnail
   large without waking. AC: ui-harness test.
+  *Delivered 2026-09-22:* rest the pointer 400 ms on an asleep or frozen
+  sidebar row and `#preview` (`src/ui/render/preview.js`) shows the stored
+  thumbnail + title + host inside the sidebar's width (never over the page
+  view, so no chrome-raise). Hides on leave, click, drag, scroll, or when
+  the tab's state changes; no thumbnail = no card; live tabs never preview
+  (their thumb is stale). ui-harness scenario.
 - **R-106 History & downloads pages.** raha://history from a local (opt-in)
   history store; raha://downloads listing session downloads. AC: history off
   by default (privacy), searchable when on.
@@ -109,8 +149,14 @@ source of what's next, issues track execution (R-125).
   maintainer's explicit call** (it powers the omnibox suggestions, R-113;
   the original off-by-default text above is superseded). Local file only,
   Settings toggle, History panel clears it; reloads don't double-count;
-  raha:// pages never recorded; writes batched (30s). Still open: the
-  downloads page.
+  raha:// pages never recorded; writes batched (30s).
+  *2026-09-22:* the downloads half shipped as a panel like History (not a
+  raha:// page): `downloads` in the snapshot (session-only, cap 100, never
+  persisted), `downloads:act` (cancel/open/reveal/remove/clear), the shell
+  port grew `openPath`/`showItemInFolder`, `will-download` reports through
+  `onDownload` (progress every 250 ms). Toolbar button with an activity
+  dot, `Ctrl/⌘+J`. Real e2e via the unpackaged-only `RAHA_DOWNLOAD_DIR`
+  seam (the native save dialog cannot be driven). **Item complete.**
 - **R-107 Multi-window.** Engine already single-window-agnostic in its tree;
   windows own active-tab + attached views. AC: two windows share one tree,
   governor counts across both.
@@ -121,6 +167,12 @@ source of what's next, issues track execution (R-125).
   bundle a dictionary, use the OS checker where it is free (macOS), or make it
   an opt-in setting that states the download plainly. AC: text fields spellcheck
   again with no request Raha did not disclose.
+  *Delivered 2026-09-22:* `spellcheck` setting, `'system'` (default: macOS
+  native checker, no download; off elsewhere) / `'on'` (Windows/Linux fetch
+  a dictionary from Google once — the Settings text says so) / `'off'`.
+  Applied per session (`applySpellcheck`, privacy.js) on boot and on every
+  settings change; the page context menu offers corrections + Add to
+  Dictionary. Unit-tested (validation, platform matrix, menu template).
 - **R-117 Gate `RAHA_NO_SANDBOX` on `!app.isPackaged`.** *Delivered
   2026-08-17.* Packaged builds log and ignore the env var; dev/CI (never
   packaged) unaffected. Not a privilege boundary — anyone who can set your
@@ -247,6 +299,16 @@ source of what's next, issues track execution (R-125).
   AC: WebRTC policy set + tested; scorecard committed with reproducible
   steps; every "we don't do X yet" links a roadmap item.
 
+- **R-127 Freeze / static tabs.** *Delivered 2026-09-16* (ADR-0014). A
+  third tab state: the renderer stays alive but Chromium's page lifecycle is
+  `frozen` over the tab's existing CDP session — no CPU, no growth, memory
+  kept and counted, page exactly as left, instant thaw. Governor rule 5
+  (`freezeIdleMinutes`, default 2 min; never active/pinned/audible/loading),
+  manual Freeze in sidebar/grid/live bar/toolbar/context menu/`⌘⇧F`, the
+  runaway prompt offers Freeze first for CPU. Thaw failure degrades to
+  sleep + wake. Follow-ups: media auto-resume after thaw; an exemption for
+  tabs holding a granted camera/microphone (calls); a per-domain rule
+  "never freeze".
 - **R-126 App links (external protocol handoff).** *Delivered 2026-08-22*
   (ADR-0011). A clicked `zoommtg:`/`msteams:`/`mailto:`/`tel:` link used to
   dead-end in "blocked" with no way to say yes. Now: dangerous
@@ -264,6 +326,11 @@ source of what's next, issues track execution (R-125).
   rules as JSON.
 - **R-110 Virtualized sidebar/grid** for 1000+ tabs.
 - **R-111 Command palette** (Ctrl+K): fuzzy jump to tab/folder, actions.
+  *Delivered 2026-09-22:* `src/shared/palette.js` (pure item list + a
+  subsequence ranker: word starts, consecutive runs and title prefixes win;
+  the active tab is never listed; tab-only actions hide on the grid) with
+  unit tests; `src/ui/render/palette.js` modal (↑/↓/Enter/click, Esc),
+  `evt:openPalette` from the menu accelerator, ui-harness scenario.
 - **R-112 Session snapshots.** Named saves of the whole tree ("Monday
   research"), restorable; export/import JSON.
 - **R-113 Tab search across titles/urls** in the omnibox dropdown (local only).

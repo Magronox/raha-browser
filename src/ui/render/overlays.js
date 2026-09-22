@@ -27,7 +27,7 @@ export function initOverlays(/** @type {HTMLElement} */ toasts, /** @type {HTMLE
       // resource warning for five minutes as a side effect.
       const l = store.local;
       const somethingElseOpen = Boolean(
-        l.ctxMenu || l.settingsOpen || l.historyOpen || l.organizeOpen || l.limitPromptId || l.renamingId || l.externalAsk || l.permissionAsk,
+        l.ctxMenu || l.settingsOpen || l.historyOpen || l.downloadsOpen || l.paletteOpen || l.organizeOpen || l.limitPromptId || l.renamingId || l.externalAsk || l.permissionAsk,
       );
       const alert = store.snap?.runaway;
       if (alert && !somethingElseOpen) void api.runawayResolve(alert.tabId, 'snooze');
@@ -37,7 +37,7 @@ export function initOverlays(/** @type {HTMLElement} */ toasts, /** @type {HTMLE
       // Same for a site-permission ask: Escape = "Not now" (refused for this
       // request, nothing remembered); the engine then shows the next one.
       if (l.permissionAsk) void api.permissionAnswer(l.permissionAsk.id, 'dismiss');
-      store.setLocal({ ctxMenu: null, settingsOpen: false, historyOpen: false, organizeOpen: false, limitPromptId: null, renamingId: null, externalAsk: null, permissionAsk: null });
+      store.setLocal({ ctxMenu: null, settingsOpen: false, historyOpen: false, downloadsOpen: false, paletteOpen: false, organizeOpen: false, limitPromptId: null, renamingId: null, externalAsk: null, permissionAsk: null });
     }
   });
 }
@@ -46,7 +46,7 @@ export function initOverlays(/** @type {HTMLElement} */ toasts, /** @type {HTMLE
 export function showToast(t) {
   const el = document.createElement('div');
   el.className = `toast toast-${t.kind}`;
-  el.innerHTML = `${t.kind === 'sleep' ? icons.moon : t.kind === 'download' ? icons.forward : t.kind === 'warn' ? icons.shield : icons.bird}<span>${esc(t.text)}</span>`;
+  el.innerHTML = `${t.kind === 'sleep' ? icons.moon : t.kind === 'freeze' ? icons.snowflake : t.kind === 'download' ? icons.forward : t.kind === 'warn' ? icons.shield : icons.bird}<span>${esc(t.text)}</span>`;
   toastRoot.appendChild(el);
   setTimeout(() => el.classList.add('show'), 10);
   setTimeout(() => {
@@ -71,7 +71,11 @@ export function renderCtxMenu() {
         isRoot ? null : { label: 'Delete folder (and tabs)', act: 'delete', danger: true },
       ]
     : [
-        tab?.state === 'asleep' ? { label: 'Wake', act: 'wake' } : { label: 'Sleep now', act: 'sleep' },
+        ...(tab?.state === 'asleep'
+          ? [{ label: 'Wake', act: 'wake' }]
+          : tab?.state === 'frozen'
+            ? [{ label: 'Thaw (resume)', act: 'thaw' }, { label: 'Sleep now', act: 'sleep' }]
+            : [{ label: 'Freeze (keep exactly, stop its CPU)', act: 'freeze' }, { label: 'Sleep now', act: 'sleep' }]),
         { label: tab?.keepAlive ? 'Unpin (allow auto-sleep)' : 'Keep alive (pin)', act: 'pin' },
         { label: tab?.memLimitMB ? `Memory limit: ${tab.memLimitMB} MB…` : 'Set memory limit…', act: 'limit' },
         tab && hostOf(tab.url) ? { label: 'Clear cookies & data for this site', act: 'clearsitedata' } : null,
@@ -101,6 +105,8 @@ export function renderCtxMenu() {
       else if (act === 'delete') void api.nodeRemove(id);
       else if (act === 'wake') void api.tabActivate(id);
       else if (act === 'sleep') void api.tabSleep(id);
+      else if (act === 'freeze') void api.tabFreeze(id);
+      else if (act === 'thaw') void api.tabThaw(id);
       else if (act === 'pin') { const t = store.tabById(id); if (t) void api.tabSetKeepAlive(id, !t.keepAlive); }
       else if (act === 'limit') store.setLocal({ limitPromptId: id });
       else if (act === 'clearsitedata') {
@@ -244,18 +250,24 @@ export function renderRunaway() {
   const detail = alert.kind === 'cpu'
     ? `It has been burning ~${Math.round(tab.cpuPct ?? 0)}% CPU for the last several seconds.`
     : `It is holding ${tab.memMB ?? '?'} MB of memory.`;
+  // CPU: freeze is the answer (stops it cold, keeps the page). Memory:
+  // sleep is (freeze reclaims nothing — ADR-0014). The other stays one click away.
+  const freezeBtn = `<button class="btn ${alert.kind === 'cpu' ? 'danger' : 'subtle'}" data-runaway-freeze title="Stops it cold; the page stays exactly as it is, memory kept">Freeze</button>`;
+  const sleepBtn = `<button class="btn ${alert.kind === 'mem' ? 'danger' : 'subtle'}" data-runaway-sleep title="Frees its memory; the page reloads when you return">Sleep</button>`;
   runawayRoot.innerHTML = `
     <div class="modal-backdrop" data-runaway-snooze></div>
     <div class="modal mini runaway" role="alertdialog" aria-label="Runaway tab">
       <h3>${icons.shield}<span>“${esc(tab.title || tab.url)}” is running away</span></h3>
-      <p class="mini-sub">${esc(detail)} Terminate it? The process is killed immediately — the page, its history and its place in your sidebar all survive, asleep.</p>
+      <p class="mini-sub">${esc(detail)} ${alert.kind === 'cpu' ? 'Freeze it? It stops instantly and keeps the page exactly as it is. Sleep frees its memory instead.' : 'Sleep it? Its memory is returned now; the page, history and sidebar place survive. Freeze keeps the page (and its memory) but stops it growing.'}</p>
       <div class="mini-row">
-        <button class="btn danger" data-runaway-kill>Terminate now</button>
+        ${alert.kind === 'cpu' ? freezeBtn + sleepBtn : sleepBtn + freezeBtn}
         <button class="btn subtle" data-runaway-snooze>Not now (5 min)</button>
       </div>
     </div>`;
-  runawayRoot.querySelector('[data-runaway-kill]')?.addEventListener('click', () =>
+  runawayRoot.querySelector('[data-runaway-sleep]')?.addEventListener('click', () =>
     void api.runawayResolve(alert.tabId, 'sleep'));
+  runawayRoot.querySelector('[data-runaway-freeze]')?.addEventListener('click', () =>
+    void api.runawayResolve(alert.tabId, 'freeze'));
   runawayRoot.querySelectorAll('[data-runaway-snooze]').forEach((el) =>
     el.addEventListener('click', () => void api.runawayResolve(alert.tabId, 'snooze')));
 }

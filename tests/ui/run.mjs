@@ -168,6 +168,21 @@ await t('clicking an asleep card wakes the tab (engine + livebar agree)', async 
   assert(chips.length === before + 1, 'livebar reflects wake');
 });
 
+await t('live chip carries freeze on the left and sleep on the right; frozen chips offer thaw', async () => {
+  const id = seeded.music;
+  await page.hover(`#livebar .chip[data-chip="${id}"]`);
+  const order = await page.$$eval(`#livebar .chip[data-chip="${id}"] .mini.act`,
+    (els) => els.map((el) => Object.keys(/** @type {HTMLElement} */ (el).dataset)[0]));
+  assert(order[0] === 'chipfreeze' && order[order.length - 1] === 'chipsleep', `order=${order.join()}`);
+  await page.click(`#livebar .chip [data-chipfreeze="${id}"]`);
+  await pump();
+  assert(mock.engine.snapshot().tabs.find((x) => x.id === id)?.state === 'frozen', 'chip froze it');
+  await page.hover(`#livebar .chip[data-chip="${id}"]`);
+  await page.click(`#livebar .chip [data-chipthaw="${id}"]`);
+  await pump();
+  assert(mock.engine.snapshot().tabs.find((x) => x.id === id)?.state !== 'frozen', 'chip thawed it');
+});
+
 await t('sleep button on a live chip sleeps the tab', async () => {
   const before = mock.engine.snapshot().stats.runningCount;
   await page.hover(`#livebar .chip[data-chip="${seeded.music}"]`);
@@ -176,6 +191,33 @@ await t('sleep button on a live chip sleeps the tab', async () => {
   assert(mock.engine.snapshot().stats.runningCount === before - 1, 'music slept');
   const state = mock.engine.snapshot().tabs.find((x) => x.id === seeded.music)?.state;
   assert(state === 'asleep', `state=${state}`);
+});
+
+await t('wake-preview hover (R-105): resting on an asleep row shows its thumbnail without waking; leaving hides it; running rows never preview', async () => {
+  const music = seeded.music;
+  assert(mock.engine.snapshot().tabs.find((x) => x.id === music)?.state === 'asleep', 'music asleep');
+  const before = mock.engine.snapshot().stats.runningCount;
+  await page.hover(`#sidebar .row[data-id="${music}"] .name`);
+  assert((await page.$('#preview:not([hidden])')) === null, 'nothing before the hover delay');
+  await page.waitForSelector('#preview:not([hidden]) img.thumb', { timeout: 3000 });
+  const src = await page.$eval('#preview img.thumb', (el) => /** @type {HTMLImageElement} */ (el).getAttribute('src') ?? '');
+  assert(src.includes(encodeURIComponent(music)), `preview shows this tab's thumbnail: ${src}`);
+  const meta = await page.$eval('#preview .preview-url', (el) => el.textContent ?? '');
+  assert(meta.includes('asleep'), `meta says asleep: ${meta}`);
+  assert(mock.engine.snapshot().stats.runningCount === before, 'hover did not wake it');
+  assert(mock.engine.snapshot().tabs.find((x) => x.id === music)?.state === 'asleep', 'still asleep');
+  // The card fits inside the sidebar: it must never spill under the page view.
+  const box = await page.$eval('#preview', (el) => el.getBoundingClientRect().right);
+  assert(box <= 264, `preview stays within the sidebar width: right=${box}`);
+  // Leaving the row hides it.
+  await page.hover('.omnibox');
+  await page.waitForSelector('#preview[hidden]', { state: 'attached', timeout: 3000 });
+  // A running row has a live page, not a stale thumbnail: no preview.
+  const running = must(mock.engine.snapshot().tabs.find((x) => x.state === 'running' || x.state === 'active'), 'a live tab');
+  await page.hover(`#sidebar .row[data-id="${running.id}"] .name`);
+  await page.waitForTimeout(700);
+  assert((await page.$('#preview:not([hidden])')) === null, 'no preview for a live tab');
+  await page.hover('.omnibox');
 });
 
 await t('omnibox Enter navigates the active tab through the engine', async () => {
@@ -293,6 +335,124 @@ await t('shield button: per-site off writes noBlockHosts and restyles; global-of
   await pump();
 });
 
+await t('freeze: sidebar, grid and live bar show a frozen tab; thaw/sleep buttons swap; context menu offers Thaw', async () => {
+  const gh = seeded.gh;
+  // Earlier scenarios may leave the grid showing (no active tab): put hn on
+  // screen so gh is a BACKGROUND running tab, which is what the buttons test.
+  const before = mock.engine.snapshot().activeTabId;
+  if (!before || before === gh) { mock.engine.tabActivate({ tabId: seeded.hn }); await pump(); }
+  const active = must(mock.engine.snapshot().activeTabId, 'an active tab');
+  assert(active !== gh, 'gh must be a background running tab for this scenario');
+  if (mock.engine.snapshot().tabs.find((t2) => t2.id === gh)?.state !== 'running') { mock.engine.tabActivate({ tabId: gh }); mock.engine.tabActivate({ tabId: active }); await pump(); }
+  assert(mock.engine.snapshot().tabs.find((t2) => t2.id === gh)?.state === 'running', 'gh running');
+  // Running row: a Freeze button, no Thaw.
+  assert((await page.$(`#sidebar .row[data-id="${gh}"] [data-freeze]`)) !== null, 'running row offers Freeze');
+  assert((await page.$(`#sidebar .row[data-id="${gh}"] [data-thaw]`)) === null, 'no Thaw on a running row');
+  await page.hover(`#sidebar .row[data-id="${gh}"]`); // row buttons show on hover
+  await page.click(`#sidebar .row[data-id="${gh}"] [data-freeze]`);
+  await pump();
+  const snap = mock.engine.snapshot();
+  assert(snap.tabs.find((t2) => t2.id === gh)?.state === 'frozen', 'engine froze it');
+  assert(snap.stats.frozenCount === 1, `frozenCount: ${snap.stats.frozenCount}`);
+  await page.waitForSelector(`#sidebar .row[data-id="${gh}"].state-frozen .mini.frost`);
+  assert((await page.$(`#sidebar .row[data-id="${gh}"] [data-thaw]`)) !== null, 'frozen row offers Thaw');
+  assert((await page.$(`#sidebar .row[data-id="${gh}"] [data-sleep]`)) !== null, 'and Sleep');
+  assert((await page.$(`#sidebar .row[data-id="${gh}"] [data-freeze]`)) === null, 'no second Freeze');
+  await page.waitForSelector(`#livebar .chip.frozen[data-chip="${gh}"] .mini.frost`);
+  const stats = await page.$eval('#livebar .live-stats', (el) => el.textContent ?? '');
+  assert(stats.includes('1 frozen'), `live stats name the frozen count: ${stats}`);
+  // Context menu on the frozen row: Thaw + Sleep now, no Freeze.
+  await page.click(`#sidebar .row[data-id="${gh}"] .name`, { button: 'right' });
+  await pump();
+  let items = await page.$$eval('.ctx-item', (els) => els.map((e) => e.textContent ?? ''));
+  assert(items.some((i) => i.startsWith('Thaw')) && items.some((i) => i === 'Sleep now') && !items.some((i) => i.startsWith('Freeze')), `frozen menu: ${items}`);
+  await page.click('[data-ctx="thaw"]');
+  await pump();
+  assert(mock.engine.snapshot().tabs.find((t2) => t2.id === gh)?.state === 'running', 'context-menu Thaw resumed it');
+  await page.waitForSelector(`#sidebar .row[data-id="${gh}"].state-running`);
+  // Grid: the frozen chip. Freeze again, show the grid, check the card.
+  mock.engine.tabFreeze({ tabId: gh });
+  mock.engine.tabShowGrid();
+  await pump();
+  // The grid remembers the folder an earlier scenario browsed to; gh lives in
+  // "Project Raha" — select that folder so its card is on screen.
+  const proj = must(mock.engine.snapshot().folders.find((f) => f.name === 'Project Raha'), 'seeded folder');
+  await page.click(`#sidebar .row[data-id="${proj.id}"] .name`);
+  await pump();
+  await page.waitForSelector(`#content .tabcard.state-frozen[data-opentab="${gh}"] .state-chip.frozen`);
+  // Running row's context menu offers Freeze.
+  await page.hover(`#sidebar .row[data-id="${gh}"]`);
+  await page.click(`#sidebar .row[data-id="${gh}"] [data-thaw]`);
+  await pump();
+  await page.click(`#sidebar .row[data-id="${gh}"] .name`, { button: 'right' });
+  await pump();
+  items = await page.$$eval('.ctx-item', (els) => els.map((e) => e.textContent ?? ''));
+  assert(items.some((i) => i.startsWith('Freeze')), `running menu offers Freeze: ${items}`);
+  await page.keyboard.press('Escape');
+  // Leave the world as found.
+  if (before) mock.engine.tabActivate({ tabId: before }); else mock.engine.tabShowGrid();
+  await pump();
+});
+
+await t('freeze: runaway CPU prompt — Freeze leaves the tab frozen and closes the prompt; settings select writes through', async () => {
+  // activate: a background create may land asleep under the running cap and
+  // then has no renderer to run away with.
+  const before = mock.engine.snapshot().activeTabId;
+  const created = ok(mock.engine.tabCreate({ url: 'https://spin.example/', activate: true }));
+  for (let i = 0; i < 4; i += 1) {
+    mock.world.setTabMetrics(created.tabId, 120, 380);
+    mock.engine.tick();
+  }
+  await pump();
+  await page.waitForSelector('.modal.runaway');
+  await page.click('[data-runaway-freeze]');
+  await pump();
+  assert((await page.$('.modal.runaway')) === null, 'prompt gone after Freeze');
+  assert(mock.engine.snapshot().tabs.find((t2) => t2.id === created.tabId)?.state === 'frozen', 'tab is frozen');
+  mock.world.setTabMetrics(created.tabId, 120, 380);
+  for (let i = 0; i < 4; i += 1) mock.engine.tick();
+  await pump();
+  assert((await page.$('.modal.runaway')) === null, 'a frozen tab never prompts again');
+  // Settings: the freeze select exists and writes through.
+  await page.click('[data-act="settings"]');
+  await page.waitForSelector('.modal.settings select[data-set="freezeIdleMinutes"]');
+  await page.$eval('select[data-set="freezeIdleMinutes"]', (el) => {
+    const sel = /** @type {HTMLSelectElement} */ (el);
+    sel.value = '5';
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  await pump();
+  assert(mock.engine.settings.freezeIdleMinutes === 5, `freezeIdleMinutes: ${mock.engine.settings.freezeIdleMinutes}`);
+  await page.$eval('select[data-set="freezeIdleMinutes"]', (el) => {
+    const sel = /** @type {HTMLSelectElement} */ (el);
+    sel.value = '0';
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  await pump();
+  await page.keyboard.press('Escape');
+  mock.engine.tabClose({ tabId: created.tabId });
+  if (before) mock.engine.tabActivate({ tabId: before }); else mock.engine.tabShowGrid();
+  await pump();
+});
+
+await t('settings: spellcheck select (R-118) writes through and survives a re-render', async () => {
+  await page.click('[data-act="settings"]');
+  await page.waitForSelector('.modal.settings select[data-set-str="spellcheck"]');
+  assert(mock.engine.settings.spellcheck === 'system', 'default is system');
+  await page.$eval('select[data-set-str="spellcheck"]', (el) => {
+    const sel = /** @type {HTMLSelectElement} */ (el);
+    sel.value = 'off';
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  await pump();
+  assert(mock.engine.settings.spellcheck === 'off', `spellcheck: ${mock.engine.settings.spellcheck}`);
+  mock.engine.tick(); await pump();
+  assert((await page.$eval('select[data-set-str="spellcheck"]', (el) => /** @type {HTMLSelectElement} */ (el).value)) === 'off', 'select shows the stored value after a tick');
+  mock.engine.settingsSet({ spellcheck: 'system' });
+  await page.keyboard.press('Escape');
+  await pump();
+});
+
 await t('context menu appears on right-click with tab actions', async () => {
   await page.click(`#sidebar .row[data-id="${seeded.gh}"] .name`, { button: 'right' });
   await pump();
@@ -374,6 +534,93 @@ await t('settings rule input keeps typed text across re-renders', async () => {
   const v = await page.$eval('[data-rule-pattern]', (el) => /** @type {HTMLInputElement} */ (el).value);
   assert(v === '*.youtube.com', `settings input lost text: "${v}"`);
   await page.keyboard.press('Escape');
+  await pump();
+});
+
+await t('downloads panel (R-106): toolbar button + list, progress, cancel, open/reveal via the shell port, remove, clear finished', async () => {
+  const dl = (/** @type {Partial<import('../../src/shared/ipc-contract.js').DownloadView>} */ o) => ({
+    id: 'dl_a', filename: 'paper.pdf', url: 'https://arxiv.example/paper.pdf', path: '/tmp/paper.pdf',
+    totalBytes: 2048, receivedBytes: 512, state: /** @type {const} */ ('progressing'), startedAt: 1, ...o,
+  });
+  let cancelled = 0;
+  mock.engine.downloadUpdate(dl({}), { cancel() { cancelled += 1; } });
+  await pump();
+  assert((await page.$('#topbar [data-act="downloads"].busy')) !== null, 'toolbar download button shows activity');
+  await page.click('[data-act="downloads"]');
+  await page.waitForSelector('.modal.downloads .dl-row[data-dl="dl_a"] progress');
+  const meta = await page.$eval('.dl-row[data-dl="dl_a"] .dl-meta', (el) => el.textContent ?? '');
+  assert(meta.startsWith('512 B of 2.0 KB'), `progress text: ${meta}`);
+  assert((await page.$('.dl-row[data-dl="dl_a"] [data-dl-act="open"]')) === null, 'no Open while in progress');
+  // Cancel goes to the adapter handle; the adapter then reports the state.
+  await page.click('.dl-row[data-dl="dl_a"] [data-dl-act="cancel"]');
+  await pump();
+  assert(cancelled === 1, 'cancel reached the download handle');
+  mock.engine.downloadUpdate(dl({ state: 'cancelled' }), null);
+  await pump();
+  await page.waitForSelector('.dl-row[data-dl="dl_a"].state-cancelled');
+  // A finished one: Open / Show in folder go to the shell port with its path.
+  mock.engine.downloadUpdate(dl({ id: 'dl_b', filename: 'notes.zip', path: '/tmp/notes.zip', receivedBytes: 2048, state: 'completed' }), null);
+  await pump();
+  await page.waitForSelector('.dl-row[data-dl="dl_b"] [data-dl-act="open"]');
+  const order = await page.$$eval('.dl-row', (els) => els.map((e) => /** @type {HTMLElement} */ (e).dataset.dl));
+  assert(order[0] === 'dl_b', `newest first: ${order}`);
+  await page.click('.dl-row[data-dl="dl_b"] [data-dl-act="open"]');
+  await page.click('.dl-row[data-dl="dl_b"] [data-dl-act="reveal"]');
+  await pump();
+  assert(mock.world.openedPaths.includes('/tmp/notes.zip'), 'open → shell.openPath');
+  assert(mock.world.revealedPaths.includes('/tmp/notes.zip'), 'reveal → shell.showItemInFolder');
+  // Remove one, clear the rest.
+  await page.click('.dl-row[data-dl="dl_a"] [data-dl-act="remove"]');
+  await pump();
+  assert((await page.$('.dl-row[data-dl="dl_a"]')) === null, 'removed from the list');
+  await page.click('[data-dl-clear]');
+  await pump();
+  await page.waitForSelector('.modal.downloads .mini-sub');
+  assert((await page.$('.dl-row')) === null, 'clear finished emptied the list');
+  await page.keyboard.press('Escape');
+  await pump();
+  assert((await page.$('.modal.downloads')) === null, 'Escape closes the panel');
+  assert((await page.$('#topbar [data-act="downloads"].busy')) === null, 'no activity dot when nothing is in progress');
+});
+
+await t('command palette (R-111): opens focused, ranks tabs/folders/actions, arrows + Enter jump to a tab, an action runs, Escape closes', async () => {
+  const open = () => page.evaluate(([c]) => /** @type {any} */ (window).__rahaEmit(c, {}), [EVENT.openPalette]); // the menu's path
+  await open();
+  await page.waitForSelector('.modal.palette input.palette-input');
+  assert(await page.evaluate(() => document.activeElement?.classList.contains('palette-input')), 'input focused on open');
+  // Empty query: tree order — a tab first, then folders, then actions.
+  const kindsAtStart = await page.$$eval('.palette-row', (els) => els.map((e) => e.querySelector('.palette-sub')?.textContent ?? ''));
+  assert(kindsAtStart.length > 0, 'rows listed');
+  // Type: the Wikipedia tab ranks first for "wiki"; Enter activates it (wakes if asleep).
+  const wiki = seeded.wiki;
+  await page.type('.palette-input', 'wiki');
+  await page.waitForSelector('.palette-row.sel');
+  const first = await page.$eval('.palette-row.sel .palette-title', (el) => el.textContent ?? '');
+  assert(first.includes('Working memory'), `first row for "wiki": ${first}`);
+  await page.keyboard.press('Enter');
+  await pump();
+  assert(mock.engine.snapshot().activeTabId === wiki, 'Enter activated the wiki tab');
+  assert((await page.$('.modal.palette')) === null, 'palette closed after running');
+  // An action: "sleep all" through the palette; arrow keys move the cursor.
+  await open();
+  await page.waitForSelector('.modal.palette input.palette-input');
+  await page.type('.palette-input', 'sleep');
+  await page.waitForSelector('.palette-row.sel');
+  await page.keyboard.press('ArrowDown');
+  const second = await page.$eval('.palette-row.sel .palette-title', (el) => el.textContent ?? '');
+  assert(second === 'Sleep all tabs', `ArrowDown selects the next row: ${second}`);
+  await page.keyboard.press('Enter');
+  await pump();
+  assert(mock.engine.snapshot().stats.runningCount === 0, 'Sleep all ran');
+  // Escape closes without doing anything.
+  await open();
+  await page.waitForSelector('.modal.palette');
+  await page.keyboard.press('Escape');
+  await pump();
+  assert((await page.$('.modal.palette')) === null, 'Escape closed it');
+  // Leave the world as found for later scenarios: wake hn, gh.
+  mock.engine.tabActivate({ tabId: seeded.gh });
+  mock.engine.tabActivate({ tabId: seeded.hn });
   await pump();
 });
 
@@ -1194,7 +1441,10 @@ await t('runaway prompt: appears on sustained CPU, Terminate sleeps the tab', as
   mock.engine.tick();
   await pump();
   await page.waitForSelector('.modal.runaway');
-  await page.click('[data-runaway-kill]');
+  // CPU kind: Freeze is the primary (first) answer, Sleep is one click away.
+  const first = await page.$eval('.modal.runaway .mini-row button', (el) => el.getAttribute('data-runaway-freeze') !== null);
+  assert(first, 'CPU prompt must offer Freeze first');
+  await page.click('[data-runaway-sleep]');
   await pump();
   assert((await page.$('.modal.runaway')) === null, 'prompt gone after terminate');
   const hog = mock.engine.snapshot().tabs.find((t2) => t2.id === hogId);

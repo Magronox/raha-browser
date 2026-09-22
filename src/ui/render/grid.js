@@ -50,7 +50,7 @@ export function render() {
         <div class="card-body">
           <img class="thumb" src="${thumbUrl(t)}" alt="" loading="lazy">
           <div class="thumb-fallback">${faviconHtml(t)}</div>
-          <span class="state-chip ${t.state}">${t.state === 'asleep' ? icons.moon + ' asleep' : t.state === 'active' ? 'active' : icons.sun + ' running'}</span>
+          <span class="state-chip ${t.state}">${t.state === 'asleep' ? icons.moon + ' asleep' : t.state === 'frozen' ? icons.snowflake + ' frozen' : t.state === 'active' ? 'active' : icons.sun + ' running'}</span>
           ${t.keepAliveEffective ? `<span class="card-pin" title="Kept alive">${icons.pin}</span>` : ''}
           ${t.memMB != null ? `<span class="membadge ${memClass(t.memMB)}">${fmtMB(t.memMB)}</span>` : ''}
         </div>

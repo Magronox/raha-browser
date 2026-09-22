@@ -29,7 +29,14 @@
 //                 captureThumb()->Promise<boolean>, zoom(dir),
 //                 findInPage(text, {forward, newSession}), stopFind(action),
 //                 capturePageState()->Promise<unknown|null>,
-//                 restorePageState(state)->void }
+//                 restorePageState(state)->void,
+//                 freeze()->Promise<boolean>   suspend in place (ADR-0014):
+//                                  Chromium page lifecycle 'frozen' over the
+//                                  tab's one CDP session; waits (bounded) for
+//                                  an in-flight page-state capture first.
+//                                  false = protocol unavailable, tab keeps running
+//                 thaw()->Promise<boolean>     resume + visibility kick;
+//                                  false = could not resume (engine sleeps+wakes) }
 //   metrics: { sample() -> Array<{pid:number, memMB:number, cpuPct:number}> }
 //   persist: { readJson(name)->unknown, writeJsonAtomic(name, obj)->void,
 //              deleteThumb(tabId)->void }
@@ -45,14 +52,18 @@
 //   }   adapters: src/main/electron/import-history.js + import-tabs.js
 //       (merged into one port by index.js); entries are untrusted
 //        and go through normalizeHistoryEntry before touching the store
-//   shell (optional): { openExternal(url) -> void }   hand an app link to the
+//   shell (optional): { openExternal(url) -> void,   hand an app link to the
 //                     OS. Called ONLY after the user says yes in-app, and
 //                     only for a scheme classifyExternal() calls safe.
 //                     Failure surfaces as a toast from whichever layer sees
 //                     it: the engine catches sync throws; the real adapter
 //                     catches the async rejection ("no app registered").
+//                       openPath(path) -> void,        open a finished download
+//                       showItemInFolder(path) -> void }  reveal it (R-106);
+//                     both take only paths the download adapter reported.
 //   now: () -> ms epoch
 //   onEvent: (evt) -> void   evt: {type:'snapshot'} | {type:'toast', kind, text}
+//                            kind: 'info'|'warn'|'sleep'|'freeze'|'download'
 //                            | {type:'focusOmnibox'}
 //                            | {type:'findResult', tabId, matches, activeMatchOrdinal}
 //                            | {type:'askExternal', url, scheme, app}
@@ -62,7 +73,9 @@
 //                              (tab switched/closed/slept/navigated; ADR-0013)
 //
 // INBOUND (adapter -> engine; not a port the engine calls): the privacy
-// adapter's permission handlers reach permissionRequest({tabId, kinds,
+// adapter's download hook reaches downloadUpdate(view, controls) on every
+// change of a session download (controls = {cancel()} for a live one) and
+// the permission handlers reach permissionRequest({tabId, kinds,
 // host, requestingHost, isMainFrame}) -> Promise<boolean> and
 // permissionCheck({tabId, host, kind}) -> boolean through the hooks wired
 // in src/main/index.js. The promise IS the answer Electron's permission
@@ -99,6 +112,8 @@ const HISTORY_WRITE_MS = 300_000;
 /** Quiet window between remembered-scheme auto-opens (and between
  * blocked-link toasts): one launch per window, extras fall back to asking. */
 const EXTERNAL_QUIET_MS = 3_000;
+/** Session downloads kept in the list (finished ones drop oldest-first past this). */
+const DOWNLOADS_CAP = 100;
 /** Pending permission asks per tab beyond which surplus requests are refused
  * outright — a looping page must not build an endless dialog backlog
  * (identical asks coalesce before this counts). */
@@ -130,6 +145,7 @@ const PERMISSION_QUEUE_CAP = 8;
  * @property {number} cpuHotTicks   consecutive ticks at/above RUNAWAY.cpuPct
  * @property {number} memHotTicks   consecutive ticks at/above RUNAWAY.memMB
  * @property {import('../../shared/page-state.js').PageState|null} pageState  cached page state from last capture (R-104)
+ * @property {boolean} frozen       renderer suspended in place (ADR-0014); still "running"
  */
 
 export class Engine {
@@ -201,6 +217,13 @@ export class Engine {
      * Recently closed tabs, oldest first (reopen pops the newest). Session-only
      * on purpose — not persisted, so no migration and nothing lingers on disk. */
     this.closedTabs = [];
+    /** @type {Map<string, import('../../shared/ipc-contract.js').DownloadView>}
+     * This session's downloads (R-106), insertion order = start order. Never
+     * persisted: a download list is a record of what you fetched, and Raha
+     * keeps no such record beyond the session unless you asked (history). */
+    this.downloads = new Map();
+    /** @type {Map<string, { cancel: () => void }>} live download handles, adapter-owned */
+    this.downloadControls = new Map();
     /** All tabs start asleep after a restart — that is the product philosophy. */
     this.state.activeTabId = null;
     this.dirty = false;
@@ -214,7 +237,7 @@ export class Engine {
   // ---------------------------------------------------------------- helpers
 
   emitSnapshot() { this.onEvent({ type: 'snapshot' }); }
-  /** @param {'info'|'warn'|'sleep'|'download'} kind @param {string} text */
+  /** @param {'info'|'warn'|'sleep'|'freeze'|'download'} kind @param {string} text */
   toast(kind, text) { this.onEvent({ type: 'toast', kind, text }); }
   markDirty() { this.dirty = true; }
 
@@ -280,6 +303,7 @@ export class Engine {
     }
 
     if (!this.isRunning(p.tabId)) this.wake(node);
+    else this.thawForUse(p.tabId);
     const rt = this.runtime.get(p.tabId);
     if (!rt) return { error: 'wake failed' };
 
@@ -393,6 +417,7 @@ export class Engine {
       memMB: null, cpuPct: null, memShared: false, blockedCount: 0,
       cpuHotTicks: 0, memHotTicks: 0,
       pageState: node.pageState,
+      frozen: false,
     };
     this.runtime.set(node.id, rt);
     const restored = node.navJson ? view.restoreHistory(node.navJson) : false;
@@ -410,7 +435,11 @@ export class Engine {
   /**
    * Put a running tab to sleep: save nav history, destroy the renderer.
    * @param {{ tabId: string }} p
-   * @param {'manual'|'tab-limit'|'idle'|'cap'|'global-budget'|'runaway'} [reason]
+   * A FROZEN tab is destroyed directly, never thawed first (thawing would let
+   * the page run a burst before dying; destroying a frozen view is clean).
+   * Its page state comes from the pre-freeze capture; navJson is browser-side
+   * and readable while frozen.
+   * @param {'manual'|'tab-limit'|'idle'|'cap'|'global-budget'|'runaway'|'thaw-failed'} [reason]
    */
   tabSleep(p, reason = 'manual') {
     const node = this.tabNode(p.tabId);
@@ -476,6 +505,9 @@ export class Engine {
     const node = this.tabNode(p.tabId);
     if (!node) return { error: 'no such tab' };
     node.keepAlive = Boolean(p.keepAlive);
+    // Pinning means "keep running in the background" — a frozen pinned tab
+    // is a contradiction, so pinning is also the escape hatch from a freeze.
+    if (node.keepAlive) this.thawForUse(p.tabId);
     this.markDirty();
     this.governNow();
     this.emitSnapshot();
@@ -566,6 +598,7 @@ export class Engine {
     if (!node) return { error: 'no such tab' };
     node.url = url;
     if (this.isRunning(p.tabId)) {
+      this.thawForUse(p.tabId);
       this.runtime.get(p.tabId)?.view.loadURL(url);
     } else {
       node.navJson = null;
@@ -581,6 +614,7 @@ export class Engine {
   navOp(p, op) {
     const rt = this.runtime.get(p.tabId);
     if (!rt) return { error: 'not running' };
+    this.thawForUse(p.tabId);
     if (op === 'back') rt.view.back();
     else if (op === 'forward') rt.view.forward();
     else if (op === 'reload') rt.view.reload();
@@ -865,6 +899,7 @@ export class Engine {
   zoomSet(p) {
     const rt = this.runtime.get(p.tabId);
     if (!rt) return { error: 'not running' };
+    this.thawForUse(p.tabId);
     rt.view.zoom(p.direction);
     return { ok: true };
   }
@@ -879,6 +914,7 @@ export class Engine {
     if (!rt) return { error: 'not running' };
     const text = String(p.text ?? '').slice(0, 200);
     if (!text) return { error: 'empty' };
+    this.thawForUse(p.tabId);
     rt.view.findInPage(text, { forward: p.forward ?? true, newSession: p.newSession ?? false });
     return { ok: true };
   }
@@ -1265,6 +1301,113 @@ export class Engine {
   // ----------------------------------------------------------- page state
 
   /** Fire-and-forget capture of a running tab's scroll + form state (R-104). */
+  // ---------------------------------------------------------------- freeze
+  //
+  // A third tab state (ADR-0014): the renderer stays alive but Chromium's
+  // page lifecycle is 'frozen' — JS, timers, workers stop; DOM, JS state and
+  // inputs stay; RAM stays resident AND COUNTED. It is the CPU/growth tool;
+  // sleep (process destruction) stays the only thing that returns memory.
+  // Frozen is runtime-only: never persisted, every tab is asleep after a
+  // restart. `frozen` lives on the Runtime entry.
+
+  /**
+   * Freeze a running tab in place. The active tab is set aside first
+   * (thumbnail + page state, detach, grid) — a frozen page cannot be
+   * interacted with, so "freeze" means "keep exactly, stop the clock".
+   * Failure (protocol unavailable) leaves the tab running, with a toast.
+   * @param {{ tabId: string }} p
+   * @param {'manual'|'idle-freeze'|'runaway'} [reason]
+   */
+  tabFreeze(p, reason = 'manual') {
+    const node = this.tabNode(p.tabId);
+    const rt = this.runtime.get(p.tabId);
+    if (!node || !rt) return { error: 'not running' };
+    if (rt.frozen) return { ok: true };
+    if (this.state.activeTabId === p.tabId) {
+      this.tabShowGrid(); // captures thumb + page state, detaches, activeTabId = null
+    } else {
+      this.capturePageState(p.tabId); // refresh: the last exact snapshot before the clock stops
+    }
+    rt.frozen = true;
+    rt.cpuHotTicks = 0;
+    rt.memHotTicks = 0;
+    this.clearRunawayFor(p.tabId);
+    const wasAudible = rt.audible;
+    void rt.view.freeze().then((/** @type {boolean} */ ok) => {
+      if (ok) return;
+      const cur = this.runtime.get(p.tabId);
+      if (cur !== rt || !rt.frozen) return; // slept/closed/thawed meanwhile
+      rt.frozen = false;
+      this.toast('warn', `Could not freeze “${node.title || node.url}” — it keeps running`);
+      this.emitSnapshot();
+    });
+    const explained = this.settings.freezeExplained;
+    let say = '';
+    if (reason === 'idle-freeze' && !explained) say = `Background tabs now freeze after ${this.settings.freezeIdleMinutes} min idle: no CPU, no growth — click one to continue where you left it. Change this in Settings.`;
+    else if (reason === 'runaway') say = `Frozen at your request: “${node.title || node.url}” keeps its memory, stops running`;
+    else if (wasAudible) say = `Frozen: “${node.title || node.url}” — audio paused, press play after thawing`;
+    else if (!explained) say = `Frozen: “${node.title || node.url}” keeps its memory, stops running`;
+    if (say) {
+      // The first freeze of any kind carries the caveat: a stopped clock is not
+      // free, and that should come from us once rather than arrive as a dropped
+      // chat later.
+      if (!explained) {
+        say += ' Some pages notice a freeze: live chats, calls, video and uploads can need a reload after thawing.';
+        this.settingsSet({ freezeExplained: true });
+      }
+      this.toast('freeze', say);
+    }
+    this.markDirty();
+    this.governNow();
+    this.emitSnapshot();
+    return { ok: true };
+  }
+
+  /**
+   * Resume a frozen tab (manual). Touches lastActiveAt so the governor does
+   * not re-freeze it on the next tick.
+   * @param {{ tabId: string }} p
+   */
+  tabThaw(p) {
+    const node = this.tabNode(p.tabId);
+    const rt = this.runtime.get(p.tabId);
+    if (!node || !rt) return { error: 'not running' };
+    if (!rt.frozen) return { ok: true };
+    node.lastActiveAt = this.now();
+    this.thawForUse(p.tabId);
+    this.markDirty();
+    this.emitSnapshot();
+    return { ok: true };
+  }
+
+  /**
+   * Internal: before anything that needs a live page (activate, navigate,
+   * zoom, find, pin). Synchronous from the caller's view — the runtime flag
+   * flips now; if the protocol later refuses, onThawFailed degrades to
+   * sleep (+ wake if the tab was being shown), so browsing never depends on
+   * the protocol. No-op unless frozen.
+   * @param {string} tabId
+   */
+  thawForUse(tabId) {
+    const rt = this.runtime.get(tabId);
+    if (!rt || !rt.frozen) return;
+    rt.frozen = false;
+    void rt.view.thaw().then((/** @type {boolean} */ ok) => {
+      if (ok) return;
+      if (this.runtime.get(tabId) !== rt) return; // gone meanwhile
+      this.onThawFailed(tabId);
+    });
+  }
+
+  /** Thaw refused: feature B degrades to feature A. @param {string} tabId */
+  onThawFailed(tabId) {
+    const node = this.tabNode(tabId);
+    const wasActive = this.state.activeTabId === tabId;
+    const r = this.tabSleep({ tabId }, 'thaw-failed');
+    if ('error' in r || !node) return;
+    if (wasActive) this.tabActivate({ tabId }); // wake with R-104 restore
+  }
+
   capturePageState(/** @type {string} */ tabId) {
     if (!this.settings.restorePageState) return;
     const rt = this.runtime.get(tabId);
@@ -1282,7 +1425,10 @@ export class Engine {
   governNow() {
     const tabs = this.policyView();
     const { actions, warnings } = decide(tabs, this.settings, this.now());
-    for (const a of actions) this.tabSleep({ tabId: a.tabId }, a.reason);
+    for (const a of actions) {
+      if (a.type === 'freeze') this.tabFreeze({ tabId: a.tabId }, a.reason);
+      else this.tabSleep({ tabId: a.tabId }, a.reason);
+    }
     for (const w of warnings) {
       if (w.kind === 'active-over-limit') {
         const node = this.tabNode(w.tabId);
@@ -1314,8 +1460,10 @@ export class Engine {
       // streak: the pid's usage is double-attributed to every tab on it, so
       // there is no fair way to name one tab as the culprit — prompting
       // could tell the user to terminate an innocent neighbor.
-      rt.cpuHotTicks = rt.cpuPct != null && !rt.memShared && rt.cpuPct >= RUNAWAY.cpuPct ? rt.cpuHotTicks + 1 : 0;
-      rt.memHotTicks = rt.memMB != null && !rt.memShared && rt.memMB >= RUNAWAY.memMB ? rt.memHotTicks + 1 : 0;
+      // A frozen tab never prompts: it cannot be "running away" (no CPU,
+      // no growth), and a runaway answer of "freeze" must end the matter.
+      rt.cpuHotTicks = !rt.frozen && rt.cpuPct != null && !rt.memShared && rt.cpuPct >= RUNAWAY.cpuPct ? rt.cpuHotTicks + 1 : 0;
+      rt.memHotTicks = !rt.frozen && rt.memMB != null && !rt.memShared && rt.memMB >= RUNAWAY.memMB ? rt.memHotTicks + 1 : 0;
     }
     if (this.state.activeTabId) this.capturePageState(this.state.activeTabId);
     const result = this.governNow();
@@ -1376,7 +1524,8 @@ export class Engine {
   /**
    * The user answered the runaway prompt.
    * 'sleep' terminates the renderer now (Raha's sleep IS process death —
-   * the page, history and tree position survive); 'snooze' quiets prompts
+   * the page, history and tree position survive); 'freeze' suspends it in
+   * place (ADR-0014: stops it cold, keeps its memory); 'snooze' quiets prompts
    * for that tab for RUNAWAY.snoozeMs (survives sleep/wake in the window).
    * Always emits a snapshot — even on error the prompt must leave the screen.
    * @param {{ tabId?: string, action?: string }} p
@@ -1388,6 +1537,8 @@ export class Engine {
     let result;
     if (p?.action === 'sleep') {
       result = this.tabSleep({ tabId }, 'runaway');
+    } else if (p?.action === 'freeze') {
+      result = this.tabFreeze({ tabId }, 'runaway');
     } else if (p?.action === 'snooze') {
       if (this.runtime.has(tabId)) {
         this.runawaySnoozes.set(tabId, this.now() + RUNAWAY.snoozeMs);
@@ -1417,6 +1568,8 @@ export class Engine {
         lastActiveAt: node.lastActiveAt,
         memMB: rt ? rt.memMB : null,
         memLimitMB: eff.memLimitMB,
+        frozen: rt ? rt.frozen : false,
+        loading: rt ? rt.loading : false,
       };
     });
   }
@@ -1502,7 +1655,7 @@ export class Engine {
         url: node.url,
         title: node.title,
         faviconUrl: node.faviconUrl,
-        state: this.state.activeTabId === id ? 'active' : rt ? 'running' : 'asleep',
+        state: this.state.activeTabId === id ? 'active' : rt ? (rt.frozen ? 'frozen' : 'running') : 'asleep',
         keepAlive: node.keepAlive,
         keepAliveEffective: eff.keepAlive,
         memLimitMB: eff.memLimitMB,
@@ -1526,6 +1679,11 @@ export class Engine {
       }
     }
     const totalMemMB = [...this.runtime.values()].reduce((s, rt) => s + (rt.memMB ?? 0), 0);
+    let frozenCount = 0;
+    let frozenMemMB = 0;
+    for (const rt of this.runtime.values()) {
+      if (rt.frozen) { frozenCount += 1; frozenMemMB += rt.memMB ?? 0; }
+    }
     return {
       tabs,
       folders,
@@ -1536,9 +1694,75 @@ export class Engine {
         runningCount: this.runtime.size,
         totalMemMB: Math.round(totalMemMB),
         maxLiveTabs: this.settings.maxLiveTabs,
+        frozenCount,
+        frozenMemMB: Math.round(frozenMemMB),
       },
       runaway: this.runawayAlert ? { ...this.runawayAlert } : null,
+      downloads: [...this.downloads.values()].reverse(),
     };
+  }
+
+  // ------------------------------------------------------------- downloads
+
+  /**
+   * Inbound from the download adapter (privacy.js will-download): a session
+   * download started, progressed, or ended. Progress is throttled at the
+   * adapter; every call here re-snapshots. Capped: the oldest FINISHED
+   * entries go once the list passes DOWNLOADS_CAP.
+   * @param {import('../../shared/ipc-contract.js').DownloadView} view
+   * @param {{ cancel: () => void }|null} controls  null once the download ended
+   */
+  downloadUpdate(view, controls) {
+    this.downloads.set(view.id, { ...view });
+    if (controls && view.state === 'progressing') this.downloadControls.set(view.id, controls);
+    else this.downloadControls.delete(view.id);
+    if (this.downloads.size > DOWNLOADS_CAP) {
+      for (const [id, d] of this.downloads) {
+        if (this.downloads.size <= DOWNLOADS_CAP) break;
+        if (d.state !== 'progressing') this.downloads.delete(id);
+      }
+    }
+    this.emitSnapshot();
+  }
+
+  /**
+   * @param {{ id?: string, action?: string }} p
+   * @returns {{ ok: true }|{ error: string }}
+   */
+  downloadAct(p) {
+    if (p?.action === 'clear') {
+      for (const [id, d] of this.downloads) if (d.state !== 'progressing') this.downloads.delete(id);
+      this.emitSnapshot();
+      return { ok: true };
+    }
+    const d = typeof p?.id === 'string' ? this.downloads.get(p.id) : undefined;
+    if (!d) return { error: 'unknown download' };
+    switch (p.action) {
+      case 'cancel': {
+        const c = this.downloadControls.get(d.id);
+        if (!c) return { error: 'not in progress' };
+        c.cancel(); // the adapter reports the resulting state through downloadUpdate
+        return { ok: true };
+      }
+      case 'remove':
+        if (d.state === 'progressing') return { error: 'still downloading' };
+        this.downloads.delete(d.id);
+        this.emitSnapshot();
+        return { ok: true };
+      case 'open':
+      case 'reveal': {
+        if (d.state !== 'completed' || !d.path) return { error: 'not a finished file' };
+        const shell = this.shell;
+        try {
+          if (p.action === 'open') shell?.openPath?.(d.path); else shell?.showItemInFolder?.(d.path);
+        } catch {
+          this.toast('warn', `Could not ${p.action === 'open' ? 'open' : 'show'} “${d.filename}”`);
+        }
+        return { ok: true };
+      }
+      default:
+        return { error: 'bad action' };
+    }
   }
 }
 
@@ -1554,9 +1778,10 @@ function publicAsk(a) {
   return { id: a.id, tabId: a.tabId, kinds: [...a.kinds], host: a.host, requestingHost: a.requestingHost, isMainFrame: a.isMainFrame };
 }
 
-/** @param {'tab-limit'|'idle'|'cap'|'global-budget'|'runaway'} reason */
+/** @param {'tab-limit'|'idle'|'cap'|'global-budget'|'runaway'|'thaw-failed'} reason */
 function sleepReasonText(reason) {
   switch (reason) {
+    case 'thaw-failed': return 'Could not resume the frozen page';
     case 'tab-limit': return 'Over its memory limit';
     case 'idle': return 'Idle too long';
     case 'cap': return 'Live-tab cap reached';

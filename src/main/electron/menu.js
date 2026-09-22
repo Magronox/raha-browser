@@ -6,7 +6,7 @@ import { Menu } from 'electron';
 
 /**
  * @param {import('../core/engine.js').Engine} engine
- * @param {{ focusOmnibox: () => void, newTab: () => void, toggleSidebar: () => void, openHistory: () => void, openFind: () => void }} ui
+ * @param {{ focusOmnibox: () => void, newTab: () => void, toggleSidebar: () => void, openHistory: () => void, openDownloads: () => void, openPalette: () => void, openFind: () => void }} ui
  * @param {() => void} openSettings
  */
 export function installMenu(engine, ui, openSettings) {
@@ -76,6 +76,8 @@ export function installMenu(engine, ui, openSettings) {
         // keys, and Cmd/Ctrl+B is Bold in every web editor.
         { id: 'toggle-sidebar', label: 'Toggle Sidebar', accelerator: 'CmdOrCtrl+Shift+B', click: () => ui.toggleSidebar() },
         { label: 'History', accelerator: process.platform === 'darwin' ? 'Cmd+Y' : 'Ctrl+H', click: () => ui.openHistory() },
+        { id: 'downloads', label: 'Downloads', accelerator: 'CmdOrCtrl+J', click: () => ui.openDownloads() },
+        { id: 'palette', label: 'Command Palette…', accelerator: 'CmdOrCtrl+K', click: () => ui.openPalette() },
         { type: /** @type {const} */ ('separator') },
         { label: 'Reload', accelerator: 'CmdOrCtrl+R', click: withActive((id) => engine.navOp({ tabId: id }, 'reload')) },
         { label: 'Hard Reload (ignore cache)', accelerator: 'CmdOrCtrl+Shift+R', click: withActive((id) => engine.navOp({ tabId: id }, 'hardReload')) },
@@ -107,6 +109,7 @@ export function installMenu(engine, ui, openSettings) {
           })),
         },
         { type: /** @type {const} */ ('separator') },
+        { label: 'Freeze This Tab', accelerator: 'CmdOrCtrl+Shift+F', click: withActive((id) => engine.tabFreeze({ tabId: id })) },
         { label: 'Sleep This Tab', accelerator: 'CmdOrCtrl+Shift+S', click: withActive((id) => engine.tabSleep({ tabId: id })) },
         { label: 'Sleep All Tabs', accelerator: 'CmdOrCtrl+Shift+A', click: () => engine.folderSleepAll({ folderId: engine.state.tree.rootId }) },
         { label: 'Keep This Tab Alive (toggle)', accelerator: 'CmdOrCtrl+Shift+K', click: withActive((id) => {
