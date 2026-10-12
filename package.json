@@ -44,7 +44,7 @@
     "typescript": "~7.0.2"
   },
   "dependencies": {
-    "@ghostery/adblocker": "2.18.2",
+    "@ghostery/adblocker": "2.20.1",
     "electron-updater": "6.8.9"
   },
   "funding": "https://venmo.com/u/magronox",
