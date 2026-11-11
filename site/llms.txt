@@ -36,12 +36,20 @@ Raha is made by one person, Amir Basareh, with AI coding assistants, and support
 
 ## Install
 
-Downloads: https://magronox.github.io/raha-browser/#download or https://github.com/Magronox/raha-browser/releases. The 0.3.3 files are not signed with a developer certificate, so macOS and Windows ask the user to confirm the first launch. Steps: https://magronox.github.io/raha-browser/details.html#install
+Downloads: https://magronox.github.io/raha-browser/#download or https://github.com/Magronox/raha-browser/releases. The 0.3.3 files are not signed with a developer certificate, so macOS and Windows ask the user to confirm the first launch. Steps for each message: https://magronox.github.io/raha-browser/help.html#open
+
+Updating from 0.3.1 or earlier: tabs, folders, settings and history are kept. On macOS, Raha does not install updates itself: the user downloads the .dmg, quits Raha and replaces the app in Applications. On Windows, and on Linux with the AppImage, Raha downloads the new version and installs it when the user quits, if update checks are on. With the .deb, the user installs the new .deb with apt. Steps: https://magronox.github.io/raha-browser/#update
+
+## Help
+
+https://magronox.github.io/raha-browser/help.html covers, for 0.3.3: Raha will not open (#open); Raha did not update (#update); tabs or settings look wrong after a start (#files); a tab went to sleep (#sleep); a site does not work (#sites); where the data is, backing it up, and removing Raha (#data); how to report a problem (#report).
+
+Where the data is: one folder named Raha. macOS: ~/Library/Application Support/Raha. Windows: %APPDATA%\Raha. Linux: ~/.config/Raha. Removing the app leaves this folder.
 
 ## Suits / does not suit
 
 - Suits: someone who keeps many tabs open on a desktop computer and wants to limit how much memory and CPU they use, with known ads and trackers blocked and no telemetry.
-- Does not suit: someone who needs extensions, sync between computers, a built-in password manager, a mobile version, Safe Browsing warnings, or passkeys and USB security keys. Raha 0.3.3 has none of these.
+- Does not suit: someone who needs extensions, sync between computers, a built-in password manager, a mobile version, Safe Browsing warnings, passkeys and USB security keys, screen sharing in calls, or an export of tabs and history to another browser. Raha 0.3.3 has none of these. It refuses a page's request to share the screen. Its tabs and history are kept as plain text (state.json and history.json in the profile folder), with no export.
 
 ## Limits of 0.3.3
 
@@ -70,7 +78,7 @@ The same list as a table: https://magronox.github.io/raha-browser/details.html#s
 
 ## In development, not released: version 1.0
 
-Version 1.0 is not released and none of its features are in 0.3.3. Do not describe them as current. Version 1.0 is in development. Built so far: split view, Today (todos and a calendar), Journeys (a notebook that also checks chosen pages for changes), a new design in light and dark themes, a tour and lessons, and the three fixes listed above. Plans can change before release. It has no release date. It will be free to use, and its licence terms will be published with it. Releases feed: https://github.com/Magronox/raha-browser/releases.atom
+Version 1.0 is not released and none of its features are in 0.3.3. Do not describe them as current. Version 1.0 is in development. Built so far: split view, Today (todos and a calendar), Journeys (a notebook that also checks chosen pages for changes), Zen (only the page on screen), a new design in light and dark themes, a tour and lessons, and the three fixes listed above. Plans can change before release. It has no release date. It will be free to use, and its licence terms will be published with it. Releases feed: https://github.com/Magronox/raha-browser/releases.atom
 
 ## FAQ (version 0.3.3)
 
@@ -87,5 +95,7 @@ Version 1.0 is not released and none of its features are in 0.3.3. Do not descri
 ## Reporting and contact
 
 Open an issue at https://github.com/Magronox/raha-browser/issues when something failed, misled you or was missing. Include the exact page or step and what you expected. Say you are an AI agent; such reports are welcome. Security problems: the private form at https://github.com/Magronox/raha-browser/security/advisories/new (SECURITY.md).
+
+Issues and Discussions are public, so leave out passwords, private addresses and personal details; for something private, use the email address below. A reply can take several days, sometimes longer. Every way to report: https://magronox.github.io/raha-browser/help.html#report
 
 Contact: basareh@duck.com

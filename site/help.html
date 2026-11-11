@@ -1,0 +1,215 @@
+<!doctype html>
+<!-- The Raha website, page three: help for people who already use Raha or
+     cannot get it to open. Static, no script (CSP script-src 'none'), checked
+     by scripts/check-site.mjs like every page in site/.
+     Each text has one home. This page is the home of: the first-launch steps
+     (#open), the profile folder paths (#data), and how to report (#report).
+     The update steps live on index.html#update; the rules for sleeping tabs
+     and the status table live on details.html. Link to them; do not copy.
+     Every statement here must be true of the version named in the tagline:
+     the notices are quoted from src/main/index.js, src/main/electron/updater.js
+     and src/main/core/engine.js, and the labels from src/ui/render/. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; img-src 'self'; style-src 'self'; script-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Help — Raha, a desktop browser that limits running tabs</title>
+  <meta property="og:url" content="https://magronox.github.io/raha-browser/help.html">
+  <meta property="og:image" content="https://magronox.github.io/raha-browser/assets/grid.png">
+  <meta property="og:title" content="Help — Raha, a desktop browser that limits running tabs">
+  <meta property="og:description" content="Raha is a free desktop browser that limits how many tabs run at once. Help for version 0.3.3: when it will not open or did not update, when a tab sleeps or a site does not work, where your data is, and how to report a problem.">
+  <meta property="og:type" content="website">
+  <meta name="description" content="Raha is a free desktop browser that limits how many tabs run at once. Help for version 0.3.3: when it will not open or did not update, when a tab sleeps or a site does not work, where your data is, and how to report a problem.">
+  <link rel="icon" href="assets/icon.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <nav class="nav" aria-label="Site">
+    <a class="brand" href="index.html"><img src="assets/icon.png" alt=""> Raha</a>
+    <span class="links">
+      <a href="index.html#download">Download</a>
+      <a href="details.html">Details</a>
+      <a href="help.html" aria-current="page">Help</a>
+      <a href="https://github.com/Magronox/raha-browser">GitHub</a>
+      <a class="btn donate" href="https://venmo.com/u/magronox">Donate</a>
+    </span>
+  </nav>
+</header>
+
+<main class="wrap help">
+
+  <section class="page-intro" id="top">
+    <h1>Help</h1>
+    <p class="tagline">For Raha 0.3.3. If your problem is not here, <a href="#report">write to the person who makes Raha</a>.</p>
+    <nav class="toc" aria-label="On this page">
+      <a href="#open">Raha will not open</a> · <a href="#update">Raha did not update</a> ·
+      <a href="#files">Tabs or settings look wrong</a> · <a href="#sleep">A tab went to sleep</a> ·
+      <a href="#sites">A site does not work</a> · <a href="#data">Your data</a> ·
+      <a href="#questions">Questions</a> · <a href="#report">Report a problem</a>
+    </nav>
+  </section>
+
+  <section id="open">
+    <h2>Raha will not open</h2>
+
+    <h3 id="open-mac">macOS says it cannot check Raha for malicious software</h3>
+    <p>The 0.3.3 files are not signed with a developer certificate, so macOS stops the first launch of every copy and asks you to confirm it.</p>
+    <ul>
+      <li><b>macOS 15 and later:</b> try to open Raha once. Soon after, open <b>System Settings → Privacy &amp; Security</b>, scroll down, and click <b>Open Anyway</b>. The button is there for about an hour after the attempt; macOS then asks for your password.</li>
+      <li><b>macOS 13 and 14:</b> in Applications, right-click Raha and choose <b>Open</b>, then <b>Open</b> again.</li>
+    </ul>
+    <p>After that Raha opens as usual. A new version is a new copy, so macOS may ask again after an update.</p>
+
+    <h3 id="open-mac-file">macOS says Raha “needs to be updated”</h3>
+    <p>This is the wrong file for the Mac, not an old version. There are two Mac files, and the Apple Silicon one does not open on an Intel Mac. In the Apple menu, <i>About This Mac</i> shows “Chip Apple M…” on an Apple Silicon Mac and “Processor Intel…” on an Intel Mac. The <a href="index.html#download">download list</a> has both files.</p>
+
+    <h3 id="open-windows">Windows says “Windows protected your PC”</h3>
+    <p>The installer is not signed, and SmartScreen shows this for unsigned installers. Click <b>More info</b>, then <b>Run anyway</b>. It may ask again for a new installer you download. If Smart App Control is on in Windows 11, it may block Raha with no Run anyway button.</p>
+
+    <h3 id="open-appimage">Linux: nothing happens when the AppImage is opened</h3>
+    <p>A downloaded file is not allowed to run until you say so. In a terminal, in the folder with the file:</p>
+    <pre><code>chmod +x Raha-0.3.3.AppImage
+./Raha-0.3.3.AppImage</code></pre>
+    <p>If it says FUSE is missing, install it: on Ubuntu 24.04 <code>sudo apt install libfuse2t64</code>, on 22.04 <code>sudo apt install libfuse2</code>.</p>
+
+    <h3 id="open-deb">Linux: the .deb installed but Raha does not start</h3>
+    <p>The 0.3.1 .deb did not start on a system without the ALSA sound library or <code>libgbm1</code>, for example a stock Ubuntu 24.04. The 0.3.3 .deb asks for both. Install it with <code>apt</code>, which fetches them:</p>
+    <pre><code>sudo apt install ./raha-browser_0.3.3_amd64.deb</code></pre>
+
+    <p>If Raha still does not open, <a href="#report">report it</a>.</p>
+  </section>
+
+  <section id="update">
+    <h2>Raha did not update</h2>
+    <p>First see which version you have: open Settings (the gear, or <kbd>⌘ ,</kbd>; <kbd>Ctrl ,</kbd> on Windows and Linux) and scroll to the bottom. Under <b>About</b> it says “Raha 0.3.3”, or an older number.</p>
+
+    <h3>On macOS</h3>
+    <p>In 0.3.3, Raha on macOS does not install updates, even with “Install security updates automatically” on. It shows a short notice, “Raha 0.3.3 is available — download it from GitHub Releases”, and nothing more: the updater on macOS installs only into signed apps, and 0.3.3 is not signed. The new version is installed by hand, and your tabs stay: <a href="index.html#update">steps for macOS</a>.</p>
+
+    <h3>On Windows, and on Linux with the AppImage</h3>
+    <p>Raha downloads the new version in the background and shows “Raha 0.3.3 downloaded — installs when you quit”. The update happens when Raha quits, so quit it and open it again.</p>
+    <p>If the version is still old, look in Settings under Privacy: “Install security updates automatically” must be on, and the computer must reach GitHub. Raha checks about 30 seconds after it starts and every four hours. Or install the new file yourself: <a href="index.html#update">steps</a>.</p>
+
+    <h3>On Linux with the .deb</h3>
+    <p>Update a .deb by installing the new one with <code>apt</code>: <a href="index.html#update">steps</a>.</p>
+  </section>
+
+  <section id="files">
+    <h2>Tabs or settings look wrong after a start</h2>
+    <p>Raha keeps your tabs, settings and history in three files. If it cannot use one of them at start, it copies that file aside before saving anything, starts without it, and says so, naming the copy it kept in the profile folder (<a href="#data">where it is</a>):</p>
+    <blockquote>Raha could not use one of its files and kept a copy in your profile folder: state.json.corrupt-1762862400000</blockquote>
+    <p>The name tells which file it was: <code>state.json</code> holds tabs and folders, <code>settings.json</code> the settings, <code>history.json</code> the history. Without the file, Raha starts with no tabs, with default settings, or with empty history. A copy ending in <code>.corrupt-</code> and a number is a file Raha could not read. One ending in <code>.newer-</code> was written by a later version of Raha than the one now running.</p>
+    <p>Three more notices can follow:</p>
+    <blockquote>… is copied as it was and may hold what the old file held, such as open pages and typed text. You can delete it.</blockquote>
+    <p>Raha could not clean this copy, because it could not read it. Deleting it is your choice. It is also the only record of those tabs, so keep it if you want the problem looked at.</p>
+    <blockquote>Raha removed old copies it had kept for more than two weeks: …</blockquote>
+    <p>Raha removes a copy only when it is older than two weeks and three newer copies of the same file exist.</p>
+    <blockquote>Raha could not read … or keep a copy of it, so it will not save over it. Changes to it are not saved.</blockquote>
+    <p>Raha could not make the copy, so it leaves the file as it is. Until this is solved, what you change in that file’s area (tabs, settings or history) is lost when Raha quits.</p>
+    <p><b>What to do.</b> Quit Raha, and leave the files in the <a href="#data">profile folder</a> as they are. Then <a href="#report">write by email</a> and give the words of the notice. These files list the pages you had open and visited, so do not attach them to a public issue.</p>
+    <p>One change after a restart is by design: pages reached with Back or Forward load fresh, without their scroll position or typed text (<a href="details.html#status">Status of 0.3.3</a>).</p>
+  </section>
+
+  <section id="sleep">
+    <h2>A tab went to sleep, or a page loads again when clicked</h2>
+    <p>Raha limits how many tabs run at once: six by default. When a seventh starts, the background tab used least recently goes to sleep, and a notice says why, for example “Live-tab cap reached: “…” went to sleep”. A sleeping tab’s process is closed and its memory goes back to the computer. A click loads its page again. The address, the title, and Back and Forward are kept. Scroll position and unsent form text are kept too, unless that setting is turned off. Anything else on the page starts over, such as the place in a video.</p>
+    <p>After a restart every tab is asleep, so the window shows thumbnails until you click one.</p>
+    <p>To change this:</p>
+    <ul>
+      <li><b>Let more tabs run.</b> Settings → <b>Max live tabs</b>, from 1 to 16.</li>
+      <li><b>Keep one tab awake.</b> Click the pin in the toolbar (“Keep alive”), or press <kbd>⌘ ⇧ K</kbd> (<kbd>Ctrl Shift K</kbd>). A pinned tab does not sleep on its own, unless you gave it a memory limit and it passes it.</li>
+      <li><b>Keep a site awake.</b> Settings → <b>Domain rules</b>: enter the site, for example <code>*.example.com</code>, tick <b>keep alive</b>, and add the rule.</li>
+    </ul>
+    <p>A tab that is playing sound is not put to sleep.</p>
+    <p>A background tab left idle for two minutes is <b>frozen</b>: it is paused, keeps its memory and its page, and continues on a click without loading again. “Freeze background tabs after” in Settings changes the time or turns this off.</p>
+    <p>The rules, in order: <a href="details.html#governor">How tabs are put to sleep</a>.</p>
+  </section>
+
+  <section id="sites">
+    <h2>A site does not work</h2>
+    <h3>Parts of the page are missing or a button does nothing</h3>
+    <p>Raha blocks known ads and trackers, and a site can depend on one. Click the shield in the address bar to turn blocking off for that site; click it again to turn it back on.</p>
+    <h3>A sign-in or a “verify you are human” page goes in circles</h3>
+    <p>Right-click the page and choose <b>Clear Cookies &amp; Data for This Site</b>. Raha asks first, because this signs you out of that site. Other sites are not touched.</p>
+    <h3>The site asks for a passkey or a security key</h3>
+    <p>0.3.3 supports neither passkeys nor USB security keys. Choose another way to sign in if the site offers one, such as a password or a code.</p>
+    <h3>A chat, call, video or upload stopped</h3>
+    <p>The tab was probably frozen while in the background, and its connection did not come back. Reload the page (<kbd>⌘ R</kbd>, <kbd>Ctrl R</kbd>). A pinned tab is not frozen automatically, and neither is a tab playing sound (<a href="#sleep">how to pin</a>).</p>
+    <h3>The camera, microphone, location or notifications do not work</h3>
+    <p>A site must ask in Raha’s own prompt. If you chose <b>Never for this site</b>, remove that answer in Settings → <b>Site permissions</b>, and the site can ask again. Screen sharing is not available in 0.3.3: Raha refuses it.</p>
+    <p>If none of this helps, <a href="#report">report it</a> and name the site.</p>
+  </section>
+
+  <section id="data">
+    <h2>Your data</h2>
+    <h3 id="data-where">Where it is</h3>
+    <p>Everything Raha keeps about your browsing is in one folder on your computer, named <b>Raha</b>. Raha has no account and no sync, so there is no other copy.</p>
+    <dl class="paths">
+      <dt>macOS</dt><dd><code>~/Library/Application Support/Raha</code><br><span class="dim">In Finder: Go → Go to Folder…, and paste the path.</span></dd>
+      <dt>Windows</dt><dd><code>%APPDATA%\Raha</code><br><span class="dim">Paste it into the address bar of File Explorer.</span></dd>
+      <dt>Linux</dt><dd><code>~/.config/Raha</code><br><span class="dim">The <code>.config</code> folder is hidden in most file managers.</span></dd>
+    </dl>
+    <p>Inside it, the <code>profile</code> folder is Raha’s own: <code>state.json</code> (tabs and folders), <code>settings.json</code>, <code>history.json</code>, and <code>thumbs</code> (a picture of each tab). The rest of the Raha folder is kept by Chromium: cookies, sign-ins and what sites have stored. Downloads are ordinary files, wherever you saved them.</p>
+
+    <h3 id="data-backup">Backing it up</h3>
+    <p>Quit Raha and copy the whole Raha folder. To go back to that copy, quit Raha and put the folder back in the same place. Cookies are encrypted with a key that the operating system holds, so sign-ins may not come along to another computer or another account.</p>
+
+    <h3 id="data-export">Taking it to another browser</h3>
+    <p>0.3.3 has no export. It cannot write your tabs, folders or history as a file that another browser reads. <code>state.json</code> and <code>history.json</code> are plain text: they hold the address and title of each tab and of each page in the history, and any text editor opens them. Raha has no password manager, so it holds no saved passwords to take along.</p>
+
+    <h3 id="data-remove">Removing Raha</h3>
+    <p>Removing the app leaves the Raha folder on every system. Deleting that folder removes your tabs, folders, settings, history, cookies and sign-ins, and it cannot be undone.</p>
+    <ul>
+      <li><b>macOS:</b> quit Raha and move it from Applications to the Trash. Then delete <code>~/Library/Application Support/Raha</code>.</li>
+      <li><b>Windows:</b> in Windows Settings, open Apps, find Raha and choose Uninstall. Then delete <code>%APPDATA%\Raha</code>. A downloaded update may also be left in <code>%LOCALAPPDATA%\raha-browser-updater</code>.</li>
+      <li><b>Linux, AppImage:</b> delete the AppImage file, then <code>~/.config/Raha</code>. A downloaded update may also be left in <code>~/.cache/raha-browser-updater</code>.</li>
+      <li><b>Linux, .deb:</b> <code>sudo apt remove raha-browser</code>, then delete <code>~/.config/Raha</code>.</li>
+    </ul>
+    <p>To keep Raha and start it fresh, quit it and delete the Raha folder. Everything named above is removed, and it cannot be undone. To keep a copy, move the folder somewhere else instead.</p>
+  </section>
+
+  <section id="questions">
+    <h2>Questions people ask first</h2>
+    <h3>Is it free?</h3>
+    <p>Yes. There is no paid version and no account. The project is supported by donations.</p>
+    <h3>Who makes it?</h3>
+    <p>Amir Basareh, with AI coding assistants (<a href="details.html#support">how</a>).</p>
+    <h3>Is it ready for everyday use?</h3>
+    <p>0.3.3 is an early version. It suits people who keep many tabs open and want to choose how many run. Four limits matter most: the files are not signed, so the first launch asks you to confirm; it does not warn about dangerous sites or downloads; third-party cookies are not blocked (blocking is built for 1.0); on macOS, updates are installed by hand. Each limit and its plan: <a href="details.html#status">Status of 0.3.3</a>.</p>
+    <h3>Does it have extensions, sync, a password manager or a phone version?</h3>
+    <p>No, none of the four.</p>
+    <h3>What does it send?</h3>
+    <p>No telemetry. Apart from the pages you open, it makes three kinds of request on its own, each listed under <a href="details.html#privacy">Privacy</a>.</p>
+    <h3>When does 1.0 come out?</h3>
+    <p>It has no date. <a href="index.html#v1">What is built so far, and how to hear of the release</a>.</p>
+  </section>
+
+  <section id="report">
+    <h2>Still stuck, or found a problem</h2>
+    <p>Raha is made by one person, who reads the reports himself. A reply can take several days, sometimes longer.</p>
+    <ul>
+      <li><b>Bugs and ideas:</b> <a href="https://github.com/Magronox/raha-browser/issues">GitHub issues</a>. Issues are public: anyone can read them, so leave out passwords, private addresses and personal details.</li>
+      <li><b>Questions:</b> <a href="https://github.com/Magronox/raha-browser/discussions">Discussions</a>, also public.</li>
+      <li><b>Something private, or no GitHub account:</b> <a href="mailto:basareh@duck.com">basareh@duck.com</a>.</li>
+      <li><b>Security problems:</b> GitHub’s <a href="https://github.com/Magronox/raha-browser/security/advisories/new">private form</a>, or email with a subject starting <code>[raha security]</code> (<a href="https://github.com/Magronox/raha-browser/blob/main/SECURITY.md">SECURITY.md</a>).</li>
+    </ul>
+    <p>A report is easiest to act on with four things: the Raha version (Settings, at the bottom, under About), your system and its version, what you did, and what you saw, with the exact words of any notice.</p>
+  </section>
+
+  <p class="back"><a href="index.html">&larr; Back to the front page</a></p>
+
+</main>
+
+<footer>
+  <p class="fine">Code of versions up to 0.3.3: <a href="https://github.com/Magronox/raha-browser/blob/main/LICENSE">GPL-3.0-only</a>, © 2026 Amir Basareh. The licence terms of 1.0 will be published with it.
+     The Raha name and bird mark are <a href="https://github.com/Magronox/raha-browser/blob/main/TRADEMARK.md">reserved</a>.</p>
+  <p class="fine">This site is static files on GitHub Pages. It sets no cookies and runs no analytics.
+     <a href="https://github.com/Magronox/raha-browser/tree/main/site">Its source is on GitHub.</a></p>
+</footer>
+
+</body>
+</html>

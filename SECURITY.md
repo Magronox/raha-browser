@@ -99,11 +99,11 @@ Accepted risks in 0.3.3:
   when it starts, and keeps the newest three, and any newer than two weeks;
   it says so when it removes one. Delete them by hand.
   Raha cannot erase the disk space the old file used.
-- macOS and Windows builds are unsigned (R-108), so you must bypass Gatekeeper
+- macOS and Windows builds are unsigned, so you must bypass Gatekeeper
   or SmartScreen by hand to install.
-- `RAHA_NO_SANDBOX=1` exists for CI/containers only — never run it as your
-  daily browser. Note a **packaged** build still honors it and will disable
-  Chromium's process sandbox; refusing it in shipped binaries is R-117.
+- `RAHA_NO_SANDBOX=1` turns off Chromium's process sandbox when Raha is run
+  from source, for CI and containers. Packaged builds ignore it and keep the
+  sandbox on.
 - Blocking is network-level only — no cosmetic filtering (that would need a
   preload in web pages, which invariant #5 forbids), and cancel-only (no
   surrogate scripts), so some sites show empty ad slots or object to a

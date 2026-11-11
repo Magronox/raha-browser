@@ -24,6 +24,9 @@
 //      inline scripts, so 'unsafe-inline' stays out of the policy. A stale
 //      hash fails SILENTLY in the browser (the page still works, the OS
 //      picker just stops), which is precisely why it is checked here.
+//   7. findable — every page is in sitemap.xml, every sitemap entry exists,
+//      every page carries a description and its own Open Graph metas, and
+//      every page other than the front page is linked from another page.
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -201,10 +204,46 @@ for (const { file, html } of pages) {
   }
 }
 
+// --- 7. findable -----------------------------------------------------------
+// A page added to site/ must also be announced: listed in sitemap.xml (and
+// nothing listed there may be missing), described for search and link
+// previews under its own address, and reachable by a link from another page.
+const sitemapFile = path.join(siteDir, 'sitemap.xml');
+if (!fs.existsSync(sitemapFile)) {
+  problems.push('site/sitemap.xml is missing');
+} else {
+  const locs = [...fs.readFileSync(sitemapFile, 'utf8').matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
+  for (const loc of locs) {
+    if (!loc.startsWith(SELF_ABSOLUTE)) { at('sitemap.xml', `entry outside this site: ${loc}`); continue; }
+    const rel = loc.slice(SELF_ABSOLUTE.length) || 'index.html';
+    if (!fs.existsSync(path.join(siteDir, rel))) at('sitemap.xml', `entry for a missing file: ${loc}`);
+  }
+  for (const { file } of pages) {
+    const want = SELF_ABSOLUTE + (file === 'index.html' ? '' : file);
+    if (!locs.includes(want)) at('sitemap.xml', `no entry for ${file} (expected ${want})`);
+  }
+}
+for (const { file, html } of pages) {
+  const want = SELF_ABSOLUTE + (file === 'index.html' ? '' : file);
+  const ogUrl = html.match(/<meta property="og:url" content="([^"]+)">/);
+  if (!ogUrl) at(file, 'no og:url meta');
+  else if (ogUrl[1] !== want) at(file, `og:url is ${ogUrl[1]}, expected ${want}`);
+  for (const prop of ['og:title', 'og:description', 'og:image', 'og:type']) {
+    if (!new RegExp(`<meta property="${prop}" content="[^"]+">`).test(html)) at(file, `no ${prop} meta`);
+  }
+  if (!/<meta name="description" content="[^"]+">/.test(html)) at(file, 'no description meta');
+  if (!/<title>[^<]+<\/title>/.test(html)) at(file, 'no <title>');
+  if (file !== 'index.html') {
+    const linked = pages.some((other) => other.file !== file
+      && new RegExp(`href="${file.replace(/[.]/g, '\\.')}(#[^"]*)?"`).test(other.html));
+    if (!linked) at(file, 'no other page links to this page');
+  }
+}
+
 // --- report ---------------------------------------------------------------
 if (problems.length) {
   console.error(`check-site: ${problems.length} problem(s)`);
   for (const p of problems) console.error(`  - ${p}`);
   process.exit(1);
 }
-console.log(`check-site: ok — ${pages.length} page(s) [${pageFiles.join(', ')}] (links, version, download links, assets, language, anchors, csp)`);
+console.log(`check-site: ok — ${pages.length} page(s) [${pageFiles.join(', ')}] (links, version, download links, assets, language, anchors, csp, findable)`);

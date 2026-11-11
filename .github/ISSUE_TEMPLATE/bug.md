@@ -5,7 +5,10 @@ title: "[bug] "
 labels: bug
 ---
 
+<!-- This issue is public. Leave out passwords, cookies, private addresses and personal details. Security problems: use the private form. -->
+
 ## What happened
+<!-- What you saw, with the exact words of any notice. -->
 
 ## What you expected
 
@@ -13,10 +16,9 @@ labels: bug
 1.
 2.
 
-## Environment
-- Raha version:
-- OS:
+## Your Raha and your system
+- Raha version (Settings, at the bottom, under About):
+- System and its version (for example macOS 15.1, Windows 11, Ubuntu 24.04):
 - Settings that matter (max live tabs, rules, budget):
 
-## Terminal output, if any
-<!-- run the app from a terminal: `npm start` or the binary — paste [raha:*] lines -->
+<!-- Running Raha from source? Paste the [raha:*] lines from the terminal here, after checking them for addresses you do not want public. -->

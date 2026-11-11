@@ -354,8 +354,10 @@ itself included) and reloads fresh, after asking you. Nuclear option: Settings �
 & site data…* (signs you out everywhere).
 
 **Something crashed.** A crashed tab flips to asleep with a warning toast —
-click to reload it. If the whole app misbehaves, run it from a terminal
-(`npm start` from source) and include the `[raha:…]` lines in your issue.
+click to reload it. If Raha itself stops or will not open, the
+[Help page](https://magronox.github.io/raha-browser/help.html) says what to
+try and how to report it. If you run Raha from source, start it from a
+terminal (`npm start`) and include the `[raha:…]` lines in your issue.
 
 **Start truly fresh:** quit Raha, delete the profile folder from §6, relaunch
 — you'll get the welcome tour again.

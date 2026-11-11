@@ -49,6 +49,7 @@
     <span class="links">
       <a href="#download">Download</a>
       <a href="details.html">Details</a>
+      <a href="help.html">Help</a>
       <a href="https://github.com/Magronox/raha-browser">GitHub</a>
       <a class="btn donate" href="https://venmo.com/u/magronox">Donate</a>
     </span>
@@ -60,11 +61,7 @@
   <section class="hero" id="top">
     <h1>Raha</h1>
     <p class="headline">A calm browser where you decide which tabs get your memory and CPU.</p>
-    <p class="sub">Raha is a free desktop browser for macOS, Windows and Linux. Tabs over the limit sleep: their process is closed and the memory goes back to the computer. Each keeps its place, title and history, and loads again on a click.</p>
-    <!-- MEASURED LINE (not written yet): one sentence with a measured number
-         goes here, as <p class="sub measured">…</p>, once a measurement exists
-         (for example the memory returned when a named set of tabs sleeps, with
-         the machine and the date). No number is shown until it is measured. -->
+    <p class="sub">Raha is a free desktop browser for macOS, Windows and Linux. You set how many tabs may run, and the rest sleep. A sleeping tab’s process is closed and its memory goes back to the computer. It keeps its place, title and history, and loads again on a click.</p>
     <p class="cta">
       <a class="btn primary" href="#download">Download for this machine</a>
       <a class="btn" href="#v1">See what is coming</a>
@@ -81,16 +78,16 @@
     <h2>How it works</h2>
     <div class="cards">
       <div class="card">
-        <h3>Set the number</h3>
+        <h3>A limit on running tabs</h3>
         <p>Six tabs run by default. Past that, the tab used least recently sleeps. A pinned tab stays awake, and so does a tab playing sound.</p>
       </div>
       <div class="card">
-        <h3>See the cost</h3>
+        <h3>Each tab’s memory and CPU</h3>
         <p>A bar at the bottom lists each running tab with its memory and CPU. A site can be given its own limit: with 800&nbsp;MB for <code>*.slack.com</code>, a Slack tab over that sleeps.</p>
       </div>
       <div class="card">
-        <h3>Quiet by default</h3>
-        <p>No account, no telemetry. Known ads and trackers are blocked. Search starts with DuckDuckGo.</p>
+        <h3>No account, no telemetry</h3>
+        <p>Known ads and trackers are blocked. Search starts with DuckDuckGo.</p>
       </div>
     </div>
   </section>
@@ -107,20 +104,14 @@
       <li>A tour and short lessons.</li>
       <li>Three privacy fixes: third-party cookies blocked by default, site icons loaded without cookies, and permissions that follow the page that has loaded.</li>
     </ul>
-    <!-- IMAGE (none yet). When a clean capture of 1.0 exists, add here one
-         figure with class "shot": the image from assets/, and the caption
-         "Version 1.0 in development. Details may change."
-         For a light and dark pair, wrap two figures in a div with class "pair".
-         Add the markup together with the file: check-site fails on a link to
-         a missing file. -->
-    <p>Plans can change before release. 1.0 has no fixed date; it comes out when its tests pass. It will be free to use.</p>
+    <p>1.0 has no fixed date: it comes out when its tests pass, and plans can change before then. It will be free to use.</p>
     <p class="dim">To hear when it comes out: on GitHub, <a href="https://github.com/Magronox/raha-browser">Watch → Custom → Releases</a>, or follow the <a href="https://github.com/Magronox/raha-browser/releases.atom">releases feed</a>.</p>
   </section>
 
   <section id="download">
     <h2>Download</h2>
-    <p class="version">Version <b data-version="0.3.3">0.3.3</b>, 11 November 2026, for macOS, Windows and Linux. <a href="details.html#changed">What changed</a> · <a href="details.html#status">Known issues</a></p>
-    <p class="version">0.3.3 replaces 0.3.1 and earlier. It fixes the two problems in this <a href="https://github.com/Magronox/raha-browser/security/advisories/GHSA-m68f-fgxg-6v72">security advisory</a>.</p>
+    <p class="version">Version <b data-version="0.3.3">0.3.3</b>, 11 November 2026, for macOS, Windows and Linux. It replaces 0.3.1 and earlier and fixes this <a href="https://github.com/Magronox/raha-browser/security/advisories/GHSA-m68f-fgxg-6v72">security advisory</a>. <a href="details.html#changed">What changed</a> · <a href="details.html#status">Known issues</a></p>
+    <p class="version">Already using Raha? <a href="#update">How to update</a></p>
     <p class="pick" id="dl-pick" hidden></p>
     <div class="dl">
       <div class="card" data-os="mac">
@@ -130,7 +121,7 @@
           <li><a data-asset="mac-arm64" href="https://github.com/Magronox/raha-browser/releases/download/v0.3.3/Raha-0.3.3-arm64.dmg">Apple&nbsp;Silicon (M1 or later) <b>.dmg</b></a></li>
           <li><a data-asset="mac-x64" href="https://github.com/Magronox/raha-browser/releases/download/v0.3.3/Raha-0.3.3.dmg">Intel <b>.dmg</b></a></li>
         </ul>
-        <p>Not sure which Mac? Apple menu → About This Mac. First launch: macOS asks you to confirm (<a href="details.html#install">how to open it</a>).</p>
+        <p>Not sure which Mac? Apple menu → About This Mac. First launch: macOS asks you to confirm (<a href="help.html#open">how to open it</a>).</p>
       </div>
       <div class="card" data-os="win">
         <p class="yours-label">for this machine</p>
@@ -138,7 +129,7 @@
         <ul class="assets">
           <li><a data-asset="win-x64" href="https://github.com/Magronox/raha-browser/releases/download/v0.3.3/Raha-Setup-0.3.3.exe">Installer <b>.exe</b> (64-bit)</a></li>
         </ul>
-        <p>First launch: Windows asks you to confirm: <b>More info → Run anyway</b>. (The installer is not signed.)</p>
+        <p>The installer is not signed. First launch: Windows asks you to confirm (<a href="help.html#open-windows">how to open it</a>).</p>
       </div>
       <div class="card" data-os="linux">
         <p class="yours-label">for this machine</p>
@@ -150,7 +141,17 @@
         <p>AppImage: <code>chmod +x Raha-*.AppImage</code>, then open it. Deb: <code>sudo apt install ./raha-*.deb</code>.</p>
       </div>
     </div>
-    <p class="dim">All files are on the <a href="https://github.com/Magronox/raha-browser/releases/latest">GitHub release page</a>, which shows a SHA-256 checksum next to each.</p>
+    <p class="dim">All files are on the <a href="https://github.com/Magronox/raha-browser/releases/latest">GitHub release page</a>, which shows a SHA-256 checksum next to each. The .zip, .blockmap and .yml files there are for the updater; you do not need them.</p>
+    <div class="quiet" id="update">
+      <p><b>Already using Raha? Update to 0.3.3.</b> Your tabs, folders, settings and history are kept.</p>
+      <ul>
+        <li><b>macOS:</b> Raha does not install updates itself. Download the .dmg for your Mac above (Apple&nbsp;Silicon or Intel), quit Raha, open the .dmg and drag Raha into Applications. When Finder asks, choose <b>Replace</b>. Only the app is replaced; your tabs and settings are in a separate folder and are not touched. Then eject the .dmg and open Raha from Applications. macOS may ask you to confirm the first launch again (<a href="help.html#open">steps</a>).</li>
+        <li><b>Windows, and Linux with the AppImage:</b> with update checks on, Raha downloads 0.3.3 in the background and installs it when you quit. If it has not, quit Raha and run the new installer, or put the new AppImage in place of the old one.</li>
+        <li><b>Linux .deb:</b> download the new .deb and install it the same way as the first one (see the Linux card above).</li>
+      </ul>
+      <p>After the update, pages reached with Back or Forward load fresh.</p>
+      <p class="dim">Your version is shown at the bottom of Settings, under About. If the update did not happen: <a href="help.html#update">Help</a>.</p>
+    </div>
   </section>
 
   <section id="privacy">
@@ -159,15 +160,15 @@
       <li>Blocks known ads and trackers, from lists shipped with the app.</li>
       <li>Sends Global Privacy Control with every request a page makes.</li>
       <li>Sites ask for the camera, microphone, location and notifications through Raha’s own prompt.</li>
-      <li>Apart from the pages you open, Raha makes three kinds of request on its own. Each is listed.</li>
+      <li>Apart from the pages you open, Raha makes three kinds of request on its own.</li>
     </ul>
-    <p class="more"><a href="details.html#privacy">What Raha sends</a></p>
+    <p class="more"><a href="details.html#privacy">What Raha sends, request by request</a></p>
   </section>
 
   <section id="maker">
     <h2>Who makes it</h2>
-    <p>Raha is made by one person, Amir Basareh, with AI coding assistants (<a href="details.html#support">how</a>). 0.3.3 came out on 11 November 2026; 1.0 is next. Free, supported by donations.</p>
-    <p class="more"><a href="https://github.com/Magronox/raha-browser/blob/main/CHANGELOG.md">Changelog</a> · <a href="https://venmo.com/u/magronox">Donate</a> · <a href="https://github.com/Magronox/raha-browser/issues">Issues</a></p>
+    <p>Raha is made by one person, Amir Basareh, with AI coding assistants (<a href="details.html#support">how</a>). 0.3.3 came out on 11 November 2026; 1.0 is next. It is free, and donations support it.</p>
+    <p class="more"><a href="https://github.com/Magronox/raha-browser/blob/main/CHANGELOG.md">Changelog</a> · <a href="https://venmo.com/u/magronox">Donate</a> · <a href="help.html">Help</a> · <a href="help.html#report">Report a problem</a></p>
   </section>
 
 </main>
