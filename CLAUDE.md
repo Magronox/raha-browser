@@ -26,32 +26,8 @@ and say explicitly in your report that e2e/smoke still need a CI run.
 CI (.github/workflows/ci.yml) runs the full suite on every push to `main` and on PRs — treat a red
 CI as "the task is not finished", never as "flaky infra".
 
-> **Current state (2026-09-10).** The repository's history begins at a
-> single snapshot commit of the audited tree (`docs/PLAYBOOKS/first-push.md`).
-> Running Electron 44.2.0 / Chromium 152.0.7977.76 (macOS 13+). Suite: **366 unit / 49
-> ui-harness / 49 e2e**. The 2026-07 security audit
-> (`docs/SECURITY-AUDIT-2026-07.md`) is in; its commit references predate
-> the public history and do not resolve here. There is deliberately **no
-> tag and no GitHub release yet** — v0.1.0 gets cut from green `main` by
-> `docs/PLAYBOOKS/release.md`, only on the owner's go.
->
-> Latest feature work: **R-104 scroll + form state** (state schema 1→2,
-> `src/shared/page-state.js`, engine capture/persist/restore lifecycle,
-> adapter ports in triplicate, `restorePageState` setting). Its part B,
-> **freeze (R-127, ADR-0014)**, shipped 2026-09-16: governor rule 5
-> (`freezeIdleMinutes`, default 2), `tabFreeze`/`tabThaw` in the engine,
-> `freeze()`/`thaw()` on the view port, snowflake UI, `tests/e2e/freeze.spec.js`
-> (plus `npm run smoke` for "the page really stops" — Playwright keeps pages
-> visible, and Chromium refuses to freeze a visible page).
->
-> Electron majors arrive from Dependabot every ~8 weeks. They are routine
-> when done by `docs/PLAYBOOKS/upgrade-electron.md` (an hour: breaking-
-> changes audit, verify, chrome-identity table check) — do that, do not
-> merge the bot's PR blind.
->
-> Installed builds on a dev machine may lag `main`; run from source
-> (`npm start`) to test current features, and verify any claim about which
-> build is installed before repeating it.
+> Releases are cut from green `main` by `docs/PLAYBOOKS/release.md`, only on the owner's go.
+> Versions and test counts: see package.json and CI.
 
 ## Map of the codebase (what lives where)
 
@@ -97,14 +73,18 @@ daily:
    `docs/PLAYBOOKS/change-persistence.md`.
 6. **Minimal dependencies, zero telemetry.** Every runtime dependency needs
    its own ADR (currently exactly two: `electron-updater`, ADR-0008, and
-   `@ghostery/adblocker`, ADR-0009 — both pinned exact). Raha contacts
-   exactly one server of its own accord: GitHub Releases for the optional
-   security-update check (`autoUpdate` setting). The ad/tracker filter lists
+   `@ghostery/adblocker`, ADR-0009 — both pinned exact). Of its own accord
+   Raha contacts: GitHub for the optional update check (`autoUpdate`
+   setting; a few requests per check, no cookies, the same all-zero
+   `x-user-staging-id` for everyone, the system language; on Windows and on Linux
+   with the AppImage it also downloads and installs updates), each tab's own site for its
+   favicon, and, only with spellcheck set to Always on Windows/Linux,
+   Google for a dictionary. The ad/tracker filter lists
    are bundled with the app and update only with releases — never downloaded
    at runtime (ADR-0009). Everything else on the wire is either a page the
    user opened or a favicon the chrome loads from that site — see INVARIANTS
-   #6, which spells the favicon carve-out out; never write "zero network
-   requests" anywhere. A new devDependency needs an ADR in
+   #6, which spells the favicon carve-out out; never write "one server",
+   "fully silent" or "zero network requests" anywhere. A new devDependency needs an ADR in
    `docs/DECISIONS/` too.
 7. **Escape everything.** Any page-controlled string (title, URL) rendered
    into UI HTML goes through `esc()` from `src/ui/render/util.js`. The XSS

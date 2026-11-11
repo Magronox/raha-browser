@@ -100,6 +100,25 @@ export function rememberedVerdict(sitePermissions, host, kinds) {
 }
 
 /**
+ * An embedded frame from ANOTHER site asking for notifications or the
+ * clipboard (0.3.2). These follow the frame in Chrome, not the tab, so the
+ * page's decision must not answer them. Returns null when the rule does not
+ * apply (the page itself, a same-site frame, or camera/mic/location, which
+ * are still asked under the page's host). Otherwise refused, without an
+ * ask and whatever that site's own remembered answer is: Raha keeps no
+ * per-frame grants (the same rule as 1.0, audit 2026-11 B9).
+ * @param {{ pageHost: string, requestingHost: string|null, isMainFrame: boolean, kinds: readonly PermissionKind[] }} p
+ *   hosts normalized (normalizeSiteHost); requestingHost null = unknown
+ * @returns {'deny'|null}
+ */
+export function crossSiteFrameVerdict(p) {
+  if (p.isMainFrame) return null;
+  if (!p.kinds.some((k) => k === 'notifications' || k === 'clipboard')) return null;
+  if (p.requestingHost && p.requestingHost === p.pageHost) return null;
+  return 'deny';
+}
+
+/**
  * A new map with one decision set. The site moves to the end (newest);
  * over the cap the oldest sites fall off. Never mutates its input.
  * @param {SitePermissions} sitePermissions

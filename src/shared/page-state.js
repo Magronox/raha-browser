@@ -128,6 +128,9 @@ function sanitizeFieldValue(k, v) {
  * Security: passwords, hidden, file, and sensitive autocomplete are skipped.
  * Only user-changed fields are stored (value !== defaultValue).
  */
+/** What CAPTURE_SCRIPT answers when it throws: not "nothing to keep". */
+export const CAPTURE_FAILED = 'raha:capture-failed';
+
 export const CAPTURE_SCRIPT = `(() => {
   try {
     if (!/^https?:/.test(location.protocol)) return null;
@@ -193,7 +196,7 @@ export const CAPTURE_SCRIPT = `(() => {
     const sy = Math.round(window.scrollY);
     if (sx === 0 && sy === 0 && fields.length === 0) return null;
     return { v: 1, url: location.href, at: Date.now(), sx, sy, fields };
-  } catch { return null; }
+  } catch { return ${JSON.stringify(CAPTURE_FAILED)}; }
 })()`;
 
 /**

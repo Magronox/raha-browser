@@ -21,6 +21,8 @@
  * @property {string} source       browser it came from, e.g. 'Chrome' ('' ok)
  */
 
+import { withoutCredentials } from './urls.js';
+
 export const HISTORY_MAX = 20000;
 const URL_MAX = 2048;
 const TITLE_MAX = 300;
@@ -41,12 +43,15 @@ function isHistoryUrl(url) {
 export function normalizeHistoryEntry(raw) {
   if (raw == null || typeof raw !== 'object') return null;
   const r = /** @type {any} */ (raw);
-  if (!isHistoryUrl(r.url) || r.url.length > URL_MAX) return null;
+  // Never a name or password before the host on disk (0.3.2): an entry
+  // from an older file or an import loses them here.
+  const url = withoutCredentials(r.url);
+  if (!isHistoryUrl(url) || url.length > URL_MAX) return null;
   const lastVisitMs = Number(r.lastVisitMs);
   if (!Number.isFinite(lastVisitMs) || lastVisitMs <= 0) return null;
   const count = Number(r.visitCount);
   return {
-    url: r.url,
+    url,
     title: String(r.title ?? '').slice(0, TITLE_MAX),
     lastVisitMs: Math.round(lastVisitMs),
     visitCount: Number.isFinite(count) && count >= 1 ? Math.round(count) : 1,
@@ -112,17 +117,18 @@ export function mergeHistory(existing, incoming, cap = HISTORY_MAX) {
  * @returns {HistoryEntry[]} updated entries (=== input array if ignored)
  */
 export function recordVisit(entries, visit) {
-  if (!isHistoryUrl(visit.url) || visit.url.length > URL_MAX) return entries;
-  const prev = entries.find((e) => e.url === visit.url);
+  const url = withoutCredentials(visit.url);
+  if (!isHistoryUrl(url) || url.length > URL_MAX) return entries;
+  const prev = entries.find((e) => e.url === url);
   /** @type {HistoryEntry} */
   const next = {
-    url: visit.url,
+    url,
     title: String(visit.title ?? '').slice(0, TITLE_MAX) || prev?.title || '',
     lastVisitMs: Math.max(Math.round(visit.nowMs), prev?.lastVisitMs ?? 0),
     visitCount: (prev?.visitCount ?? 0) + 1,
     source: prev?.source ?? '',
   };
-  const rest = prev ? entries.filter((e) => e.url !== visit.url) : entries;
+  const rest = prev ? entries.filter((e) => e.url !== url) : entries;
   return [next, ...rest].sort(byRecency).slice(0, HISTORY_MAX);
 }
 
@@ -135,7 +141,8 @@ export function recordVisit(entries, visit) {
 export function touchHistoryTitle(entries, url, title) {
   const t = String(title ?? '').slice(0, TITLE_MAX);
   if (!t) return false;
-  const e = entries.find((x) => x.url === url);
+  const bare = withoutCredentials(url);
+  const e = entries.find((x) => x.url === bare);
   if (!e || e.title === t) return false;
   e.title = t;
   return true;

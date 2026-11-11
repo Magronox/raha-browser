@@ -296,6 +296,21 @@ test('P6: passkeys are reported unsupported, so sign-in pages fall back instead 
   expect(await qa.evaluate(() => typeof window.navigator.credentials)).toBe('object');
 });
 
+test('0.3.2: the Privacy Sandbox ad APIs are not there for pages', async () => {
+  // src/main/electron/chromium-switches.js: Topics, Protected Audience,
+  // Shared Storage and fenced frames are switched off at the Chromium level.
+  const qa = await contentPage('/security-qa.html');
+  expect(await qa.evaluate(() => ({
+    topics: 'browsingTopics' in document,
+    interestGroups: 'joinAdInterestGroup' in window.navigator,
+    adAuction: 'runAdAuction' in window.navigator,
+    sharedStorage: 'sharedStorage' in window,
+    fencedFrames: 'HTMLFencedFrameElement' in window,
+    attribution: 'attributionSrc' in window.HTMLAnchorElement.prototype,
+    privateStateTokens: 'hasPrivateToken' in document,
+  }))).toEqual({ topics: false, interestGroups: false, adAuction: false, sharedStorage: false, fencedFrames: false, attribution: false, privateStateTokens: false });
+});
+
 test('P5: an undecided site reads as denied to a mere check, and a check never asks', async () => {
   const qa = await contentPage('/security-qa.html');
   await qa.click(`button[onclick="permQuery('geolocation')"]`);

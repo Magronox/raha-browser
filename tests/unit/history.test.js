@@ -162,3 +162,16 @@ test('suggestHistory ranks by visit count over ALL matches — no recency starva
   assert.equal(r.length, 6);
   assert.deepEqual(suggestHistory(entries, '', 6), [], 'empty query suggests nothing');
 });
+
+// 0.3.2: history.json never keeps a name or password before the host.
+test('history: visits, titles and loaded entries lose user:pass@', async () => {
+  const { recordVisit, normalizeHistoryEntry, touchHistoryTitle } = await import('../../src/shared/history.js');
+  const entries = recordVisit([], { url: 'https://name:secret@site.example/inbox', nowMs: 1000 });
+  assert.equal(entries[0].url, 'https://site.example/inbox');
+  assert.equal(touchHistoryTitle(entries, 'https://name:secret@site.example/inbox', 'Inbox'), true);
+  assert.equal(entries[0].title, 'Inbox');
+  const again = recordVisit(entries, { url: 'https://site.example/inbox', nowMs: 2000 });
+  assert.equal(again.length, 1, 'the same page with and without credentials is one entry');
+  assert.equal(again[0].visitCount, 2);
+  assert.equal(normalizeHistoryEntry({ url: 'https://a:b@site.example/', lastVisitMs: 5 })?.url, 'https://site.example/', 'older files are cleaned on load');
+});

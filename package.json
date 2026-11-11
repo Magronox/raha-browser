@@ -1,8 +1,8 @@
 {
   "name": "raha-browser",
   "productName": "Raha",
-  "version": "0.3.1",
-  "description": "Raha — a light, private, open-source browser where you decide which tabs get to spend your RAM and CPU.",
+  "version": "0.3.2",
+  "description": "Raha — a light, open-source browser where you decide which tabs get to spend your RAM and CPU.",
   "license": "GPL-3.0-only",
   "author": {
     "name": "Amir Basareh",
@@ -31,8 +31,9 @@
     "verify": "npm run typecheck && npm run lint && npm test && npm run test:ui && npm run test:e2e",
     "verify:offline": "npm run typecheck:pure && npm test && npm run test:ui",
     "get:electron": "node scripts/get-electron.mjs",
-    "dist": "electron-builder --publish never",
-    "blocklists": "node scripts/build-blocklists.mjs"
+    "dist": "node scripts/electron-licences.mjs && electron-builder --publish never",
+    "blocklists": "node scripts/build-blocklists.mjs",
+    "notices": "node scripts/third-party-notices.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

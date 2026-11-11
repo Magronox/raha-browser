@@ -4,6 +4,7 @@ import { migrateState, migrateSettings, migrateHistory } from '../../src/shared/
 import { STATE_SCHEMA_VERSION, SETTINGS_SCHEMA_VERSION, HISTORY_SCHEMA_VERSION } from '../../src/shared/defaults.js';
 import { createTree, addTab, checkIntegrity, allTabIds } from '../../src/shared/tree.js';
 import { must } from '../helpers.js';
+import { readFileSync } from 'node:fs';
 
 test('migrateState: fresh from nothing', () => {
   const { state } = migrateState(undefined);
@@ -258,4 +259,18 @@ test('migrateHistory: v0 (version-less) doc upgrades with entries preserved', ()
   assert.equal(history.schemaVersion, HISTORY_SCHEMA_VERSION);
   assert.equal(history.entries.length, 1);
   assert.equal(history.entries[0].url, 'https://old.com');
+});
+
+test('migrateState: a 0.3.1 state.json loses Chromium page state and user:pass@ from back/forward steps (fixture)', () => {
+  const raw = JSON.parse(readFileSync(new URL('../fixtures/state-0.3.1-nav.json', import.meta.url), 'utf8'));
+  assert.match(JSON.stringify(raw), /typed-letter-to-a-friend/, 'the fixture holds what 0.3.1 wrote');
+  const { state } = migrateState(raw);
+  const node = /** @type {any} */ (state.tree.nodes.t_a);
+  assert.deepEqual(JSON.parse(node.navJson), {
+    entries: [{ url: 'https://mail.example/inbox', title: 'Inbox' }, { url: 'https://poems.example/search?q=moon', title: 'Moon poems' }],
+    index: 1,
+  });
+  const out = JSON.stringify(state);
+  for (const s of ['typed-letter', 'search-box-moonlight', 'secret', 'pageState":"']) assert.ok(!out.includes(s), s);
+  assert.equal(node.pageState.fields[0].v, 'moonlight on water', 'R-104 page state is kept here; the engine drops it when the setting is off');
 });

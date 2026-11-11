@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveOmnibox, searchUrl, displayUrl, isNavigableUrl, isUiChromeUrl, sanitizeNavEntries, sameUrl, findTabByUrl } from '../../src/shared/urls.js';
+import { resolveOmnibox, searchUrl, displayUrl, isNavigableUrl, isUiChromeUrl, sanitizeNavEntries, sameUrl, findTabByUrl, cleanNavJson } from '../../src/shared/urls.js';
 
 const HTTPS = { httpsFirst: true, searchEngine: /** @type {const} */ ('duckduckgo') };
 const HTTP = { httpsFirst: false, searchEngine: /** @type {const} */ ('duckduckgo') };
@@ -227,4 +227,37 @@ test('findTabByUrl returns the first matching tab, or null', () => {
   assert.equal(findTabByUrl(tabs, 'https://one.example/?q=1'), null);
   assert.equal(findTabByUrl([], 'https://one.example/'), null);
   assert.equal(findTabByUrl(tabs, 'garbage'), null);
+});
+
+// 0.3.2: no name or password before the host is shown or saved.
+test('withoutCredentials strips user:pass@ and nothing else; displayUrl hides them', async () => {
+  const { withoutCredentials } = await import('../../src/shared/urls.js');
+  assert.equal(withoutCredentials('https://name:secret@site.example/a?b#c'), 'https://site.example/a?b#c');
+  assert.equal(withoutCredentials('http://only-name@site.example/'), 'http://site.example/');
+  assert.equal(withoutCredentials('https://a:p@ss@site.example/'), 'https://site.example/', 'an @ inside the password');
+  assert.equal(withoutCredentials('https://site.example/path@thing'), 'https://site.example/path@thing', 'an @ after the host stays');
+  assert.equal(withoutCredentials('https://site.example/?to=a@b.example'), 'https://site.example/?to=a@b.example');
+  assert.equal(withoutCredentials('https://evil.example\\@good.example/'), 'https://evil.example\\@good.example/', 'a backslash ends the authority');
+  assert.equal(withoutCredentials('raha://app/x@y'), 'raha://app/x@y');
+  assert.equal(withoutCredentials(undefined), '');
+  assert.equal(displayUrl('https://name:secret@site.example/'), 'site.example/');
+  assert.equal(displayUrl('http://name:secret@site.example/'), 'http://site.example/');
+});
+
+test('cleanNavJson keeps only url (no user:pass@) and title per back/forward step (0.3.2)', () => {
+  const raw = JSON.stringify({
+    entries: [
+      { url: 'https://name:secret@mail.example/inbox', title: 'Inbox', pageState: 'typed-letter' },
+      { url: 'file:///etc/passwd', title: 'x' },
+      { url: 'https://poems.example/', title: 'Poems', pageState: 'search-box', extra: 1 },
+    ],
+    index: 2,
+  });
+  assert.deepEqual(JSON.parse(String(cleanNavJson(raw))), {
+    entries: [{ url: 'https://mail.example/inbox', title: 'Inbox' }, { url: 'https://poems.example/', title: 'Poems' }],
+    index: 1,
+  });
+  assert.equal(cleanNavJson(null), null);
+  assert.equal(cleanNavJson('not json'), null);
+  assert.equal(cleanNavJson(JSON.stringify({ entries: [{ url: 'javascript:alert(1)' }], index: 0 })), null);
 });

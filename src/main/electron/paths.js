@@ -4,20 +4,21 @@
 import { app } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
+import { PRIVATE_DIR_MODE } from './json-files.js';
 
 /** @returns {string} absolute profile dir, created if missing */
 export function profileDir() {
   const dir = process.env.RAHA_PROFILE_DIR
     ? path.resolve(process.env.RAHA_PROFILE_DIR)
     : path.join(app.getPath('userData'), 'profile');
-  fs.mkdirSync(dir, { recursive: true });
+  fs.mkdirSync(dir, { recursive: true, mode: PRIVATE_DIR_MODE });
   return dir;
 }
 
 /** @returns {string} */
 export function thumbsDir() {
   const dir = path.join(profileDir(), 'thumbs');
-  fs.mkdirSync(dir, { recursive: true });
+  fs.mkdirSync(dir, { recursive: true, mode: PRIVATE_DIR_MODE });
   return dir;
 }
 

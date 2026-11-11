@@ -7,7 +7,7 @@ import {
   PERMISSION_KINDS, SITE_PERMISSIONS_CAP, isPermissionKind, isPermissionDecision,
   permissionKindsForRequest, permissionKindForCheck, normalizeKinds,
   rememberedVerdict, withSitePermission, withoutSitePermission, capSitePermissions,
-  permissionKindLabel, permissionPhrase, permissionAskTitle,
+  permissionKindLabel, permissionPhrase, permissionAskTitle, crossSiteFrameVerdict,
 } from '../../src/shared/permissions.js';
 
 test('Electron request names map to Raha kinds; a media request is one ask covering both devices', () => {
@@ -103,4 +103,15 @@ test('wording: kinds join naturally; labels are what a person calls them', () =>
   assert.equal(permissionPhrase([]), 'use something');
   assert.equal(permissionKindLabel('geolocation'), 'location');
   assert.equal(permissionKindLabel('camera'), 'camera');
+});
+
+test('a frame from another site gets no notification or clipboard answer from the page (0.3.2)', () => {
+  const v = (/** @type {any} */ o) => crossSiteFrameVerdict({ pageHost: 'news.example', requestingHost: 'ads.example', isMainFrame: false, kinds: ['notifications'], ...o });
+  assert.equal(v({}), 'deny', 'a frame of another site is refused');
+  assert.equal(v({ kinds: ['clipboard'] }), 'deny');
+  assert.equal(v({ requestingHost: null }), 'deny', 'an unknown frame site is refused');
+  assert.equal(v({ requestingHost: 'chat.example' }), 'deny', 'whatever that site decided for itself (1.0\'s rule)');
+  assert.equal(v({ requestingHost: 'news.example' }), null, 'a same-site frame follows the page');
+  assert.equal(v({ isMainFrame: true }), null, 'the page itself follows the page');
+  assert.equal(v({ kinds: ['camera'] }), null, 'camera, mic and location are still asked under the page');
 });

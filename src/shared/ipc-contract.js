@@ -75,6 +75,7 @@ export const EVENT = {
   toggleSidebar: 'evt:toggleSidebar', // {} (Cmd/Ctrl+B routed from main — UI owns the state)
   askDefaultBrowser: 'evt:askDefaultBrowser', // {} first packaged launch, once: show the IN-APP ask; only a yes there triggers the OS registration
   askExternal: 'evt:askExternal',     // {id, url, scheme, app} a page asked to open an app link — show the ask; the OS is touched only on a yes echoing this id
+  askClearSiteData: 'evt:askClearSiteData', // {tabId, host} the page's right-click "Clear Cookies & Data for This Site" (0.3.2): ask in the chrome; only a yes calls siteData:clear
   askPermission: 'evt:askPermission', // PermissionAsk|null  show this site-permission ask (the ACTIVE tab's, one at a time) — or null: withdraw what is on screen (tab switched/closed/slept/navigated)
 };
 

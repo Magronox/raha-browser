@@ -13,13 +13,13 @@
 // https://www.electronjs.org/docs/latest/api/menu
 import { Menu, clipboard } from 'electron';
 import { buildPageMenuTemplate } from '../../shared/page-menu.js';
-import { clearSiteData } from './site-data.js';
 
 /**
  * @param {Electron.WebContents} wc
  * @param {{ openUrl: (url: string) => void,
  *           searchSelection: (text: string) => void,
- *           navState: () => { back: boolean, fwd: boolean } }} hooks
+ *           navState: () => { back: boolean, fwd: boolean },
+ *           askClearSiteData: (host: string) => void }} hooks
  *        openUrl/searchSelection route through the engine (cb.onOpenUrl /
  *        cb.onSearchSelection) so the isNavigableUrl sink gate stays the
  *        single authority on what may load.
@@ -46,9 +46,11 @@ export function attachPageContextMenu(wc, hooks) {
       forward: () => { /** @type {any} */ (wc).navigationHistory?.goForward?.(); },
       reload: () => wc.reload(),
       'clear-site-data': () => {
+        // Ask first (0.3.2), in the chrome like the tab menu's route
+        // (render/confirm.js: names the host, Cancel focused, 500 ms wait);
+        // only a yes there clears, through siteData:clear.
         try {
-          const host = new URL(wc.getURL()).hostname.toLowerCase();
-          void clearSiteData(wc.session, host).then(() => wc.reload());
+          hooks.askClearSiteData(new URL(wc.getURL()).hostname.toLowerCase());
         } catch { /* page navigated away mid-click */ }
       },
       inspect: () => wc.inspectElement(params.x, params.y),

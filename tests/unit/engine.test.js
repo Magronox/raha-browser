@@ -867,6 +867,16 @@ test('onSearchSelection opens a search tab next to the source tab', () => {
   assert.equal(snap.activeTabId, searchTab.id, 'search tab activates');
 });
 
+test('the page menu\'s Clear site data asks in the chrome, naming the host; a bad host asks nothing (0.3.2)', () => {
+  const { engine, world } = boot();
+  const { tabId } = ok(engine.tabCreate({ url: 'https://garden.example/' }));
+  world.events.length = 0;
+  must(world.viewsByTab.get(tabId)).simulateAskClearSiteData('Garden.example');
+  must(world.viewsByTab.get(tabId)).simulateAskClearSiteData('not a host');
+  const asks = world.events.filter((e) => e.type === 'askClearSiteData');
+  assert.deepEqual(asks, [{ type: 'askClearSiteData', tabId, host: 'garden.example' }]);
+});
+
 test('onSearchSelection ignores empty selections', () => {
   const { engine, world } = boot();
   const { tabId } = ok(engine.tabCreate({ url: 'https://a.com' }));
@@ -1378,6 +1388,24 @@ test('site permissions: forget drops one kind or a whole site; decisions survive
   assert.deepEqual(world.files.get(SETTINGS_FILE).sitePermissions, {}, 'persisted');
 });
 
+test('site permissions: a frame from another site never gets a notification or clipboard answer (0.3.2)', async () => {
+  const { engine, world } = boot(new FakeWorld(), { maxLiveTabs: 10 });
+  const { tabId } = ok(engine.tabCreate({ url: 'https://news.example/' }));
+  const p = ask(engine, tabId, ['notifications', 'clipboard'], { host: 'news.example' });
+  engine.permissionAnswer({ id: lastPermAsk(world).id, decision: 'always' });
+  assert.equal(await p, true);
+  const before = permEvents(world).length;
+  assert.equal(await ask(engine, tabId, ['notifications'], { host: 'news.example', requestingHost: 'ads.example', isMainFrame: false }), false);
+  assert.equal(await ask(engine, tabId, ['clipboard'], { host: 'news.example', requestingHost: 'ads.example', isMainFrame: false }), false);
+  assert.equal(permEvents(world).length, before, 'refused without an ask');
+  assert.equal(engine.permissionCheck({ tabId, host: 'news.example', kind: 'notifications', requestingHost: 'ads.example', isMainFrame: false }), false);
+  assert.equal(engine.permissionCheck({ tabId, host: 'news.example', kind: 'notifications', requestingHost: 'www.news.example', isMainFrame: false }), true, 'a same-site frame follows the page');
+  assert.equal(engine.permissionCheck({ tabId, host: 'news.example', kind: 'clipboard' }), true, 'the page itself');
+  engine.settings = { ...engine.settings, sitePermissions: { ...engine.settings.sitePermissions, 'ads.example': { notifications: 'allow' } } };
+  assert.equal(engine.permissionCheck({ tabId, host: 'news.example', kind: 'notifications', requestingHost: 'ads.example', isMainFrame: false }), false, 'not even the frame site\'s own allow answers (1.0\'s rule)');
+  assert.equal(await ask(engine, tabId, ['notifications'], { host: 'news.example', requestingHost: 'ads.example', isMainFrame: false }), false);
+});
+
 test('site permissions: malformed requests are refused without asking', async () => {
   const { engine, world } = boot(new FakeWorld(), { maxLiveTabs: 10 });
   const { tabId } = ok(engine.tabCreate({ url: 'https://meet.example/' }));
@@ -1536,6 +1564,27 @@ test('page state: settingsSet restorePageState=false wipes all stored state', ()
 
   assert.equal(rt.pageState, null, 'running tab runtime wiped');
   assert.equal(n2.pageState, null, 'asleep tab node wiped');
+});
+
+test('page state: a capture that fails keeps the last good snapshot; a page back at the top clears it', async () => {
+  const { engine, world } = boot(new FakeWorld(), { maxLiveTabs: 10, restorePageState: true });
+  const { tabId: t1 } = ok(engine.tabCreate({ url: 'https://a.example/' }));
+  const v1 = must(world.viewsByTab.get(t1), 'view for t1');
+  v1.simulateScroll(1200, 0);
+  engine.capturePageState(t1);
+  await Promise.resolve(); await Promise.resolve();
+  assert.equal(engine.runtime.get(t1)?.pageState?.sy, 1200);
+  // The capture script failed while the page sat at 1200 (seen on macOS on
+  // the 1.0 line): the null it gave erased the snapshot, wake came back at the top.
+  v1.captureFails = true;
+  engine.capturePageState(t1);
+  await Promise.resolve(); await Promise.resolve();
+  assert.equal(engine.runtime.get(t1)?.pageState?.sy, 1200, 'a failed capture is no news');
+  v1.captureFails = false;
+  v1.simulateScroll(0, 0);
+  engine.capturePageState(t1);
+  await Promise.resolve(); await Promise.resolve();
+  assert.equal(engine.runtime.get(t1)?.pageState, null, 'nothing to keep: the snapshot is cleared');
 });
 
 test('page state: capturePageState skipped when restorePageState is off or tab is loading', async () => {
@@ -1889,4 +1938,80 @@ test('downloads: clear drops finished entries and keeps live ones; the cap sheds
   assert.equal(ids.length, 100);
   assert.ok(ids.includes('live'), 'the live one survives the cap');
   assert.ok(!ids.includes('f0') && ids.includes('f119'), 'oldest finished entries shed first');
+});
+
+// 0.3.2: state.json never keeps a name or password before a tab's host; the
+// live tab keeps its address.
+test('state.json: a tab saved with user:pass@ in its address is written without it', () => {
+  const { engine, world } = boot();
+  const { tabId } = ok(engine.tabCreate({ url: 'https://name:secret@site.example/inbox' }));
+  engine.markDirty();
+  engine.flushPersist();
+  const saved = world.files.get('state.json');
+  const urls = Object.values(saved.tree.nodes).filter((n) => n.type === 'tab').map((n) => n.url);
+  assert.ok(urls.includes('https://site.example/inbox'), JSON.stringify(urls));
+  assert.ok(urls.every((u) => !u.includes('secret')), 'no saved address keeps the password (the fake view titles a tab with its raw address, so titles are not checked)');
+  assert.equal(must(engine.tabNode(tabId)).url, 'https://name:secret@site.example/inbox', 'the live tab is unchanged');
+});
+
+// ---------------------------------------------------------------- 0.3.2: back/forward steps on disk
+
+/** A view whose getNav answers as Chromium does: whole entries, page state included. @param {any} v */
+function chromiumLikeNav(v) {
+  v.getNav = () => ({
+    canGoBack: true, canGoForward: false,
+    navJson: JSON.stringify({ entries: [
+      { url: 'https://name:secret@mail.example/', title: 'Mail', pageState: 'dear-friend-typed-text' },
+      { url: 'https://poems.example/', title: 'Poems', pageState: 'more-typed-text' },
+    ], index: 1 }),
+  });
+}
+
+test('typed form text never reaches state.json with "Remember scroll position and unsent form text" off (0.3.2)', async () => {
+  const { engine, world } = boot(new FakeWorld(), { maxLiveTabs: 10, restorePageState: false });
+  const { tabId } = ok(engine.tabCreate({ url: 'https://poems.example/' }));
+  const v = must(world.viewsByTab.get(tabId), 'view');
+  chromiumLikeNav(v);
+  v.simulateFormInput([{ p: '0/0', n: 'input:text:q', k: 'text', v: 'dear-friend-typed-text' }]);
+  ok(engine.tabCreate({ url: 'https://other.example/' }));
+  await Promise.resolve();
+  engine.tabSleep({ tabId });
+  engine.flushPersist();
+  engine.shutdown();
+  const disk = JSON.stringify(world.files.get(STATE_FILE));
+  for (const s of ['typed-text', 'secret', 'pageState":"']) assert.ok(!disk.includes(s), `${s} on disk: ${disk.slice(0, 400)}`);
+  const node = /** @type {any} */ (world.files.get(STATE_FILE)).tree.nodes[tabId];
+  assert.equal(node.pageState, null, 'no page state at all');
+  assert.deepEqual(JSON.parse(node.navJson).entries, [{ url: 'https://mail.example/', title: 'Mail' }, { url: 'https://poems.example/', title: 'Poems' }]);
+});
+
+test('with the setting on, only R-104 page state is written, never Chromium\'s (0.3.2)', async () => {
+  const { engine, world } = boot(new FakeWorld(), { maxLiveTabs: 10, restorePageState: true });
+  const { tabId } = ok(engine.tabCreate({ url: 'https://poems.example/' }));
+  const v = must(world.viewsByTab.get(tabId), 'view');
+  chromiumLikeNav(v);
+  v.simulateScroll(200, 0);
+  ok(engine.tabCreate({ url: 'https://other.example/' }));
+  await Promise.resolve();
+  engine.tabSleep({ tabId });
+  engine.flushPersist();
+  const node = /** @type {any} */ (world.files.get(STATE_FILE)).tree.nodes[tabId];
+  assert.equal(node.pageState.sy, 200, 'R-104 scroll kept');
+  assert.ok(!JSON.stringify(node).includes('typed-text'), 'Chromium page state not written');
+});
+
+test('page state an older file kept is dropped at load when the setting is off, and the file rewritten (0.3.2)', () => {
+  const world = new FakeWorld();
+  const { engine } = boot(world, { restorePageState: false });
+  const { tabId } = ok(engine.tabCreate({ url: 'https://poems.example/' }));
+  engine.flushPersist();
+  const old = /** @type {any} */ (world.files.get(STATE_FILE));
+  old.tree.nodes[tabId].pageState = { v: 1, url: 'https://poems.example/', at: 1, sx: 0, sy: 5, fields: [{ p: '0/0', n: 'input:text:q', k: 'text', v: 'old-typed-text' }] };
+  old.tree.nodes[tabId].navJson = JSON.stringify({ entries: [{ url: 'https://poems.example/', title: 'P', pageState: 'old-chromium-state' }], index: 0 });
+  world.files.set(STATE_FILE, old);
+  const again = new Engine(world.ports());
+  assert.equal(must(again.tabNode(tabId), 'node').pageState, null);
+  again.flushPersist();
+  const disk = JSON.stringify(world.files.get(STATE_FILE));
+  assert.ok(!disk.includes('old-typed-text') && !disk.includes('old-chromium-state'), disk.slice(0, 300));
 });

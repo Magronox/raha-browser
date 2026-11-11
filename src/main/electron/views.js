@@ -8,8 +8,9 @@
 import { WebContentsView } from 'electron';
 import fs from 'node:fs';
 import { thumbPath } from './paths.js';
-import { sanitizeNavEntries, isNavigableUrl } from '../../shared/urls.js';
-import { CAPTURE_SCRIPT, restoreScript, pageStateFor } from '../../shared/page-state.js';
+import { sanitizeNavEntries, isNavigableUrl, cleanNavJson, withLivePageStates, withoutCredentials } from '../../shared/urls.js';
+import { createLivePageStates } from '../../shared/live-page-states.js';
+import { CAPTURE_SCRIPT, CAPTURE_FAILED, restoreScript, pageStateFor } from '../../shared/page-state.js';
 import { attachPageContextMenu } from './context-menu.js';
 import { attachChromeIdentity } from './chrome-identity.js';
 import { log } from './log.js';
@@ -22,18 +23,31 @@ const NAV_ENTRY_CAP = 25;
 
 /**
  * @param {{ attach: (view: any) => void, detach: (view: any) => void, setChromeOnTop: (on: boolean) => void, setSidebarVisible: (visible: boolean) => void }} windowHost
+ * @param {{ restorePageState?: () => boolean }} [opts] the setting, read at each use
  * @returns {{
+ *   clearPageStates: () => void,
+ *   forgetTab: (tabId: string) => void,
  *   create: (tabId: string, cb: any) => any,
  *   lookupByWebContentsId: (wcId: number|undefined) => { tabId: string, onBlocked: () => void }|null,
  *   setChromeOnTop: (on: boolean) => void,
  *   setSidebarVisible: (visible: boolean) => void,
  * }}
  */
-export function createViewsPort(windowHost) {
+export function createViewsPort(windowHost, opts = {}) {
   /** @type {Map<number, { tabId: string, onBlocked: () => void }>} */
   const byWcId = new Map();
+  // 0.3.2: each sleeping tab's Chromium page states, by back/forward entry,
+  // IN MEMORY ONLY, so Back past a dead entry still works after a sleep
+  // (shared/live-page-states.js: bounded, only while restorePageState is on,
+  // forgotten when the tab closes, gone at quit). state.json never has them.
+  const livePageStates = createLivePageStates({ enabled: () => opts.restorePageState?.() === true });
 
   return {
+    /** restorePageState turned off: forget every in-memory page state. */
+    clearPageStates() { livePageStates.clear(); },
+    /** The tab was closed. @param {string} tabId */
+    forgetTab(tabId) { livePageStates.forget(tabId); },
+
     lookupByWebContentsId(wcId) {
       return wcId == null ? null : byWcId.get(wcId) ?? null;
     },
@@ -45,6 +59,7 @@ export function createViewsPort(windowHost) {
     setSidebarVisible(visible) { windowHost.setSidebarVisible(visible); },
 
     create(tabId, cb) {
+      const live = livePageStates.take(tabId); // null while restorePageState is off
       const view = new WebContentsView({
         webPreferences: {
           partition: WEB_PARTITION,
@@ -105,8 +120,30 @@ export function createViewsPort(windowHost) {
       wc.on('page-favicon-updated', (_e, favicons) => {
         if (favicons && favicons[0]) cb.onFavicon(favicons[0]);
       });
-      wc.on('did-navigate', () => pushUrl());
-      wc.on('did-navigate-in-page', (_e, _url, isMainFrame) => { if (isMainFrame) pushUrl(); });
+      /** Per back/forward entry: is its Chromium page state its own? True once
+       * it committed in this view, or when it came with one (from
+       * livePageStates). False for an entry restored without one: Chromium
+       * gives it a stand-in, and a stand-in handed to a later view makes
+       * Chromium drop Back to that entry from an error page (1.0, measured).
+       * Only own states are kept. @type {{ url: string, own: boolean }[]} */ let own = [];
+      const markOwn = () => {
+        try {
+          const nh = /** @type {any} */ (wc).navigationHistory;
+          const entries = nh.getAllEntries();
+          const index = nh.getActiveIndex();
+          own = entries.map((/** @type {any} */ e, /** @type {number} */ i) => {
+            const url = String(e?.url ?? '');
+            return { url, own: i === index || (own[i]?.url === url && own[i].own) };
+          });
+        } catch { /* gone */ }
+      };
+      /** @param {any[]} entries @param {number} start */
+      const onlyOwnStates = (entries, start) => entries.map((/** @type {any} */ e, /** @type {number} */ i) => {
+        const o = own[start + i];
+        return o && o.own && o.url === String(e?.url ?? '') ? e : { url: String(e?.url ?? ''), title: String(e?.title ?? '') };
+      });
+      wc.on('did-navigate', () => { markOwn(); pushUrl(); });
+      wc.on('did-navigate-in-page', (_e, _url, isMainFrame) => { if (isMainFrame) { markOwn(); pushUrl(); } });
       wc.on('did-start-loading', () => cb.onLoading(true));
       wc.on('did-stop-loading', () => cb.onLoading(false));
       wc.on('audio-state-changed', (event) => cb.onAudible(Boolean(event.audible)));
@@ -144,7 +181,7 @@ export function createViewsPort(windowHost) {
         // In-place rendering keeps the entry and its index, so Back continues
         // past it, like mainstream browsers. The failed URL is page-
         // controlled: it is passed as data and rendered via textContent only.
-        const args = JSON.stringify([String(validatedURL), errorCode, String(errorDescription)]);
+        const args = JSON.stringify([withoutCredentials(String(validatedURL)), errorCode, String(errorDescription)]);
         void wc.executeJavaScript(`(([url, code, desc]) => {
           document.documentElement.innerHTML = '';
           const body = document.createElement('body');
@@ -190,6 +227,7 @@ export function createViewsPort(windowHost) {
         openUrl: (url) => cb.onOpenUrl(url),
         searchSelection: (text) => cb.onSearchSelection(text),
         navState: () => navState(),
+        askClearSiteData: (host) => cb.onAskClearSiteData?.(host),
       });
 
       const cleanup = () => {
@@ -210,7 +248,10 @@ export function createViewsPort(windowHost) {
             // single about:blank cannot cost the user their whole history.
             const safe = sanitizeNavEntries(parsed);
             if (!safe) return false;
-            void nh.restore({ entries: safe.entries, index: safe.index }).catch(() => {});
+            // The in-memory page states of this tab's last view, if any.
+            const r = withLivePageStates(safe, opts.restorePageState?.() === true ? live : null);
+            own = r.entries.map((e) => ({ url: e.url, own: typeof e.pageState === 'string' }));
+            void nh.restore({ entries: r.entries, index: r.index }).catch(() => {});
             return true;
           } catch {
             return false;
@@ -224,12 +265,17 @@ export function createViewsPort(windowHost) {
             if (nh && typeof nh.getAllEntries === 'function') {
               let entries = nh.getAllEntries();
               let index = nh.getActiveIndex();
+              let start = 0;
               if (entries.length > NAV_ENTRY_CAP) {
-                const start = Math.max(0, index - Math.floor(NAV_ENTRY_CAP / 2));
+                start = Math.max(0, index - Math.floor(NAV_ENTRY_CAP / 2));
                 entries = entries.slice(start, start + NAV_ENTRY_CAP);
                 index -= start;
               }
-              navJson = JSON.stringify({ entries, index });
+              // Memory only, for this tab's next view (never in navJson).
+              livePageStates.record(tabId, onlyOwnStates(entries, start), index);
+              // url + title only (0.3.2): Chromium's pageState (form text
+              // of every frame) and user:pass@ never reach state.json.
+              navJson = cleanNavJson(JSON.stringify({ entries, index }));
             }
           } catch { /* url fallback is fine */ }
           return { canGoBack: back, canGoForward: fwd, navJson };
@@ -296,7 +342,7 @@ export function createViewsPort(windowHost) {
             .then((/** @type {Electron.NativeImage} */ img) => {
               if (img.isEmpty()) return false;
               const resized = img.getSize().width > width ? img.resize({ width }) : img;
-              fs.writeFileSync(thumbPath(tabId), resized.toPNG());
+              fs.writeFileSync(thumbPath(tabId), resized.toPNG(), { mode: 0o600 });
               return true;
             })
             .catch(() => false)
@@ -313,9 +359,19 @@ export function createViewsPort(windowHost) {
         capturePageState() {
           // A frozen page never runs the script — executeJavaScript would
           // queue silently until thaw (measured). The engine captured state
-          // before freezing; answer null so nothing waits on it.
-          if (dead || frozen) return Promise.resolve(null);
-          const p = wc.executeJavaScript(CAPTURE_SCRIPT).catch(() => null)
+          // before freezing; answer undefined (keep it) so nothing waits on it.
+          if (dead || frozen) return Promise.resolve(undefined);
+          // undefined = could not capture (the engine keeps the last
+          // snapshot); null = the page holds nothing worth keeping.
+          const p = wc.executeJavaScript(CAPTURE_SCRIPT)
+            .then((/** @type {unknown} */ v) => {
+              if (v !== CAPTURE_FAILED) return v;
+              log('views', `page state not captured for ${tabId}: the script failed`);
+              return undefined;
+            }, (/** @type {unknown} */ err) => {
+              log('views', `page state not captured for ${tabId}: ${String(err).split('\n')[0]}`);
+              return undefined;
+            })
             .finally(() => { if (pageStateInFlight === p) pageStateInFlight = null; });
           pageStateInFlight = p;
           return p;

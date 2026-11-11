@@ -6,6 +6,7 @@ import { icons } from '../icons.js';
 import { esc, captureFocusedField, restoreFocusedField } from './util.js';
 import { hostOf } from '../../shared/rules.js';
 import { permissionAskTitle } from '../../shared/permissions.js';
+import { askConfirm, confirmClearSiteData } from './confirm.js';
 
 /** @type {HTMLElement} */ let toastRoot;
 /** @type {HTMLElement} */ let ctxRoot;
@@ -27,7 +28,7 @@ export function initOverlays(/** @type {HTMLElement} */ toasts, /** @type {HTMLE
       // resource warning for five minutes as a side effect.
       const l = store.local;
       const somethingElseOpen = Boolean(
-        l.ctxMenu || l.settingsOpen || l.historyOpen || l.downloadsOpen || l.paletteOpen || l.organizeOpen || l.limitPromptId || l.renamingId || l.externalAsk || l.permissionAsk,
+        l.ctxMenu || l.settingsOpen || l.historyOpen || l.downloadsOpen || l.paletteOpen || l.organizeOpen || l.limitPromptId || l.renamingId || l.externalAsk || l.permissionAsk || l.confirmOpen,
       );
       const alert = store.snap?.runaway;
       if (alert && !somethingElseOpen) void api.runawayResolve(alert.tabId, 'snooze');
@@ -102,7 +103,18 @@ export function renderCtxMenu() {
       else if (act === 'newfolder') void api.folderCreate('New folder', id);
       else if (act === 'rename') store.setLocal({ renamingId: id });
       else if (act === 'sleepall') void api.folderSleepAll(id);
-      else if (act === 'delete') void api.nodeRemove(id);
+      else if (act === 'delete') {
+        // A folder takes its tabs with it: ask first. Closing one tab does not.
+        const f = store.folderById(id);
+        if (!f) { void api.nodeRemove(id); return; }
+        const n = store.subtreeStats(id).tabs;
+        void askConfirm({
+          title: `Delete the folder “${f.name}”?`,
+          body: n === 0 ? 'The folder is empty.' : `Its ${n} tab${n === 1 ? '' : 's'} will be closed and removed. This cannot be undone.`,
+          yes: 'Delete folder',
+          stillValid: () => Boolean(store.folderById(id)),
+        }).then((yes) => { if (yes) void api.nodeRemove(id); });
+      }
       else if (act === 'wake') void api.tabActivate(id);
       else if (act === 'sleep') void api.tabSleep(id);
       else if (act === 'freeze') void api.tabFreeze(id);
@@ -112,13 +124,7 @@ export function renderCtxMenu() {
       else if (act === 'clearsitedata') {
         const t = store.tabById(id);
         const host = t ? hostOf(t.url) : null;
-        if (host) {
-          void api.siteDataClear(host).then(() => {
-            // A running tab shows the effect immediately; a sleeping one
-            // simply wakes clean later.
-            if (t && t.state !== 'asleep') void api.navReload(id);
-          });
-        }
+        if (host) void confirmClearSiteData(host, id, Boolean(t && t.state !== 'asleep'));
       }
     }));
 }

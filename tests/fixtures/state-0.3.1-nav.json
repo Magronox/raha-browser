@@ -1,0 +1,47 @@
+{
+ "schemaVersion": 2,
+ "activeTabId": "t_a",
+ "tree": {
+  "rootId": "root",
+  "nodes": {
+   "root": {
+    "id": "root",
+    "type": "folder",
+    "name": "All tabs",
+    "parentId": null,
+    "childIds": [
+     "t_a"
+    ],
+    "collapsed": false
+   },
+   "t_a": {
+    "id": "t_a",
+    "type": "tab",
+    "parentId": "root",
+    "url": "https://poems.example/search?q=moon",
+    "title": "Moon poems",
+    "faviconUrl": null,
+    "keepAlive": false,
+    "memLimitMB": null,
+    "createdAt": 1,
+    "lastActiveAt": 1,
+    "navJson": "{\"entries\": [{\"url\": \"https://name:secret@mail.example/inbox\", \"title\": \"Inbox\", \"pageState\": \"AAAAtyped-letter-to-a-friendAAAA\"}, {\"url\": \"https://poems.example/search?q=moon\", \"title\": \"Moon poems\", \"pageState\": \"BBBBsearch-box-moonlightBBBB\"}, {\"url\": \"file:///etc/passwd\", \"title\": \"x\", \"pageState\": \"\"}], \"index\": 1}",
+    "pageState": {
+     "v": 1,
+     "url": "https://poems.example/search?q=moon",
+     "at": 1,
+     "sx": 0,
+     "sy": 120,
+     "fields": [
+      {
+       "p": "0/0",
+       "n": "input:text:q",
+       "k": "text",
+       "v": "moonlight on water"
+      }
+     ]
+    }
+   }
+  }
+ }
+}

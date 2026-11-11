@@ -6,7 +6,7 @@ import { app, BaseWindow, WebContentsView, session } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { contentRect } from '../../shared/layout.js';
-import { UI_CHROME_URL, isUiChromeUrl } from '../../shared/urls.js';
+import { UI_CHROME_URL, isUiChromeUrl, withoutCredentials } from '../../shared/urls.js';
 import { ALL_INVOKE_CHANNELS, ALL_EVENT_CHANNELS } from '../../shared/ipc-contract.js';
 import { installRahaProtocol } from './protocol.js';
 import { standardUserAgent, alignSessionClientHints } from './privacy.js';
@@ -33,6 +33,11 @@ export function createMainWindow() {
   // re-broadcasts the automation tell the web session stopped sending.
   alignSessionClientHints(uiSession);
   installRahaProtocol(uiSession, { allowThumbs: true, allowChrome: true });
+  // No spellcheck in the chrome. The spellcheck setting covers web pages only;
+  // the chrome's session keeps the no-download address that
+  // silenceSpellcheck (privacy.js, on 'session-created') gave it.
+  // https://www.electronjs.org/docs/latest/api/session#sessetspellcheckerenabledenable
+  uiSession.setSpellCheckerEnabled(false);
 
   const preloadPath = path.join(
     path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'preload', 'ui.cjs',
@@ -44,6 +49,7 @@ export function createMainWindow() {
       sandbox: true,
       contextIsolation: true,
       nodeIntegration: false,
+      spellcheck: false, // see setSpellCheckerEnabled above
       // Hand the preload its channel allow-list. A sandboxed preload is CJS
       // and cannot import the ESM contract, and additionalArguments is the
       // documented way to pass small data down to one — so the contract stays
@@ -71,12 +77,12 @@ export function createMainWindow() {
   const denyNavigation = (/** @type {Electron.Event} */ e, /** @type {string} */ url) => {
     if (isUiChromeUrl(url)) return;
     e.preventDefault();
-    log('ui', `blocked chrome-view navigation to ${url.slice(0, 120)}`);
+    log('ui', `blocked chrome-view navigation to ${withoutCredentials(url).slice(0, 120)}`);
   };
   uiView.webContents.on('will-navigate', denyNavigation);
   uiView.webContents.on('will-redirect', denyNavigation);
   uiView.webContents.setWindowOpenHandler(({ url }) => {
-    log('ui', `blocked chrome-view window.open to ${String(url).slice(0, 120)}`);
+    log('ui', `blocked chrome-view window.open to ${withoutCredentials(url).slice(0, 120)}`);
     return { action: 'deny' };
   });
 

@@ -305,6 +305,7 @@ img { -webkit-user-drag: none; }
 /* ---------- modals ---------- */
 #settings.open, #history.open, #organize.open, #prompt.open { position: fixed; inset: 0; z-index: 60; }
 #runaway.open { position: fixed; inset: 0; z-index: 70; } /* above other modals: it is an alert */
+#confirm.open { position: fixed; inset: 0; z-index: 80; } /* the question about the panel's own button */
 .modal-backdrop { position: absolute; inset: 0; background: rgba(5, 8, 12, 0.6); }
 .modal {
   position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);

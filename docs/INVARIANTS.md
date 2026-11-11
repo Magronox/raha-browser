@@ -44,11 +44,13 @@ freezes and thaws the page, ADR-0014) — that is not a bridge: nothing is
 exposed to the page, and the page cannot reach it.
 *Why:* a compromised page must find nothing to escalate through.
 
-## #6 — Raha is silent on the network, except the optional update check
+## #6 — No telemetry; what Raha fetches on its own is listed here
 No telemetry, no list downloads, no favicon *proxying* (the chrome loads them
-straight from the site, so nothing is routed through us). The only server Raha
-itself contacts is GitHub Releases, for the security-update check (ADR-0008) — on by default, off with the `autoUpdate`
-setting, packaged builds only. One disclosed opt-in exists beside it:
+straight from the site, so nothing is routed through us). Raha itself
+contacts GitHub Releases for the security-update check (ADR-0008); on
+Windows, and on Linux where the package supports it, the check also
+downloads and installs new versions. It is on
+by default, off with the `autoUpdate` setting, packaged builds only. One disclosed opt-in exists beside it:
 spellcheck set to *Always* on Windows/Linux fetches a Hunspell dictionary
 from Google's CDN once (R-118; the setting's own text says so, and the
 default never does it — macOS uses the OS checker offline). Everything else on the wire is what pages

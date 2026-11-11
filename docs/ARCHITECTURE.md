@@ -58,7 +58,8 @@ plus calm organization on top.
 ```
 
 Sleep saves navigation history (`navigationHistory.getAllEntries`, capped to
-25 entries) into the tab node (`navJson`); wake restores it
+25 entries) into the tab node (`navJson`), each entry's url (no user:pass@)
+and title only, never Chromium's per-entry page state (0.3.2, `cleanNavJson`); wake restores it
 (`navigationHistory.restore`) so back/forward survive. On boot, EVERY tab is
 asleep (cold start costs ~0 tab memory) — the user wakes what they need.
 
@@ -87,8 +88,14 @@ profile/
 ```
 
 Writes are atomic (tmp + fsync + rename), debounced by a dirty flag, flushed
-every tick and at shutdown. Corrupt files are backed up (`*.corrupt-<ts>`) and
-rebuilt; `repairTree` salvages every valid tab from a broken tree. Schema
+every tick and at shutdown. A file Raha cannot read (or of the wrong shape) is
+copied aside as `*.corrupt-<ts>`, one from a newer Raha as `*.newer-<ts>`,
+before anything writes over it; if the copy fails the file is not written
+over at all (`src/main/electron/json-files.js`), and the person is told
+once. A copy of a file Raha could parse is written cleaned
+(`scrubProfileValue`: no page state, no name or password in addresses); an
+unparseable one is copied as it was and named in the notice. The newest three
+copies per file are kept. Then it is rebuilt; `repairTree` salvages every valid tab from a broken tree. Schema
 changes go through `src/shared/migrate.js` (invariant #8).
 
 ## The UI

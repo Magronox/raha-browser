@@ -136,6 +136,8 @@ export const api = {
   onOpenPalette: (h) => bridge().on(EVENT.openPalette, () => h()),
   /** @param {() => void} h */
   onOpenFind: (h) => bridge().on(EVENT.openFind, () => h()),
+  /** @param {(r: { tabId: string, host: string }) => void} h */
+  onAskClearSiteData: (h) => bridge().on(EVENT.askClearSiteData, /** @type {(p: unknown) => void} */ (h)),
   /** @param {(r: { tabId: string, matches: number, activeMatchOrdinal: number }) => void} h */
   onFindResult: (h) => bridge().on(EVENT.findResult, /** @type {(p: unknown) => void} */ (h)),
   /** @param {() => void} h */

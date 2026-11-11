@@ -130,6 +130,70 @@ export function sanitizeNavEntries(parsed) {
   return { entries, index: Math.min(index, entries.length - 1) };
 }
 
+/**
+ * A tab's back/forward steps as they may be written to disk (0.3.2): each
+ * entry's address (without a name or password before the host) and title,
+ * nothing else. Chromium's own `pageState` blob is never kept: it carries
+ * the text of every form field in every frame, passwords included, and
+ * cannot be filtered. Unsafe entries are dropped (sanitizeNavEntries).
+ * Null when nothing is left or the input is not a nav list.
+ * @param {unknown} navJson
+ * @returns {string|null}
+ */
+export function cleanNavJson(navJson) {
+  if (typeof navJson !== 'string' || !navJson) return null;
+  /** @type {unknown} */ let parsed;
+  try { parsed = JSON.parse(navJson); } catch { return null; }
+  const safe = sanitizeNavEntries(parsed);
+  if (!safe) return null;
+  const entries = safe.entries.map((e) => ({
+    url: withoutCredentials(e.url),
+    title: typeof e?.title === 'string' ? e.title.slice(0, 1000) : '',
+  }));
+  return JSON.stringify({ entries, index: safe.index });
+}
+
+/**
+ * The entries a woken tab hands Chromium (views.js restoreHistory). Saved
+ * entries carry only url and title (A2), but Chromium needs an entry's own
+ * `pageState` to treat a failed Back as that entry: without it, the error
+ * page commits OVER the entry the user came from, so Back to a dead entry
+ * (a blob: whose data died with the old renderer) bounces on it forever.
+ * So the adapter keeps each sleeping tab's pageStates in memory, never on
+ * disk (`live`), and this gives them back to the entries they came from,
+ * in order, by URL (all but the active entry). A blob: entry that has none (after a restart, or
+ * past the in-memory cap) is dropped unless it is the active one: it cannot
+ * load again, and keeping it would trap Back.
+ * @param {{ entries: { url: string, title: string }[], index: number }} safe sanitizeNavEntries' answer
+ * @param {{ urls: string[], states: (string|null)[] }|null|undefined} live
+ * @returns {{ entries: { url: string, title: string, pageState?: string }[], index: number }}
+ */
+export function withLivePageStates(safe, live) {
+  /** @type {{ url: string, title: string, pageState?: string }[]} */ const entries = [];
+  let index = 0;
+  let j = 0;
+  for (const [i, e] of safe.entries.entries()) {
+    /** @type {string|null} */ let state = null;
+    // The entry on screen never gets one: what the page shows on waking is
+    // R-104's job, under the restorePageState setting. Only the entries
+    // Back and Forward lead to need theirs.
+    // The active entry still uses up its own slot in the live copy, or a
+    // later entry with the same URL would take the active one's state.
+    if (live) {
+      let k = j;
+      while (k < live.urls.length && live.urls[k] !== e.url) k += 1;
+      if (k < live.urls.length) {
+        j = k + 1;
+        if (i !== safe.index) { const st = live.states[k]; state = typeof st === 'string' && st ? st : null; }
+      }
+    }
+    if (state === null && i !== safe.index && /^blob:/i.test(e.url)) continue;
+    entries.push(state === null ? { url: e.url, title: e.title } : { url: e.url, title: e.title, pageState: state });
+    if (i <= safe.index) index = entries.length - 1;
+  }
+  return { entries, index };
+}
+
 /** The one page the UI chrome view is ever allowed to be on. */
 export const UI_CHROME_URL = 'raha://app/index.html';
 
@@ -155,8 +219,22 @@ export function isUiChromeUrl(url) {
  */
 export function displayUrl(url) {
   if (!url) return '';
-  if (url.startsWith('https://')) return url.slice('https://'.length);
-  return url;
+  const bare = withoutCredentials(url);
+  if (bare.startsWith('https://')) return bare.slice('https://'.length);
+  return bare;
+}
+
+/**
+ * The address without a name or password before the host
+ * (`https://name:secret@site/` -> `https://site/`), nothing else changed.
+ * For everything shown or saved (0.3.2); the live tab keeps its address.
+ * A backslash ends the authority too (WHATWG reads it as / in http(s)), so
+ * `https://evil.example\@good.example` is never cut down to good.example.
+ * @param {unknown} url
+ * @returns {string}
+ */
+export function withoutCredentials(url) {
+  return String(url ?? '').replace(/^(https?:\/\/)[^/?#\\]*@/i, '$1');
 }
 
 /**
@@ -202,4 +280,26 @@ export function findTabByUrl(tabs, url) {
   if (key == null) return null;
   for (const t of tabs) if (pageKey(t.url) === key) return t;
   return null;
+}
+
+/**
+ * A copy of a profile file Raha could parse but will not use (one from a
+ * newer Raha, or of the wrong shape), cleaned the way the live files are
+ * (0.3.2): no page state of any kind, back/forward steps as url and title
+ * only, and no name or password in any address. Works on any shape, since a
+ * newer Raha's file is not ours to know.
+ * @param {unknown} value parsed JSON
+ * @returns {unknown}
+ */
+export function scrubProfileValue(value) {
+  if (typeof value === 'string') return /^https?:\/\//i.test(value) ? withoutCredentials(value) : value;
+  if (Array.isArray(value)) return value.map(scrubProfileValue);
+  if (value === null || typeof value !== 'object') return value;
+  /** @type {Record<string, unknown>} */ const out = {};
+  for (const [k, v] of Object.entries(value)) {
+    if (/^pageStates?$/i.test(k)) { out[k] = null; continue; }
+    if (k === 'navJson') { out[k] = cleanNavJson(v); continue; }
+    out[k] = scrubProfileValue(v);
+  }
+  return out;
 }

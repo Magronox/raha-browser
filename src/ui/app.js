@@ -14,6 +14,7 @@ import { initDownloads, render as renderDownloads, openDownloads } from './rende
 import { initPalette, render as renderPalette, openPalette } from './render/palette.js';
 import { initOrganize, render as renderOrganize } from './render/organize.js';
 import { initOverlays, showToast, renderCtxMenu, renderLimitPrompt, renderRunaway } from './render/overlays.js';
+import { initConfirm, confirmClearSiteData } from './render/confirm.js';
 
 function mustGet(/** @type {string} */ id) {
   const el = document.getElementById(id);
@@ -39,6 +40,7 @@ async function main() {
   initDownloads(mustGet('downloads'));
   initOrganize(mustGet('organize'));
   initOverlays(mustGet('toasts'), mustGet('ctxmenu'), mustGet('prompt'), mustGet('runaway'));
+  initConfirm(mustGet('confirm'));
 
   // The page is a NATIVE view layered above the chrome's HTML, so any modal
   // overlapping the content rect renders invisibly behind it. Whenever an
@@ -63,7 +65,7 @@ async function main() {
   const syncOverlay = () => {
     const l = store.local;
     const overlay = l.settingsOpen || l.historyOpen || l.downloadsOpen || l.paletteOpen || l.organizeOpen
-      || Boolean(l.limitPromptId) || l.defaultBrowserAsk || Boolean(l.externalAsk) || Boolean(l.permissionAsk) || Boolean(store.snap?.runaway);
+      || Boolean(l.limitPromptId) || l.defaultBrowserAsk || Boolean(l.externalAsk) || Boolean(l.permissionAsk) || l.confirmOpen || Boolean(store.snap?.runaway);
     if (overlay !== overlayWas) {
       overlayWas = overlay;
       void api.overlaySet(overlay);
@@ -143,11 +145,16 @@ async function main() {
     // backdrop — same predicate as syncOverlay.
     const l = store.local;
     if (l.settingsOpen || l.historyOpen || l.downloadsOpen || l.paletteOpen || l.organizeOpen
-      || Boolean(l.limitPromptId) || l.defaultBrowserAsk || Boolean(l.externalAsk) || Boolean(l.permissionAsk) || Boolean(store.snap?.runaway)) return;
+      || Boolean(l.limitPromptId) || l.defaultBrowserAsk || Boolean(l.externalAsk) || Boolean(l.permissionAsk) || l.confirmOpen || Boolean(store.snap?.runaway)) return;
     store.setLocal({ findOpen: true });
     focusFind();
   };
   api.onOpenFind(openFind);
+  // The page's right-click Clear site data: the same question as the tab menu's.
+  api.onAskClearSiteData((r) => {
+    const t = store.tabById(r.tabId);
+    void confirmClearSiteData(r.host, r.tabId, Boolean(t && t.state !== 'asleep'));
+  });
   const toggleSidebar = () => store.setLocal({ sidebarHidden: !store.local.sidebarHidden });
   // Command palette (R-111): its chrome-level moves are handed in, the rest
   // it reaches through api/store like any panel.

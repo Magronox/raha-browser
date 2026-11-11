@@ -4,7 +4,7 @@
 // validates ids and clamps numbers. Events flow back via pushSnapshot/toast.
 import { app, dialog, ipcMain, session } from 'electron';
 import { INVOKE, EVENT } from '../../shared/ipc-contract.js';
-import { isUiChromeUrl } from '../../shared/urls.js';
+import { isUiChromeUrl, withoutCredentials } from '../../shared/urls.js';
 import { normalizeSiteHost } from '../../shared/validate.js';
 import { clearSiteData, clearAllSiteData } from './site-data.js';
 import { WEB_PARTITION } from './views.js';
@@ -120,7 +120,7 @@ export function wireIpc(engine, uiView) {
   for (const [channel, fn] of Object.entries(handlers)) {
     ipcMain.handle(channel, (event, payload) => {
       if (!isTrustedSender(event)) {
-        log('ipc', `refused ${channel} from an untrusted frame (${event.senderFrame?.url ?? 'gone'})`);
+        log('ipc', `refused ${channel} from an untrusted frame (${event.senderFrame ? withoutCredentials(event.senderFrame.url) : 'gone'})`);
         throw new Error('refused: untrusted sender');
       }
       return fn(payload);
@@ -154,6 +154,8 @@ export function wireIpc(engine, uiView) {
     openDownloads() { send(EVENT.openDownloads, {}); },
     openPalette() { send(EVENT.openPalette, {}); },
     openFind() { send(EVENT.openFind, {}); },
+    /** @param {{ tabId: string, host: string }} r */
+    askClearSiteData(r) { send(EVENT.askClearSiteData, { tabId: r.tabId, host: r.host }); },
     /** @param {{ id: number, url: string, scheme: string|null, app: string }} r */
     askExternal(r) { send(EVENT.askExternal, { id: r.id, url: r.url, scheme: r.scheme, app: r.app }); },
     /** @param {import('../../shared/ipc-contract.js').PermissionAsk|null} ask null withdraws the ask on screen */

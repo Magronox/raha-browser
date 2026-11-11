@@ -11,6 +11,7 @@ import { createMockMain, seedDemo } from './mock-bridge.mjs';
 import { EVENT } from '../../src/shared/ipc-contract.js';
 import { INVOKE } from '../../src/shared/ipc-contract.js';
 import { must, ok } from '../helpers.js';
+import { recordVisit } from '../../src/shared/history.js';
 
 const repoRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const shotsDir = path.join(repoRoot, 'docs', 'screenshots');
@@ -55,14 +56,23 @@ const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 820 } });
 
 // --- bridge: window.raha over exposeFunction, events via __rahaEmit
-await page.exposeFunction('__rahaInvoke', (/** @type {string} */ channel, /** @type {unknown} */ payload) =>
-  mock.invoke(channel, payload));
+// Calls the page has sent, and calls that have reached the mock: a binding call can arrive after the
+// keyboard.press() or click() that made it has returned, so pump() first waits until every call sent has
+// arrived (arrived, not answered: a scenario may hold an answer back on purpose).
+let invokesArrived = 0;
+await page.exposeFunction('__rahaInvoke', (/** @type {string} */ channel, /** @type {unknown} */ payload) => {
+  invokesArrived += 1;
+  return mock.invoke(channel, payload);
+});
 await page.addInitScript(() => {
   /** @type {Map<string, Set<(p: unknown) => void>>} */
   const listeners = new Map();
   /** @type {any} */ (window).raha = {
     version: '0.1.0-harness',
-    invoke: (/** @type {string} */ c, /** @type {unknown} */ p) => /** @type {any} */ (window).__rahaInvoke(c, p),
+    invoke: (/** @type {string} */ c, /** @type {unknown} */ p) => {
+      /** @type {any} */ (window).__rahaInvokesSent = (/** @type {any} */ (window).__rahaInvokesSent ?? 0) + 1;
+      return /** @type {any} */ (window).__rahaInvoke(c, p);
+    },
     on: (/** @type {string} */ c, /** @type {(p: unknown) => void} */ h) => {
       if (!listeners.has(c)) listeners.set(c, new Set());
       listeners.get(c)?.add(h);
@@ -78,6 +88,8 @@ await page.addInitScript(() => {
 let pageReady = false;
 const pump = async () => {
   if (!pageReady) return;
+  const sent = await page.evaluate(() => /** @type {any} */ (window).__rahaInvokesSent ?? 0);
+  for (let i = 0; i < 200 && invokesArrived < sent; i += 1) await new Promise((r) => setTimeout(r, 5));
   const evts = mock.drainEvents();
   if (evts.length === 0) return;
   const hasSnapshot = evts.some((e) => e.type === 'snapshot');
@@ -85,6 +97,7 @@ const pump = async () => {
     if (e.type === 'toast') await page.evaluate(([c, p]) => /** @type {any} */ (window).__rahaEmit(c, p), [EVENT.toast, e]);
     if (e.type === 'findResult') await page.evaluate(([c, p]) => /** @type {any} */ (window).__rahaEmit(c, p), [EVENT.findResult, e]);
     if (e.type === 'askExternal') await page.evaluate(([c, p]) => /** @type {any} */ (window).__rahaEmit(c, p), [EVENT.askExternal, e]);
+    if (e.type === 'askClearSiteData') await page.evaluate(([c, p]) => /** @type {any} */ (window).__rahaEmit(c, p), [EVENT.askClearSiteData, e]);
     if (e.type === 'askPermission') await page.evaluate(([c, p]) => /** @type {any} */ (window).__rahaEmit(c, p), [EVENT.askPermission, e.ask]);
   }
   if (hasSnapshot) {
@@ -1064,6 +1077,22 @@ await t('site-permission ask: right words for the active tab; once/always/never/
   });
   const title = () => page.$eval('.modal.mini .perm-title', (el) => el.textContent ?? '');
 
+  // Not now: refused, nothing remembered. An embedded frame's ask says so —
+  // and that frame's host is page-controlled, so it must render inert.
+  // (Location: since 0.3.2 a frame of another site is not asked about
+  // notifications or the clipboard at all.)
+  const p0 = req(['geolocation'], { requestingHost: '<img src=x onerror="window.__xssPerm=1">', isMainFrame: false });
+  await pump();
+  await page.waitForSelector('[data-perm-dismiss]');
+  const frame = await page.$eval('.perm-frame', (el) => el.textContent ?? '');
+  assert(frame.includes('Asked by an embedded frame from <img src=x'), `frame line: ${frame}`);
+  assert((await page.evaluate(() => /** @type {any} */ (window).__xssPerm)) === undefined, 'hostile frame host executed');
+  await page.click('.modal.mini button[data-perm-dismiss]');
+  await page.waitForSelector('[data-perm="once"]', { state: 'detached' });
+  await pump();
+  assert((await p0) === false, 'Not now refuses');
+  assert(mock.engine.settings.sitePermissions['meet.example']?.geolocation === undefined, 'Not now remembers nothing');
+
   // Allow once: granted, nothing remembered.
   const p1 = req(['microphone', 'camera']);
   await pump();
@@ -1104,19 +1133,11 @@ await t('site-permission ask: right words for the active tab; once/always/never/
   await pump();
   assert((await page.$('[data-perm="once"]')) === null, 'no modal for a remembered deny');
 
-  // Not now: refused, nothing remembered. An embedded frame's ask says so —
-  // and that frame's host is page-controlled, so it must render inert.
-  const p4 = req(['clipboard'], { requestingHost: '<img src=x onerror="window.__xssPerm=1">', isMainFrame: false });
+  // A frame of another site asking for the clipboard: refused, no modal.
+  const p4 = req(['clipboard'], { requestingHost: 'ads.example', isMainFrame: false });
   await pump();
-  await page.waitForSelector('[data-perm-dismiss]');
-  const frame = await page.$eval('.perm-frame', (el) => el.textContent ?? '');
-  assert(frame.includes('Asked by an embedded frame from <img src=x'), `frame line: ${frame}`);
-  assert((await page.evaluate(() => /** @type {any} */ (window).__xssPerm)) === undefined, 'hostile frame host executed');
-  await page.click('.modal.mini button[data-perm-dismiss]');
-  await page.waitForSelector('[data-perm="once"]', { state: 'detached' });
-  await pump();
-  assert((await p4) === false, 'Not now refuses');
-  assert(mock.engine.settings.sitePermissions['meet.example']?.clipboard === undefined, 'Not now remembers nothing');
+  assert((await p4) === false, 'a cross-site frame is refused');
+  assert((await page.$('[data-perm-dismiss]')) === null, 'and nothing is asked');
 
   // …so the site asks again; Escape is Not now too.
   const p5 = req(['clipboard']);
@@ -1709,6 +1730,161 @@ await t('sidebar scroll position survives governor-tick re-renders', async () =>
   assert(after === scrolled, `sidebar scroll jumped after re-render: ${scrolled} -> ${after}`);
   for (const id of made) mock.engine.nodeRemove({ nodeId: id });
   await pump();
+});
+
+// 0.3.2: every route that deletes or clears asks first (render/confirm.js).
+/** The question on screen: its text, and which button has the focus. */
+const confirmShown = () => page.$eval('#confirm .modal', (el) => ({
+  title: el.querySelector('h3')?.textContent ?? '',
+  body: el.querySelector('.mini-sub')?.textContent ?? '',
+  focusedCancel: document.activeElement === el.querySelector('button[data-confirm-no]'),
+}));
+/** Click the affirmative button only once it is armed (ARM_MS = 500). */
+const confirmYes = async () => { await page.waitForTimeout(550); await page.click('#confirm [data-confirm-yes]'); };
+
+await t('confirm: Delete folder names the folder and its tabs; Cancel focused, an early click and Enter ignored, Escape and the backdrop cancel', async () => {
+  const f = ok(mock.engine.folderCreate({ name: 'Evening reading' }));
+  for (const u of ['https://poems.example/moon', 'https://poems.example/river']) ok(mock.engine.tabCreate({ url: u, folderId: f.folderId, activate: false }));
+  await pump();
+  const open = async () => {
+    await page.click(`#sidebar .row[data-id="${f.folderId}"] .name`, { button: 'right' });
+    await pump();
+    await page.click('[data-ctx="delete"]');
+    await page.waitForSelector('#confirm [data-confirm-yes]');
+  };
+  await open();
+  const q = await confirmShown();
+  assert(q.title === 'Delete the folder “Evening reading”?', `title: ${q.title}`);
+  assert(q.body.includes('Its 2 tabs will be closed'), `body: ${q.body}`);
+  assert(q.focusedCancel, 'Cancel has the focus');
+  await page.click('#confirm [data-confirm-yes]'); // at once: ignored
+  await page.focus('#confirm [data-confirm-yes]');
+  await page.keyboard.press('Enter'); // still inside 500 ms: ignored
+  assert((await page.$('#confirm [data-confirm-yes]')) !== null, 'an early click or key does not answer');
+  assert(mock.engine.snapshot().folders.some((x) => x.id === f.folderId), 'nothing deleted');
+  await page.keyboard.press('Escape');
+  await page.waitForSelector('#confirm [data-confirm-yes]', { state: 'detached' });
+  await open();
+  await page.click('#confirm .modal-backdrop', { position: { x: 5, y: 5 } });
+  await page.waitForSelector('#confirm [data-confirm-yes]', { state: 'detached' });
+  await pump();
+  assert(mock.engine.snapshot().folders.some((x) => x.id === f.folderId), 'Escape and the backdrop delete nothing');
+  await open();
+  await confirmYes();
+  await page.waitForSelector('#confirm [data-confirm-yes]', { state: 'detached' });
+  await pump();
+  assert(!mock.engine.snapshot().folders.some((x) => x.id === f.folderId), 'deleted after the question');
+  // Closing one tab is not irreversible enough to ask: no question.
+});
+
+await t('confirm: a question whose folder or tab goes away closes as Cancel', async () => {
+  const f = ok(mock.engine.folderCreate({ name: 'Quiet shelf' }));
+  await pump();
+  await page.click(`#sidebar .row[data-id="${f.folderId}"] .name`, { button: 'right' });
+  await pump();
+  await page.click('[data-ctx="delete"]');
+  await page.waitForSelector('#confirm [data-confirm-yes]');
+  mock.engine.nodeRemove({ nodeId: f.folderId });
+  await pump();
+  await page.waitForSelector('#confirm [data-confirm-yes]', { state: 'detached' });
+  const { tabId } = ok(mock.engine.tabCreate({ url: 'https://meadow.example/', activate: false }));
+  await pump();
+  /** @type {unknown[]} */ const calls = [];
+  const real = mock.handlers[INVOKE.siteDataClear];
+  mock.handlers[INVOKE.siteDataClear] = (p) => { calls.push(p); return real(p); };
+  try {
+    await page.click(`#sidebar .row[data-id="${tabId}"] .name`, { button: 'right' });
+    await pump();
+    await page.click('[data-ctx="clearsitedata"]');
+    await page.waitForSelector('#confirm [data-confirm-yes]');
+    mock.engine.nodeRemove({ nodeId: tabId });
+    await pump();
+    await page.waitForSelector('#confirm [data-confirm-yes]', { state: 'detached' });
+    assert(calls.length === 0, 'nothing cleared for a tab that went away');
+  } finally {
+    mock.handlers[INVOKE.siteDataClear] = real;
+  }
+});
+
+await t('confirm: Clear site data names the host; nothing is cleared until the answer', async () => {
+  const { tabId } = ok(mock.engine.tabCreate({ url: 'https://garden.example/roses', activate: false }));
+  await pump();
+  /** @type {unknown[]} */ const calls = [];
+  const real = mock.handlers[INVOKE.siteDataClear];
+  mock.handlers[INVOKE.siteDataClear] = (p) => { calls.push(p); return real(p); };
+  try {
+    const open = async () => {
+      await page.click(`#sidebar .row[data-id="${tabId}"] .name`, { button: 'right' });
+      await pump();
+      await page.click('[data-ctx="clearsitedata"]');
+      await page.waitForSelector('#confirm [data-confirm-yes]');
+    };
+    await open();
+    const q = await confirmShown();
+    assert(q.title === 'Clear site data for garden.example?', `title: ${q.title}`);
+    assert(q.focusedCancel, 'Cancel has the focus');
+    await page.click('#confirm button[data-confirm-no]');
+    await page.waitForSelector('#confirm [data-confirm-yes]', { state: 'detached' });
+    assert(calls.length === 0, 'Cancel clears nothing');
+    await open();
+    await confirmYes();
+    await page.waitForSelector('#confirm [data-confirm-yes]', { state: 'detached' });
+    assert(calls.length === 1 && /** @type {any} */ (calls[0]).host === 'garden.example', `cleared: ${JSON.stringify(calls)}`);
+  } finally {
+    mock.handlers[INVOKE.siteDataClear] = real;
+    mock.engine.nodeRemove({ nodeId: tabId });
+    await pump();
+  }
+});
+
+await t('confirm: the page\'s right-click Clear site data asks the same question in the window (evt:askClearSiteData)', async () => {
+  const { tabId } = ok(mock.engine.tabCreate({ url: 'https://orchard.example/', activate: true }));
+  await pump();
+  /** @type {unknown[]} */ const calls = [];
+  const real = mock.handlers[INVOKE.siteDataClear];
+  mock.handlers[INVOKE.siteDataClear] = (p) => { calls.push(p); return real(p); };
+  try {
+    must(mock.world.viewsByTab.get(tabId), 'view').simulateAskClearSiteData('orchard.example');
+    await pump();
+    await page.waitForSelector('#confirm [data-confirm-yes]');
+    const q = await confirmShown();
+    assert(q.title === 'Clear site data for orchard.example?', `title: ${q.title}`);
+    assert(q.focusedCancel, 'Cancel has the focus');
+    await page.click('#confirm [data-confirm-yes]'); // at once: ignored
+    assert(calls.length === 0, 'an early click clears nothing');
+    await confirmYes();
+    await page.waitForSelector('#confirm [data-confirm-yes]', { state: 'detached' });
+    assert(calls.length === 1 && /** @type {any} */ (calls[0]).host === 'orchard.example', `cleared: ${JSON.stringify(calls)}`);
+  } finally {
+    mock.handlers[INVOKE.siteDataClear] = real;
+    mock.engine.nodeRemove({ nodeId: tabId });
+    await pump();
+  }
+});
+
+await t('confirm: Clear history asks; Escape cancels only the question, the panel stays open', async () => {
+  mock.engine.history.entries = recordVisit(mock.engine.history.entries, { url: 'https://stars.example/night', title: 'Night', nowMs: Date.now() });
+  const before = mock.engine.historyList({}).entries.length;
+  assert(before > 0, 'a visit to clear');
+  await page.click('[data-act="history"]');
+  await page.waitForSelector('.modal.history');
+  await page.click('[data-hist-clear]');
+  await page.waitForSelector('#confirm [data-confirm-yes]');
+  const q = await confirmShown();
+  assert(q.title === 'Clear all history?', `title: ${q.title}`);
+  assert(q.focusedCancel, 'Cancel has the focus');
+  await page.keyboard.press('Escape');
+  await page.waitForSelector('#confirm [data-confirm-yes]', { state: 'detached' });
+  assert((await page.$('.modal.history')) !== null, 'Escape closed only the question');
+  assert(await page.evaluate(() => document.activeElement?.matches('[data-hist-clear]') ?? false), 'focus is back on Clear history');
+  assert(mock.engine.historyList({}).entries.length === before, 'nothing cleared');
+  await page.click('[data-hist-clear]');
+  await page.waitForSelector('#confirm [data-confirm-yes]');
+  await confirmYes();
+  await page.waitForSelector('#confirm [data-confirm-yes]', { state: 'detached' });
+  assert(mock.engine.historyList({}).entries.length === 0, 'cleared after the question');
+  await page.keyboard.press('Escape');
+  await page.waitForSelector('.modal.history', { state: 'detached' });
 });
 
 await t('IPC contract coverage: every INVOKE channel has a mock handler', () => {

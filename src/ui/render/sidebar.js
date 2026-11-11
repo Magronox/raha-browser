@@ -5,6 +5,7 @@ import { store } from '../store.js';
 import { icons } from '../icons.js';
 import { esc, faviconHtml, wireImgFallbacks, MOD, captureFocusedField, restoreFocusedField, captureScrollTop, restoreScrollTop } from './util.js';
 import { wireDnd, isDragging } from '../dnd.js';
+import { withoutCredentials } from '../../shared/urls.js';
 import { openOrganize } from './organize.js';
 
 /** @type {HTMLElement} */ let root;
@@ -44,7 +45,7 @@ export function render() {
         const t = child.tab;
         rows.push(`
           <div class="row tab state-${t.state}" draggable="true"
-               data-id="${esc(t.id)}" data-kind="tab" data-depth="${depth}" title="${esc(t.title)}\n${esc(t.url)}">
+               data-id="${esc(t.id)}" data-kind="tab" data-depth="${depth}" title="${esc(t.title)}\n${esc(withoutCredentials(t.url))}">
             ${t.state === 'frozen' ? `<span class="mini frost" title="Frozen: no CPU, memory kept — click to continue">${icons.snowflake}</span>` : `<span class="dot" title="${t.state}"></span>`}
             <span class="fav">${faviconHtml(t)}</span>
             <span class="name" data-activate="${esc(t.id)}">${esc(t.title)}</span>
