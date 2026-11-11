@@ -27,6 +27,7 @@
  * @property {any} openTabsReport  last open-tabs import result ({windows,tabs,problems} or {error})
  * @property {boolean} organizeOpen
  * @property {any} organizePlan  preview from organize:preview; null = fetch in flight
+ * @property {boolean} confirmOpen  an irreversible action's question is on screen (render/confirm.js)
  * @property {boolean} findOpen  find-in-page bar visible (Cmd/Ctrl+F; only with an active tab).
  *           The match count itself is topbar module state, NOT store state — a
  *           result re-render would abort IME compositions in the find box.
@@ -62,6 +63,7 @@ const local = {
   organizeOpen: false,
   organizePlan: null,
   findOpen: false,
+  confirmOpen: false,
 };
 
 /** @type {Set<() => void>} */

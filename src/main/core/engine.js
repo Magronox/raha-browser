@@ -19,9 +19,13 @@
 //                                               onAudible,onDestroyed,onOpenUrl,
 //                                               onBlocked,onSearchSelection,
 //                                               onFindResult(matches, activeMatchOrdinal),
+//                                               onAskClearSiteData(host)  page menu (0.3.3),
 //                                               onLoadFailed()  main-frame load failed;
 //                                               the error page's synthetic title follows}
 //   }
+//   views.forgetTab(tabId)      the tab closed: drop the adapter's in-memory
+//                               page states for it (0.3.3, live-page-states.js)
+//   views.clearPageStates()     restorePageState turned off: drop them all
 //   ViewHandle: { loadURL(url), restoreHistory(navJson)->boolean, destroy(),
 //                 focus(), back(), forward(), reload(), hardReload(), stop(),
 //                 getNav()->{canGoBack,canGoForward,navJson},
@@ -29,7 +33,8 @@
 //                 captureThumb({full?})->Promise<boolean>  full: keep the
 //                                  frame large (the frozen stage shows it), zoom(dir),
 //                 findInPage(text, {forward, newSession}), stopFind(action),
-//                 capturePageState()->Promise<unknown|null>,
+//                 capturePageState()->Promise<unknown|null|undefined>  null: nothing
+//                                  to keep; undefined: could not capture (keep the last)
 //                 restorePageState(state)->void,
 //                 freeze()->Promise<boolean>   suspend in place (ADR-0014):
 //                                  Chromium page lifecycle 'frozen' over the
@@ -68,6 +73,8 @@
 //                            | {type:'focusOmnibox'}
 //                            | {type:'findResult', tabId, matches, activeMatchOrdinal}
 //                            | {type:'askExternal', url, scheme, app}
+//                            | {type:'askClearSiteData', tabId, host}  the page's
+//                              right-click Clear site data: the chrome asks (0.3.3)
 //                            | {type:'askPermission', ask}   ask = {id, tabId,
 //                              kinds, host, requestingHost, isMainFrame} to
 //                              show, or null to withdraw what is on screen
@@ -90,9 +97,9 @@ import {
 } from '../../shared/tree.js';
 import { decide, runawayAssess, RUNAWAY } from '../../shared/policy.js';
 import { effectivePolicy, hostOf } from '../../shared/rules.js';
-import { resolveOmnibox, searchUrl, isNavigableUrl, findTabByUrl } from '../../shared/urls.js';
+import { resolveOmnibox, searchUrl, isNavigableUrl, findTabByUrl, withoutCredentials, cleanNavJson } from '../../shared/urls.js';
 import { validateSettings, normalizeSiteHost } from '../../shared/validate.js';
-import { isPermissionKind, normalizeKinds, rememberedVerdict, withSitePermission, withoutSitePermission } from '../../shared/permissions.js';
+import { isPermissionKind, normalizeKinds, rememberedVerdict, crossSiteFrameVerdict, withSitePermission, withoutSitePermission } from '../../shared/permissions.js';
 import { sanitizePageState } from '../../shared/page-state.js';
 import { migrateState, migrateSettings, migrateHistory } from '../../shared/migrate.js';
 import { RANGES, HISTORY_SCHEMA_VERSION } from '../../shared/defaults.js';
@@ -149,6 +156,30 @@ const PERMISSION_QUEUE_CAP = 8;
  * @property {boolean} frozen       renderer suspended in place (ADR-0014); still "running"
  */
 
+/**
+ * The tree as written to state.json: each tab's address without a name or
+ * password before the host (0.3.3). The live tree keeps them, so an open tab
+ * still works; after a restart it opens without them. The back/forward
+ * steps (navJson) keep only url and title (cleanNavJson). With "Remember
+ * scroll position and unsent form text" off, no page state at all.
+ * @param {import('../../shared/tree.js').Tree} tree
+ * @param {boolean} keepPageState settings.restorePageState
+ */
+function treeForDisk(tree, keepPageState) {
+  /** @type {Record<string, any>} */ const nodes = {};
+  for (const [id, n] of Object.entries(tree.nodes)) {
+    nodes[id] = n.type === 'tab'
+      ? {
+        ...n,
+        url: typeof n.url === 'string' ? withoutCredentials(n.url) : n.url,
+        navJson: cleanNavJson(n.navJson),
+        pageState: keepPageState ? n.pageState : null,
+      }
+      : n;
+  }
+  return { ...tree, nodes };
+}
+
 export class Engine {
   /**
    * @param {{ views: any, metrics: any, persist: any, shell?: any, now: () => number,
@@ -203,6 +234,18 @@ export class Engine {
     /** @type {import('../../shared/migrate.js').PersistedHistory} */
     this.history = history;
     this.loadProblems = [...sp, ...gp, ...hp];
+    // 0.3.3: with "Remember scroll position and unsent form text" off, page
+    // state an older file kept is dropped now (and the file rewritten).
+    // Back/forward steps were cleaned by migrateState (url + title only);
+    // rewrite the file at the first tick so the old entries leave the disk.
+    /** True when this load dropped something the file kept: save it at once. */
+    this.strippedOnLoad = Object.values(/** @type {any} */ (rawState)?.tree?.nodes ?? {})
+      .some((n) => n && typeof n === 'object' && n.type === 'tab' && n.navJson != null);
+    if (!this.settings.restorePageState) {
+      for (const n of Object.values(this.state.tree.nodes)) {
+        if (n.type === 'tab' && n.pageState) { n.pageState = null; this.strippedOnLoad = true; }
+      }
+    }
 
     /** @type {Map<string, Runtime>} */
     this.runtime = new Map();
@@ -231,7 +274,7 @@ export class Engine {
     this.stagedTabId = null;
     /** All tabs start asleep after a restart — that is the product philosophy. */
     this.state.activeTabId = null;
-    this.dirty = false;
+    this.dirty = this.strippedOnLoad;
     /** Own-visit recording (R-106): batched — a navigation marks dirty, the
      * tick writes at most every HISTORY_WRITE_MS (plus shutdown). Writing
      * history.json per navigation would grind the disk for no benefit. */
@@ -406,6 +449,12 @@ export class Engine {
           folderId: node.parentId,
           activate: true,
         });
+      },
+      // The page's right-click "Clear Cookies & Data for This Site" (0.3.3):
+      // the chrome asks first (render/confirm.js); a yes calls siteData:clear.
+      onAskClearSiteData: (/** @type {unknown} */ host) => {
+        const h = normalizeSiteHost(host) ? String(host).toLowerCase() : null;
+        if (h) this.onEvent({ type: 'askClearSiteData', tabId: node.id, host: h });
       },
       onFindResult: (/** @type {number} */ matches, /** @type {number} */ activeMatchOrdinal) => {
         this.onEvent({ type: 'findResult', tabId: node.id, matches, activeMatchOrdinal });
@@ -746,6 +795,10 @@ export class Engine {
     const kinds = Array.isArray(p?.kinds) ? normalizeKinds(p.kinds) : [];
     const host = normalizeSiteHost(p?.host);
     if (kinds.length === 0 || !host) return Promise.resolve(false);
+    const frame = crossSiteFrameVerdict({
+      pageHost: host, requestingHost: normalizeSiteHost(p?.requestingHost), isMainFrame: p?.isMainFrame !== false, kinds,
+    });
+    if (frame) return Promise.resolve(false);
     const { verdict, undecided } = this.permissionVerdict(tabId, host, kinds);
     if (verdict !== 'ask') return Promise.resolve(verdict === 'allow');
     const queue = this.permissionQueues.get(tabId) ?? [];
@@ -774,7 +827,8 @@ export class Engine {
    * remembered allow or this visit's "allow once"; undecided reads as
    * denied, because Electron's check handler can say yes or no but never
    * "prompt" (ADR-0013 states this divergence from Chrome).
-   * @param {{ tabId?: unknown, host?: unknown, kind?: unknown }} [p]
+   * @param {{ tabId?: unknown, host?: unknown, kind?: unknown, requestingHost?: unknown, isMainFrame?: unknown }} [p]
+   *   requestingHost / isMainFrame: the checking frame (omitted = the page)
    * @returns {boolean}
    */
   permissionCheck(p) {
@@ -782,6 +836,10 @@ export class Engine {
     const host = normalizeSiteHost(p?.host);
     const kind = p?.kind;
     if (!tabId || !host || !isPermissionKind(kind) || !this.tabNode(tabId)) return false;
+    const frame = crossSiteFrameVerdict({
+      pageHost: host, requestingHost: p?.requestingHost === undefined ? host : normalizeSiteHost(p.requestingHost), isMainFrame: p?.isMainFrame !== false, kinds: [kind],
+    });
+    if (frame) return false;
     return this.permissionVerdict(tabId, host, [kind]).verdict === 'allow';
   }
 
@@ -1013,6 +1071,7 @@ export class Engine {
         this.runtime.delete(tabId);
         rt.view.destroy();
       }
+      if (typeof this.views.forgetTab === 'function') this.views.forgetTab(tabId);
       this.persist.deleteThumb(tabId);
       this.thumbSeq.delete(tabId);
       this.clearRunawayFor(tabId);
@@ -1056,6 +1115,7 @@ export class Engine {
         if (n) n.pageState = null;
       }
       for (const [, rt] of this.runtime) rt.pageState = null;
+      if (typeof this.views.clearPageStates === 'function') this.views.clearPageStates();
       this.markDirty();
     }
     this.persist.writeJsonAtomic(SETTINGS_FILE, this.settings);
@@ -1435,6 +1495,7 @@ export class Engine {
     void rt.view.capturePageState().then((/** @type {unknown} */ raw) => {
       const cur = this.runtime.get(tabId);
       if (cur !== rt) return; // tab slept/closed while the capture was in flight
+      if (raw === undefined) return; // could not capture: the last snapshot stands
       rt.pageState = sanitizePageState(raw);
     });
   }
@@ -1601,7 +1662,7 @@ export class Engine {
     this.dirty = false;
     this.persist.writeJsonAtomic(STATE_FILE, {
       schemaVersion: this.state.schemaVersion,
-      tree: this.state.tree,
+      tree: treeForDisk(this.state.tree, this.settings.restorePageState),
       activeTabId: this.state.activeTabId,
     });
   }

@@ -6,7 +6,8 @@ import { api } from '../api.js';
 import { store } from '../store.js';
 import { icons } from '../icons.js';
 import { esc, captureFocusedField, restoreFocusedField, captureScrollTop, restoreScrollTop } from './util.js';
-import { displayUrl } from '../../shared/urls.js';
+import { displayUrl, withoutCredentials } from '../../shared/urls.js';
+import { askConfirm } from './confirm.js';
 
 /** @type {HTMLElement} */ let root;
 let fetchSeq = 0; // drops stale list responses when typing fast
@@ -161,7 +162,7 @@ export function render() {
     : d.total === 0 ? `<p class="mini-sub">${store.local.historyQuery ? 'Nothing matches.' : 'No history yet — import from another browser above.'}</p>`
     : `<div class="hist-list">
         ${d.entries.map((e) => `
-          <button class="hist-row" data-url="${esc(e.url)}" title="${esc(e.url)}">
+          <button class="hist-row" data-url="${esc(e.url)}" title="${esc(withoutCredentials(e.url))}">
             <span class="hist-title">${esc(e.title || displayUrl(e.url))}</span>
             <span class="hist-meta">${esc(displayUrl(e.url))} · ${esc(fmtWhen(e.lastVisitMs))}${e.source ? ` · ${esc(e.source)}` : ''}</span>
           </button>`).join('')}
@@ -190,7 +191,11 @@ export function render() {
     }));
 
   root.querySelector('[data-hist-clear]')?.addEventListener('click', () => {
-    void api.historyClear().then(() => refreshList());
+    void askConfirm({
+      title: 'Clear all history?',
+      body: 'Every page in Raha\'s history is deleted. Open tabs and folders stay. This cannot be undone.',
+      yes: 'Clear history',
+    }).then((yes) => { if (yes) void api.historyClear().then(() => refreshList()); });
   });
 
   // Paging, not an infinite scroll: the modal's scroll position survives the

@@ -21,7 +21,7 @@ export const HISTORY_SCHEMA_VERSION = 1;
  * @property {string[]} noBlockHosts   Sites where the shield is off: bare lowercase host, leading "www." stripped, covers the host and its subdomains. Max 200.
  * @property {boolean} gpc             Send Global Privacy Control + DNT headers.
  * @property {boolean} httpsFirst      Default typed hosts to https://.
- * @property {boolean} autoUpdate      Check GitHub Releases for new versions and install security updates (ADR-0008). The only network request Raha makes on its own; off = fully silent.
+ * @property {boolean} autoUpdate      Check GitHub Releases for new versions (ADR-0008); on Windows, and on Linux where the package supports it, also download and install them. Off = no update traffic. Site icons and the opt-in spellcheck dictionary are separate (INVARIANTS #6).
  * @property {boolean} recordHistory   Remember pages visited in Raha (R-106) — local history.json only, powers omnibox suggestions + the History panel; never leaves the machine.
  * @property {string[]} allowedExternalSchemes   App link schemes the user chose to always open without asking (e.g. "zoommtg"). Empty = ask every time. Max 50; dangerous schemes can never be added.
  * @property {boolean} defaultBrowserPrompted  Internal: the one-time "make Raha your default browser?" OS prompt has been shown. Not in the Settings UI.

@@ -5,6 +5,7 @@ import { api } from '../api.js';
 import { store } from '../store.js';
 import { icons } from '../icons.js';
 import { esc, shortUrl, captureScrollTop, restoreScrollTop } from './util.js';
+import { withoutCredentials } from '../../shared/urls.js';
 
 /** @type {HTMLElement} */ let root;
 
@@ -59,7 +60,7 @@ export function render() {
     ? '<p class="mini-sub">Nothing downloaded this session. Files you download appear here until Raha quits — this list is never saved.</p>'
     : `<div class="dl-list">
         ${list.map((d) => `
-          <div class="dl-row state-${d.state}" data-dl="${esc(d.id)}" title="${esc(d.url)}">
+          <div class="dl-row state-${d.state}" data-dl="${esc(d.id)}" title="${esc(withoutCredentials(d.url))}">
             <div class="dl-main">
               <span class="dl-name">${esc(d.filename)}</span>
               <span class="dl-meta">${esc(statusLine(d))}</span>

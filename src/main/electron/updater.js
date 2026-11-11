@@ -9,6 +9,7 @@
 import { app } from 'electron';
 import electronUpdater from 'electron-updater'; // CJS: named exports need the default
 import { log } from './log.js';
+import { hardenUpdater } from './updater-privacy.js';
 
 const { autoUpdater } = electronUpdater;
 const FIRST_CHECK_MS = 30_000; // let boot finish first
@@ -19,6 +20,9 @@ const CHECK_EVERY_MS = 4 * 60 * 60 * 1000;
  */
 export function installAutoUpdater(opts) {
   if (!app.isPackaged) return;
+  // No install ID on the wire or on disk (updater-privacy.js). Before the
+  // first check, and whether or not updates are on, so an old file goes too.
+  hardenUpdater(autoUpdater, app.getPath('userData'), (m) => log('update', m));
 
   const macNotifyOnly = process.platform === 'darwin';
   autoUpdater.autoDownload = !macNotifyOnly;

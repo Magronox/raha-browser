@@ -11,13 +11,15 @@ import { createMainWindow } from './electron/window.js';
 import { createViewsPort, WEB_PARTITION } from './electron/views.js';
 import { createMetricsPort } from './electron/metrics.js';
 import { createPersistPort } from './electron/persist.js';
+import { DISABLED_BLINK_FEATURES, DISABLED_FEATURES } from './electron/chromium-switches.js';
 import { createImportersPort } from './electron/import-history.js';
 import { createTabImportersPort } from './electron/import-tabs.js';
-import { hardenWebSession, configureChromeIdentity, applySpellcheck } from './electron/privacy.js';
+import { hardenWebSession, configureChromeIdentity, applySpellcheck, silenceSpellcheck } from './electron/privacy.js';
 import { loadBlockerEngines } from './electron/blocker.js';
 import { wireIpc } from './electron/ipc.js';
 import { installMenu } from './electron/menu.js';
 import { installAutoUpdater } from './electron/updater.js';
+import { refuseClientCertificates } from './electron/client-certificate.js';
 import { hostOf } from '../shared/rules.js';
 import { log } from './electron/log.js';
 import { runSmokeTest } from './smoke.js';
@@ -61,7 +63,10 @@ if (process.env.RAHA_NO_SANDBOX === '1') {
 // keys are off too. Revisit when signing lands (Touch ID tier) — then this
 // becomes a setting, not a constant. navigator.credentials itself stays
 // (password/federated credential APIs are unaffected).
-app.commandLine.appendSwitch('disable-blink-features', 'WebAuth');
+// WebAuth, and the Privacy Sandbox ad APIs (0.3.3): one list per switch in
+// chromium-switches.js (a repeated switch keeps only its last value).
+app.commandLine.appendSwitch('disable-blink-features', DISABLED_BLINK_FEATURES.join(','));
+app.commandLine.appendSwitch('disable-features', DISABLED_FEATURES.join(','));
 
 registerRahaScheme();
 
@@ -80,6 +85,19 @@ const acceptExternalUrl = (/** @type {string} */ url) => {
   else pendingExternalUrls.push(url.slice(0, 4096));
 };
 app.on('open-url', (e, url) => { e.preventDefault(); acceptExternalUrl(url); });
+
+// No client certificate is ever sent, by any tab: without this Electron hands
+// the first matching certificate to any site that asks. Registered before the
+// app is ready, so no request is ever answered by default. The person is told
+// which site asked once the window exists (client-certificate.js).
+/** @type {(text: string) => void} */
+let certNotice = () => {};
+
+// No session downloads a spellcheck dictionary unless the person chose
+// "Always" (privacy.js silenceSpellcheck). Every session, the default one
+// included, gets the no-download address the moment it is created.
+app.on('session-created', (ses) => silenceSpellcheck(ses));
+refuseClientCertificates(app, { notify: (text) => certNotice(text), log: (m) => log('privacy', m) });
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
@@ -101,17 +119,19 @@ if (!app.requestSingleInstanceLock()) {
     // Chrome does on that machine.
     configureChromeIdentity({ arm64Translation: app.runningUnderARM64Translation === true });
     const { win, uiView, windowHost } = createMainWindow();
-    const viewsPort = createViewsPort(windowHost);
+    // engine is assigned below; the store asks at each record/take (a throw = off).
+    const viewsPort = createViewsPort(windowHost, { restorePageState: () => engine.settings.restorePageState === true });
 
     /** @type {ReturnType<typeof wireIpc>} */
     let push; // assigned right after engine construction; events queue via microtask
     /** @type {() => void} session-side settings mirror; bound once the web session exists */
     let applySettings = () => {};
 
+    const persistPort = createPersistPort();
     const engine = new Engine({
       views: viewsPort,
       metrics: createMetricsPort(),
-      persist: createPersistPort(),
+      persist: persistPort,
       importers: { ...createImportersPort(), ...createTabImportersPort() },
       // The ONLY path from Raha to the OS's app handlers. The engine calls it
       // solely after the user answers the app-link ask (ADR-0011); shell is
@@ -140,11 +160,27 @@ if (!app.requestSingleInstanceLock()) {
           else if (evt.type === 'findResult') push.pushFindResult(evt);
           else if (evt.type === 'askExternal') push.askExternal(evt);
           else if (evt.type === 'askPermission') push.askPermission(evt.ask);
+          else if (evt.type === 'askClearSiteData') push.askClearSiteData(evt);
         });
       },
     });
     push = wireIpc(engine, uiView);
+    certNotice = (text) => push.pushToast({ kind: 'warn', text });
     for (const p of engine.loadProblems) log('boot', p);
+    // A profile file Raha could not read, or one from a newer Raha, was
+    // copied aside before anything writes over it (json-files.js); say so
+    // once. A file whose copy failed is not written over at all.
+    {
+      const kept = persistPort.takeSetAside();
+      const raw = persistPort.takeRawCopies();
+      const held = persistPort.held();
+      const removed = persistPort.takeRemoved();
+      if (kept.length) queueMicrotask(() => push.pushToast({ kind: 'warn', text: `Raha could not use ${kept.length === 1 ? 'one of its files' : 'some of its files'} and kept a copy in your profile folder: ${kept.join(', ')}` }));
+      // An unreadable file is copied as it was: it cannot be cleaned.
+      if (raw.length) queueMicrotask(() => push.pushToast({ kind: 'warn', text: `${raw.join(', ')} is copied as it was and may hold what the old file held, such as open pages and typed text. You can delete it.` }));
+      if (removed.length) queueMicrotask(() => push.pushToast({ kind: 'warn', text: `Raha removed old copies it had kept for more than two weeks: ${removed.join(', ')}.` }));
+      if (held.length) queueMicrotask(() => push.pushToast({ kind: 'warn', text: `Raha could not read ${held.join(', ')} or keep a copy of it, so it will not save over it. Changes to it are not saved.` }));
+    }
     mainWin = win;
 
     // External links: open as activated tabs (tabCreate = the scheme gate).
@@ -202,7 +238,9 @@ if (!app.requestSingleInstanceLock()) {
       downloadDir: !app.isPackaged && process.env.RAHA_DOWNLOAD_DIR ? process.env.RAHA_DOWNLOAD_DIR : null,
       // Site permissions (R-103, ADR-0013): the decision is filed under the
       // TAB's page host (top-level), never the asking frame's — an embedded
-      // widget asks on behalf of the site the user is looking at. Unknown
+      // widget asks on behalf of the site the user is looking at. Except
+      // (0.3.3): notifications and the clipboard from a frame of another
+      // site are refused. Unknown
       // WebContents (a view already torn down) = refused.
       askPermission: (wcId, kinds, requestingUrl, isMainFrame) => {
         const hit = viewsPort.lookupByWebContentsId(wcId);
@@ -212,11 +250,11 @@ if (!app.requestSingleInstanceLock()) {
           tabId: hit.tabId, kinds, host: hostOf(node.url) ?? '', requestingHost: hostOf(requestingUrl), isMainFrame,
         });
       },
-      checkPermission: (wcId, kind) => {
+      checkPermission: (wcId, kind, requestingUrl, isMainFrame) => {
         const hit = viewsPort.lookupByWebContentsId(wcId);
         const node = hit ? engine.tabNode(hit.tabId) : null;
         if (!hit || !node) return false;
-        return engine.permissionCheck({ tabId: hit.tabId, host: hostOf(node.url) ?? '', kind });
+        return engine.permissionCheck({ tabId: hit.tabId, host: hostOf(node.url) ?? '', kind, requestingHost: hostOf(requestingUrl) ?? '', isMainFrame });
       },
     });
 

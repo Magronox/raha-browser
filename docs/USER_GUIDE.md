@@ -217,7 +217,7 @@ subdomains. First matching rule wins. A tab pinned by rule shows a faded pin.
 - **Total memory budget** (off) — a ceiling for all running tabs combined.
 - **Sleep background tabs after** (off) — idle timer per tab.
 - **Never auto-sleep audio** (on) — the music protection.
-- **Remember scroll position and unsent form text** (on) — a sleeping tab wakes where you left it, with what you had typed still there. Password fields are never kept, values are capped, and turning this off wipes everything stored.
+- **Remember scroll position and unsent form text** (on) — a sleeping tab wakes where you left it, with what you had typed still there. Password fields are never kept, values are capped, and turning this off wipes everything stored. This covers the page you were on. After a restart, pages behind Back and Forward load fresh.
 - **Warn on runaway tabs** (on) — the terminate-this-tab prompt when CPU or
   memory use explodes (sustained, never on a momentary spike).
 - **Block ads** (on) — requests matching the bundled EasyList are dropped.
@@ -264,12 +264,14 @@ subdomains. First matching rule wins. A tab pinned by rule shows a faded pin.
 
 ## 6. Privacy, plainly
 
-Raha sends **no telemetry, ever**. The only network request Raha makes on
-its own is a security-update check against GitHub Releases (Settings →
-Privacy → "Install security updates automatically" — on by default because
-an unpatched browser is the bigger privacy risk; turn it off and Raha is
-fully silent). Everything else on the wire is the pages you open (plus
-their favicons). The ad/tracker filter lists are bundled with the app and
+Raha sends **no telemetry, ever**. On its own, Raha contacts GitHub
+Releases for a security-update check (Settings → Privacy → "Install
+security updates automatically" — on by default because an unpatched
+browser is the bigger privacy risk; on Windows, and on Linux where the
+package supports it, it also downloads and installs new versions; turn it off and the update traffic stops). Everything
+else on the wire is the pages you open, plus each site's icon in the tab
+list (loaded from that site) and, on Windows/Linux with spellcheck set to
+*Always*, a dictionary downloaded once. The ad/tracker filter lists are bundled with the app and
 update only with app releases — never downloaded at runtime.
 The new-tab page, welcome tour, and error pages are local files. Permission
 requests (camera, microphone, location, notifications, clipboard) are asked
@@ -348,7 +350,7 @@ wire; whether a particular challenge then passes is verified per release
 site loops, its cookies are usually wedged: right-click the page → *Clear
 Cookies & Data for This Site* — it clears that site (subdomains, its
 embedded third-party jar, and what the site asked Raha to remember about
-itself included) and reloads fresh. Nuclear option: Settings → *Clear all cookies
+itself included) and reloads fresh, after asking you. Nuclear option: Settings → *Clear all cookies
 & site data…* (signs you out everywhere).
 
 **Something crashed.** A crashed tab flips to asleep with a warning toast —

@@ -1,48 +1,37 @@
 // The persist port implementation: crash-safe JSON files + thumbnail cleanup.
-// Atomicity: write to a temp file in the same directory, fsync, rename.
-// A half-written state.json can never occur; worst case is losing the last
-// few seconds of tree changes.
+// The files themselves are json-files.js: atomic writes (temp file, fsync,
+// rename), and a file Raha could not read, or one from a newer Raha, is
+// copied aside before it is ever written over (held if that copy fails).
 import fs from 'node:fs';
-import path from 'node:path';
 import { profileDir, thumbPath } from './paths.js';
+import { createJsonFiles, tightenProfile } from './json-files.js';
+import { STATE_SCHEMA_VERSION, SETTINGS_SCHEMA_VERSION, HISTORY_SCHEMA_VERSION } from '../../shared/defaults.js';
 import { log } from './log.js';
 
-/** @returns {{ readJson: (name: string) => unknown, writeJsonAtomic: (name: string, obj: unknown) => void, deleteThumb: (tabId: string) => void }} */
+/** The newest schemaVersion this build understands, per profile file. */
+const KNOWN_VERSION = /** @type {Record<string, number>} */ ({
+  'state.json': STATE_SCHEMA_VERSION,
+  'settings.json': SETTINGS_SCHEMA_VERSION,
+  'history.json': HISTORY_SCHEMA_VERSION,
+});
+
+/** @returns {{ readJson: (name: string) => unknown, writeJsonAtomic: (name: string, obj: unknown) => void, deleteThumb: (tabId: string) => void, takeSetAside: () => string[], takeRawCopies: () => string[], takeRemoved: () => string[], held: () => string[] }} */
 export function createPersistPort() {
   const dir = profileDir();
+  tightenProfile(dir); // files and folders an older Raha made with default modes
+  const files = createJsonFiles(dir, { log: (m) => log('persist', m) });
   return {
-    readJson(name) {
-      const file = path.join(dir, name);
-      try {
-        if (!fs.existsSync(file)) return undefined;
-        return JSON.parse(fs.readFileSync(file, 'utf8'));
-      } catch (err) {
-        // Keep the corrupt file for forensics, then let migrations start fresh.
-        try {
-          fs.copyFileSync(file, `${file}.corrupt-${Date.now()}`);
-        } catch { /* ignore */ }
-        log('persist', `failed to read ${name}: ${String(err)}`);
-        return undefined;
-      }
-    },
-    writeJsonAtomic(name, obj) {
-      const file = path.join(dir, name);
-      const tmp = `${file}.tmp`;
-      try {
-        const json = JSON.stringify(obj, null, 1);
-        const fd = fs.openSync(tmp, 'w');
-        fs.writeSync(fd, json);
-        fs.fsyncSync(fd);
-        fs.closeSync(fd);
-        fs.renameSync(tmp, file);
-      } catch (err) {
-        log('persist', `failed to write ${name}: ${String(err)}`);
-      }
-    },
+    readJson: (name) => files.readJson(name, KNOWN_VERSION[name]),
+    writeJsonAtomic: (name, obj) => { files.writeJsonAtomic(name, obj); },
     deleteThumb(tabId) {
       try {
         fs.rmSync(thumbPath(tabId), { force: true });
       } catch { /* ignore */ }
     },
+    // Not part of the engine's port: index.js reads these once, for a notice.
+    takeSetAside: () => files.takeSetAside(),
+    takeRawCopies: () => files.takeRawCopies(),
+    takeRemoved: () => files.takeRemoved(),
+    held: () => files.held(),
   };
 }

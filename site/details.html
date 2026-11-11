@@ -11,7 +11,7 @@
   <meta http-equiv="Content-Security-Policy"
         content="default-src 'none'; img-src 'self'; style-src 'self'; script-src 'none'; base-uri 'none'; form-action 'none'">
   <title>Raha — the details</title>
-  <meta name="description" content="How Raha's governor decides which tabs sleep, what the browser does and does not send, the security audit, and the keyboard map.">
+  <meta name="description" content="How Raha 0.3.3 decides which tabs sleep, what it sends and to whom, its security check, known issues, and its keyboard shortcuts.">
   <link rel="icon" href="assets/icon.png">
   <link rel="stylesheet" href="style.css">
 </head>
@@ -33,111 +33,148 @@
 
   <section class="page-intro" id="top">
     <h1>The details</h1>
-    <p class="tagline">Everything the front page leaves out: how the governor decides,
-       what Raha does and does not send, the security audit, and the keyboard map.</p>
+    <p class="note">This page describes Raha 0.3.3, the current version, released 11 November 2026. Version 1.0 is being finished and has no date.</p>
   </section>
 
   <section id="governor">
-    <h2>The governor</h2>
-    <p>The heart of Raha is ~150 lines of pure, exhaustively-tested policy
-       (<a href="https://github.com/Magronox/raha-browser/blob/main/src/shared/policy.js">src/shared/policy.js</a>).
-       In precedence order:</p>
+    <h2>How tabs are put to sleep</h2>
+    <p>Five rules decide which tabs sleep, in this order.</p>
     <ol class="rules">
-      <li><b>Per-tab memory limit</b> — a tab over its own limit goes to sleep, even a pinned one (you asked for <em>that</em> limit). The active tab is never yanked — you get a warning instead.</li>
-      <li><b>Idle timer</b> <span class="dim">(off by default)</span> — background tabs idle longer than N minutes go to sleep.</li>
-      <li><b>Live-tab cap</b> — beyond the cap, the least-recently-used background tab sleeps first. Pinned, audible, and active tabs are protected.</li>
-      <li><b>Global memory budget</b> <span class="dim">(off by default)</span> — if running tabs together exceed your budget, LRU eviction until they fit.</li>
+      <li><b>Per-tab memory limit.</b> A tab over its limit sleeps, even if pinned, because you set that limit yourself. The tab you are looking at stays awake, and Raha shows a warning.</li>
+      <li><b>Idle timer</b> <span class="dim">(off by default)</span>. A background tab left idle longer than you set goes to sleep.</li>
+      <li><b>Tab cap</b> <span class="dim">(six by default)</span>. Over the cap, the background tab used least recently sleeps first. Pinned tabs, tabs playing sound and the tab on screen are skipped.</li>
+      <li><b>Memory budget</b> <span class="dim">(off by default)</span>. If the running tabs together use more than your budget, the least recently used sleep until they fit.</li>
+      <li><b>Freeze</b> <span class="dim">(after two minutes by default)</span>. A background tab left idle that long is frozen until you return: it keeps its memory and uses no CPU. Pinned tabs, tabs playing sound and pages still loading are skipped.</li>
     </ol>
-    <p>Sleeping is real: the renderer <b>process is destroyed</b> and the RAM goes back to your OS
-       (<a href="https://github.com/Magronox/raha-browser/blob/main/docs/DECISIONS/ADR-0006-sleep-is-process-destruction.md">why</a>) —
-       not merely throttled or hidden. Navigation history survives; back and forward work after waking.</p>
+    <p>These are defaults; each can be changed in Settings. The rules are in
+       <a href="https://github.com/Magronox/raha-browser/blob/main/src/shared/policy.js">src/shared/policy.js</a>.
+       When a tab sleeps, Raha closes its process, and the memory goes back to your system
+       (<a href="https://github.com/Magronox/raha-browser/blob/main/docs/DECISIONS/ADR-0006-sleep-is-process-destruction.md">why</a>).
+       Back and forward still work after it wakes.</p>
   </section>
 
   <section id="organization">
-    <h2>Organization is spatial</h2>
-    <p>Nested folders, thumbnail grids, drag &amp; drop. A restart brings your whole tree
-       back <b>asleep</b>: instant start, ~0 tab memory, nothing lost.</p>
+    <h2>Folders</h2>
+    <p>Nest folders inside folders, browse them as a grid of thumbnails, and drag tabs between them.
+       After a restart the whole tree comes back asleep.</p>
   </section>
 
   <section id="privacy">
-    <h2>Private by architecture</h2>
+    <h2>Privacy</h2>
     <dl class="priv">
-      <dt>Telemetry, phone-home</dt>
-      <dd><b>No telemetry, ever.</b> Raha itself contacts exactly one server: GitHub Releases, for the optional security-update check — on by default, one toggle to silence it. Note the chrome also loads <b>favicons</b> directly from the sites in your tab list, including on a cold start with every tab asleep.</dd>
-      <dt>Tracker / ad blocking</dt>
-      <dd>EasyList + EasyPrivacy via Ghostery’s open-source engine — lists <b>bundled</b> with the app, never fetched at runtime. Separate ads/trackers toggles, per-site off switch on the address-bar shield.</dd>
+      <dt>What Raha sends</dt>
+      <dd>Raha has no telemetry, analytics or crash reports. Apart from the pages you open, it makes three kinds of request on its own. About 30 seconds after start and every four hours, it asks GitHub whether a new version exists: a few requests. They carry no cookies. Each sends the system language and an ID that is all zeros in every copy of Raha. On Windows, and on Linux with the AppImage, it then downloads a new version from GitHub in the background and installs it when you quit. On macOS it only says that one exists. Update checks are on by default, and one switch turns them off. Raha loads each tab’s icon from that tab’s site, even after a restart when every tab is asleep. On Windows and Linux, if spellcheck is set to Always, Chromium downloads a dictionary from Google.</dd>
+      <dt>Ads and trackers</dt>
+      <dd>Known ads and trackers are blocked with EasyList and EasyPrivacy, through Ghostery’s open-source engine. The lists ship inside the app and are not downloaded while it runs. Ads and trackers have separate switches. The shield in the address bar turns off blocking for one site.</dd>
       <dt>Global Privacy Control</dt>
-      <dd><code>Sec-GPC: 1</code> + <code>DNT: 1</code> on every request made by a page (toggleable).</dd>
-      <dt>Permission requests</dt>
-      <dd>Camera, microphone, location, notifications, clipboard: asked per site in Raha’s own prompt — allow once / always / never — never granted silently, never a surprise system dialog. Everything else a page asks for is refused, visibly.</dd>
-      <dt>Default search</dt>
-      <dd>DuckDuckGo (Brave / Startpage / Ecosia / Google / Bing / Kagi selectable; Kagi needs your own Kagi account).</dd>
+      <dd>Raha asks every site not to sell or share your data, by sending <code>Sec-GPC: 1</code> and <code>DNT: 1</code> with each request a page makes. This is on by default, and you can turn it off.</dd>
+      <dt>Permissions</dt>
+      <dd>A site that wants your camera, microphone, location, notifications or clipboard contents must ask in Raha’s own prompt. You choose Allow once, Always allow, Never for this site, or Not now. Always allow and Never are kept for that site until you remove them in Settings; Allow once lasts until you leave the page. Full screen, locking the mouse pointer (as games do) and copying to the clipboard are allowed without a prompt. Every other permission request is refused, and Raha says so.</dd>
+      <dt>Search</dt>
+      <dd>DuckDuckGo by default. You can switch to Brave, Startpage, Ecosia, Google, Bing or Kagi; Kagi needs an account of your own.</dd>
       <dt>New tab page</dt>
-      <dd>Local. Loads nothing.</dd>
+      <dd>Built into the app. It loads nothing from the web.</dd>
       <dt>HTTPS</dt>
-      <dd>HTTPS-first for typed addresses; explicit opt-in for plain-HTTP fallback.</dd>
-      <dt>Web content isolation</dt>
-      <dd>Chromium sandbox on; no preload, no bridge in page processes.</dd>
+      <dd>A web address you type without <code>http://</code> opens over HTTPS. If that fails, the error page offers plain HTTP, used only if you click it. Links, redirects, <code>localhost</code> and IP addresses are not upgraded.</dd>
+      <dt>Page isolation</dt>
+      <dd>Pages run in Chromium’s sandbox, with no access to Raha itself.</dd>
       <dt>What a page may open</dt>
-      <dd>Only <code>http:</code> / <code>https:</code> / <code>raha:</code> / <code>blob:</code> — a site cannot make Raha open <code>file:///…</code> or a fake <code>data:</code> login page in your chrome.</dd>
-      <dt>Supply chain</dt>
-      <dd><b>Two direct runtime dependencies</b> — the updater and the filter-list engine, both pinned exact, each with a public decision record. With transitives, 28 npm packages ship inside the app alongside Electron — verify with <code>npm ls --omit=dev --all</code>. Everything else is the project’s own code, and the <a href="https://github.com/Magronox/raha-browser/blob/main/docs/INVARIANTS.md">invariants</a> are enforced by tests.</dd>
+      <dd>Only <code>http:</code>, <code>https:</code>, <code>raha:</code> and <code>blob:</code> addresses. A site cannot make Raha open a file from your disk (<code>file:///…</code>) or show a page built from a <code>data:</code> address, a trick used for fake login pages.</dd>
+      <dt>Dependencies</dt>
+      <dd>Raha relies on two outside libraries, the updater and the ad-block engine, each fixed at an exact version. With the libraries those two need, 28 packages ship in the app alongside Electron; check with <code>npm ls --omit=dev --all</code>. The rest is Raha’s own code, and tests enforce the <a href="https://github.com/Magronox/raha-browser/blob/main/docs/INVARIANTS.md">rules it must not break</a>.</dd>
+      <dt>Notices</dt>
+      <dd>Raha includes Electron (MIT) and Chromium (BSD-style and other licences), Ghostery’s ad-block engine (MPL-2.0), and the EasyList and EasyPrivacy lists by the EasyList authors (GPL-3.0 or CC BY-SA 3.0). The 0.3.3 packages carry these licences in <code>LICENSE</code>, <code>THIRD_PARTY_NOTICES.txt</code>, <code>LICENSE.electron.txt</code> and <code>LICENSES.chromium.html</code>.</dd>
     </dl>
-    <p class="note">Raha is Chromium under the hood (Electron, ~100&nbsp;MB installed). “Light” means runtime discipline, not installer size. Fingerprinting resistance is <a href="https://github.com/Magronox/raha-browser/blob/main/docs/ROADMAP.md">on the roadmap</a>, not claimed yet.</p>
+    <p class="note">Raha is built on Chromium, through Electron. The download is about 100–140&nbsp;MB; installed, Raha takes about 300&nbsp;MB. It has no Safe Browsing, so it does not warn about dangerous sites. There is no fingerprinting protection yet (<a href="https://github.com/Magronox/raha-browser/blob/main/docs/ROADMAP.md">roadmap</a>).</p>
   </section>
 
   <section id="shot-settings">
     <figure>
-      <img src="assets/settings.png" width="820" alt="Raha settings: the governor’s knobs (live-tab cap, memory budget, idle timer) and the privacy toggles">
-      <figcaption>Every knob explained where it lives — the governor and the privacy toggles are the whole settings surface.</figcaption>
+      <img src="assets/settings.png" width="820" alt="Raha settings: the tab cap, memory budget and idle timer, and the privacy switches">
+      <figcaption>Each setting is explained beside it.</figcaption>
     </figure>
   </section>
 
   <section id="security">
-    <h2>Security, with receipts</h2>
-    <p>Pre-release <a href="https://github.com/Magronox/raha-browser/blob/main/docs/SECURITY-AUDIT-2026-07.md">security audit</a>
-       against Electron’s checklist: eight findings, all fixed, report public, with the
-       <a href="https://github.com/Magronox/raha-browser/blob/main/SECURITY.md">accepted risks</a>.
-       Every audit check re-runs as a test on every push.</p>
+    <h2>Security</h2>
+    <p>In July 2026, before its first release (0.1.0), Raha was checked against Electron’s security checklist by the project itself.
+       The <a href="https://github.com/Magronox/raha-browser/blob/main/docs/SECURITY-AUDIT-2026-07.md">report</a> lists the eight problems found; all were fixed in that release.
+       Automated tests that run on each code change cover several of those fixes.
+       Later reviews found the issues listed under <a href="#fixed">Fixed in 0.3.3</a> and <a href="#known-issues">Known issues</a>.
+       <a href="https://github.com/Magronox/raha-browser/blob/main/SECURITY.md">SECURITY.md</a> lists the risks that were accepted.</p>
+  </section>
+
+  <section id="known-issues">
+    <h2>Known issues in 0.3.3</h2>
+    <ul>
+      <li>Third-party cookies are not blocked: a frame from another site can set and read its own cookies.</li>
+      <li>When Raha loads a site’s icon, it may send that site’s cookies.</li>
+      <li>A typed address may count as the tab’s site before its page has loaded, for permissions and for ad blocking.</li>
+      <li>There is no Safe Browsing and no fingerprinting protection.</li>
+      <li>On macOS, Raha tells you a new version exists but does not install it.</li>
+      <li>The .deb may not update itself; install the new file by hand if it does not.</li>
+      <li>Passkeys and USB security keys do not work.</li>
+      <li>After a frozen tab resumes, live chats, calls, video and uploads may need a reload.</li>
+      <li>When a page only checks a permission you have not decided, Raha answers “denied” where Chrome answers “prompt”. If the page then requests it, you are asked as usual.</li>
+      <li>After a restart, pages you reach with Back or Forward load fresh, without their scroll position or the text you had typed in them.</li>
+      <li>The files are not signed, so macOS and Windows warn before the first launch (<a href="#mac-warning">install warnings</a>).</li>
+    </ul>
+  </section>
+
+  <section id="fixed">
+    <h2>Fixed in 0.3.3</h2>
+    <p>The <a href="https://github.com/Magronox/raha-browser/security/advisories">advisory</a> describes the first two.</p>
+    <ul>
+      <li><b>Client certificates.</b> When a site asked for a client certificate, 0.3.1 sent the first matching one on the computer without asking, and the site could read what it contains, often a name, email address and organisation. 0.3.3 sends none and says which site asked.</li>
+      <li><b>Install ID.</b> Each update check in 0.3.1 sent GitHub the same random ID, kept in a <code>.updaterId</code> file. 0.3.3 sends an all-zero ID, the same in every copy, and deletes the file.</li>
+      <li>On Linux, and possibly Windows, 0.3.1 downloaded a spellcheck dictionary from Google at first start without being asked. 0.3.3 downloads none unless spellcheck is set to Always.</li>
+      <li>With each tab’s back and forward steps, 0.3.1 saved in <code>state.json</code> the text typed into forms on those pages, and any address that held a name and password. 0.3.3 keeps only each step’s address and title, and cleans files saved by 0.3.1 at first start. Backups, and copies Raha set aside because it could not read a file, are not cleaned.</li>
+      <li>If Raha could not read its tabs, settings or history file, the next save could write over it. The file is now copied aside first, and is left alone if the copy fails.</li>
+      <li>Clear history, Delete folder and Clear site data acted at once. They now ask first and say what is lost.</li>
+      <li>A frame from another site shared the page’s notification and clipboard permission. It is now refused both.</li>
+      <li>On macOS and Linux, other accounts on the computer could read Raha’s profile files. Now only yours can.</li>
+      <li>Chromium’s advertising APIs (Topics, Protected Audience, Shared Storage, Attribution Reporting, Private State Tokens, fenced frames) were on. They are now off.</li>
+      <li>The .deb did not start on a stock Ubuntu 24.04. It does now.</li>
+      <li>Licence files are now included in the packages. Packages of 0.3.1 and earlier lacked Electron’s and Chromium’s licence files. They are in 0.3.3.</li>
+      <li>A tab that slept after its save failed woke at the top of the page with its typed text gone. Now the last good save is kept.</li>
+    </ul>
+    <p>The <a href="https://github.com/Magronox/raha-browser/blob/main/CHANGELOG.md">CHANGELOG</a> lists every change.</p>
   </section>
 
   <section id="keyboard">
-    <h2>Keyboard</h2>
+    <h2>Keyboard shortcuts</h2>
     <p class="keys">
-      <kbd>Ctrl/⌘ T</kbd> new tab · <kbd>Ctrl/⌘ W</kbd> close · <kbd>Ctrl/⌘ ⇧ T</kbd> reopen closed tab ·
+      <kbd>Ctrl/⌘ T</kbd> new tab · <kbd>Ctrl/⌘ W</kbd> close tab · <kbd>Ctrl/⌘ ⇧ T</kbd> reopen closed tab ·
       <kbd>Ctrl/⌘ F</kbd> find in page · <kbd>Ctrl/⌘ L</kbd> address bar · <kbd>Ctrl/⌘ ⇧ R</kbd> hard reload ·
-      <kbd>Ctrl/⌘ E</kbd> grid/home · <kbd>Ctrl/⌘ ⇧ B</kbd> sidebar ·
-      <kbd>⌘ Y</kbd>/<kbd>Ctrl H</kbd> history · <kbd>Ctrl Tab</kbd> cycle running tabs ·
+      <kbd>Ctrl/⌘ E</kbd> grid/home · <kbd>Ctrl/⌘ ⇧ B</kbd> sidebar · <kbd>Ctrl/⌘ J</kbd> downloads ·
+      <kbd>⌘ Y</kbd>/<kbd>Ctrl H</kbd> history · <kbd>Ctrl Tab</kbd> next running tab ·
       <kbd>Ctrl/⌘ 1…9</kbd> jump to running tab · <kbd>Ctrl/⌘ ⇧ S</kbd> sleep this tab ·
-      <kbd>Ctrl/⌘ ⇧ A</kbd> sleep everything · <kbd>Ctrl/⌘ ⇧ K</kbd> pin · <kbd>Ctrl/⌘ ,</kbd> settings
+      <kbd>Ctrl/⌘ ⇧ A</kbd> sleep every tab · <kbd>Ctrl/⌘ ⇧ F</kbd> freeze this tab · <kbd>Ctrl/⌘ ⇧ K</kbd> pin ·
+      <kbd>Ctrl/⌘ K</kbd> command palette · <kbd>Ctrl/⌘ ,</kbd> settings
     </p>
   </section>
 
   <section id="mac-warning">
-    <h2>The “unidentified developer” warnings</h2>
-    <p>Raha’s installers are not code-signed, so the first open needs one extra step:
-       <b>macOS</b> says “Apple cannot check it for malicious software” — right-click the app → <b>Open</b> → Open, once.
-       <b>Windows</b> SmartScreen says “Windows protected your PC” — <b>More info → Run anyway</b>, once.
-       The build is open source and reproducible from the repository.</p>
-    <p>Signing needs paid developer programs: Apple’s is US$99 a year, and Windows certificates cost separately.
-       This free project has no budget for them. <b>When a year’s donations reach a developer fee (right now
-       US$99 for Apple), it is spent on that fee and that warning goes away.</b></p>
-    <p class="dim">Donations so far: <b data-donations>US$0</b> · updated by hand now and then, last on 2026-09-16 ·
-       <a href="https://venmo.com/u/magronox">Venmo</a>.</p>
+    <h2>Install warnings</h2>
+    <p>The 0.3.3 files are not signed with a developer certificate, so the first launch takes extra steps.</p>
+    <p><b>macOS</b> warns that it cannot check the app for malicious software.
+       On macOS 14 and earlier, right-click the app, choose <b>Open</b>, then <b>Open</b> again.
+       On macOS 15 and later, try to open the app once, then open <b>System Settings → Privacy &amp; Security</b> and click <b>Open Anyway</b>.</p>
+    <p><b>Windows</b> SmartScreen shows “Windows protected your PC”. Click <b>More info → Run anyway</b>; it asks only once.</p>
   </section>
 
   <section id="support">
     <h2>Support</h2>
-    <p>Raha is free, GPL, one person, and a
-       <a href="https://github.com/Magronox/raha-browser/blob/main/docs/ROADMAP.md">public roadmap</a>.
-       Bugs and ideas: <a href="https://github.com/Magronox/raha-browser/issues">GitHub issues</a>
+    <p>Raha is made by one person. The
+       <a href="https://github.com/Magronox/raha-browser/blob/main/docs/ROADMAP.md">roadmap</a> is public.
+       Send bugs and ideas to <a href="https://github.com/Magronox/raha-browser/issues">GitHub issues</a>
        or <a href="mailto:basareh@duck.com">basareh@duck.com</a>.
-       Want to build? Start at
+       To work on the code, start at
        <a href="https://github.com/Magronox/raha-browser/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a>.</p>
-    <p class="dim">Security reports: <a href="https://github.com/Magronox/raha-browser/security/advisories/new">private reporting</a>
-       or email with a <code>[raha security]</code> subject
+    <p class="dim">Report security problems through GitHub’s <a href="https://github.com/Magronox/raha-browser/security/advisories/new">private form</a>,
+       or by email with <code>[raha security]</code> in the subject
        (<a href="https://github.com/Magronox/raha-browser/blob/main/SECURITY.md">SECURITY.md</a>).</p>
-    <p class="dim">Raha was written with agentic coding: an AI did much of the typing, a human decided what to build and ran it.</p>
+    <p class="dim">Raha is written with AI coding assistants, mainly Claude by Anthropic, which wrote most of the code and documentation. Amir Basareh decides what goes in, tests each release and is responsible for it.</p>
   </section>
 
   <p class="back"><a href="index.html">&larr; Back to the front page</a></p>
@@ -145,11 +182,10 @@
 </main>
 
 <footer>
-  <p class="promise">Free as in <b><span lang="fa" dir="rtl">رها</span></b> — GPL-3.0, no ads, no tracking, yours.</p>
-  <p class="fine">Code <a href="https://github.com/Magronox/raha-browser/blob/main/LICENSE">GPL-3.0-only</a> © 2026 Amir Basareh — forks stay open source.
+  <p class="fine">Code <a href="https://github.com/Magronox/raha-browser/blob/main/LICENSE">GPL-3.0-only</a> © 2026 Amir Basareh.
      The Raha name and bird mark are <a href="https://github.com/Magronox/raha-browser/blob/main/TRADEMARK.md">reserved</a>.</p>
-  <p class="fine">No cookies, no analytics — static files on GitHub Pages.
-     <a href="https://github.com/Magronox/raha-browser/tree/main/site">This site’s source.</a></p>
+  <p class="fine">This site is static files on GitHub Pages. It sets no cookies and runs no analytics.
+     <a href="https://github.com/Magronox/raha-browser/tree/main/site">Its source is on GitHub.</a></p>
 </footer>
 
 </body>

@@ -118,8 +118,10 @@ export class FakeView {
     return Promise.resolve(true);
   }
 
+  /** Test helper: the capture script fails (adapter answers undefined). */
+  captureFails = false;
   capturePageState() {
-    if (this.destroyed || this.frozen) return Promise.resolve(null);
+    if (this.destroyed || this.frozen || this.captureFails) return Promise.resolve(undefined);
     const sy = this.scrollY ?? 0;
     const sx = this.scrollX ?? 0;
     const fields = this.fields ?? [];
@@ -149,6 +151,7 @@ export class FakeView {
   simulateCrash() { this.destroyed = true; this.cb.onDestroyed(); }
   simulatePopup(/** @type {string} */ url) { this.cb.onOpenUrl(url); }
   simulateSearchSelection(/** @type {string} */ text) { this.cb.onSearchSelection(text); }
+  simulateAskClearSiteData(/** @type {unknown} */ host) { this.cb.onAskClearSiteData(host); }
 }
 
 /** Shared world so tests can inspect and control everything. */
@@ -209,6 +212,9 @@ export class FakeWorld {
         setChromeOnTop(on) { world.chromeOnTop = Boolean(on); },
         /** @param {boolean} visible */
         setSidebarVisible(visible) { world.sidebarVisible = Boolean(visible); },
+        /** @param {string} tabId */
+        forgetTab(tabId) { world.ops.push(`forget:${tabId}`); },
+        clearPageStates() { world.ops.push('clear-page-states'); },
       },
       shell: {
         /** @param {string} url */

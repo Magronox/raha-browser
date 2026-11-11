@@ -47,6 +47,12 @@ jobs:
       - name: Quick sanity (typecheck + unit) before building installers
         run: npm run typecheck && npm test
 
+      # Electron downloads its dist/ on first use, and electron-builder only
+      # warns when an extraResources source is missing: fetch Electron's
+      # LICENSE and LICENSES.chromium.html now, or fail (0.3.3).
+      - name: "Guard: Electron's licence files are on disk"
+        run: node scripts/electron-licences.mjs
+
       # Two build steps, one per OS group, because the signing secrets must NOT
       # be visible to the Windows job: electron-builder's Windows signer falls
       # back from WIN_CSC_LINK to CSC_LINK, so a mac cert in the environment

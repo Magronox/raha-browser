@@ -14,11 +14,13 @@ import { must, ok } from '../helpers.js';
  *      | {type:'findResult', tabId, matches, activeMatchOrdinal}
  *      | {type:'askExternal', id, url, scheme, app}
  *      | {type:'askPermission', ask}   ask = PermissionAsk | null (withdraw)
+ *      | {type:'askClearSiteData', tabId, host}  the page's right-click Clear site data (0.3.3)
  * @typedef {{ type: 'snapshot' }
  *         | { type: 'toast', kind: string, text: string }
  *         | { type: 'focusOmnibox' }
  *         | { type: 'findResult', tabId: string, matches: number, activeMatchOrdinal: number }
  *         | { type: 'askExternal', id: number, url: string, scheme: string|null, app: string }
+ *         | { type: 'askClearSiteData', tabId: string, host: string }
  *         | { type: 'askPermission', ask: import('../../src/shared/ipc-contract.js').PermissionAsk|null }} EngineEvent
  */
 

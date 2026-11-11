@@ -5,6 +5,7 @@ import { store } from '../store.js';
 import { icons } from '../icons.js';
 import { esc, fmtMB, memClass, shortUrl, faviconHtml, thumbUrl, wireImgFallbacks, MOD, captureScrollTop, restoreScrollTop } from './util.js';
 import { wireGridDnd, isDragging } from '../dnd.js';
+import { withoutCredentials } from '../../shared/urls.js';
 
 /** @type {HTMLElement} */ let root;
 /** Last rendered markup — unchanged content skips the innerHTML swap. */
@@ -79,7 +80,7 @@ export function render() {
     }
     const t = child.tab;
     return `
-      <div class="card tabcard state-${t.state}" draggable="true" data-opentab="${esc(t.id)}" title="${esc(t.title)}\n${esc(t.url)}">
+      <div class="card tabcard state-${t.state}" draggable="true" data-opentab="${esc(t.id)}" title="${esc(t.title)}\n${esc(withoutCredentials(t.url))}">
         <div class="card-body">
           <img class="thumb" src="${thumbUrl(t)}" alt="" loading="lazy">
           <div class="thumb-fallback">${faviconHtml(t)}</div>

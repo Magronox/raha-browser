@@ -30,6 +30,21 @@ files:
   - LICENSE
   - "!**/*.map"
 
+# Licence files beside the app, outside the asar, on every OS (0.3.3): the
+# GPL for Raha itself, the notices for the packages and filter lists inside
+# it (THIRD_PARTY_NOTICES.txt, made by `npm run notices`; checked by
+# tests/unit/notices.test.js), and Electron's licence and Chromium's
+# credits, which electron-builder leaves out of the macOS bundle.
+extraResources:
+  - from: LICENSE
+    to: LICENSE
+  - from: THIRD_PARTY_NOTICES.txt
+    to: THIRD_PARTY_NOTICES.txt
+  - from: node_modules/electron/dist/LICENSE
+    to: LICENSE.electron.txt
+  - from: node_modules/electron/dist/LICENSES.chromium.html
+    to: LICENSES.chromium.html
+
 asar: true
 
 # Electron fuses: capabilities burned OFF in shipped binaries (dev/test runs
@@ -60,6 +75,31 @@ linux:
   category: Network
   synopsis: A calm, private browser where you control which tabs may spend RAM and CPU.
   maintainer: Amir Basareh <basareh@duck.com>
+
+deb:
+  # electron-builder's default list (app-builder-lib FpmTarget.js), plus
+  # ALSA: Chromium links libasound.so.2, so without it the binary does not
+  # start on a desktop without sound packages (stock Ubuntu 24.04). Ubuntu
+  # 24.04 renamed the package libasound2t64 and left `libasound2` a virtual
+  # name that an OSS shim without ALSA's symbols also provides, so the real
+  # 24.04 package comes first and the fallback (22.04, Debian 12) is
+  # versioned, which the shim cannot satisfy. Setting `depends` replaces the
+  # default list, so keep it whole.
+  # https://www.electron.build/linux#debian-package-options
+  depends:
+    - libgtk-3-0
+    - libnotify4
+    - libnss3
+    - libxss1
+    - libxtst6
+    - xdg-utils
+    - libatspi2.0-0
+    - libuuid1
+    - libsecret-1-0
+    - libasound2t64 | libasound2 (>= 1.0.17)
+    # Chromium links libgbm.so.1. GTK pulls it in on 24.04 but not on a
+    # 22.04 without Mesa, where Raha then would not start.
+    - libgbm1
 
 win:
   target:

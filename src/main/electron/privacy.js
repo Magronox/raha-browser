@@ -155,6 +155,8 @@ export function applySpellcheck(ses, mode, platform = process.platform) {
   const want = mode === 'on' || (mode === 'system' && platform === 'darwin');
   const cur = spellcheckApplied.get(ses);
   if (cur !== want) {
+    // Only an explicit 'on' may fetch a dictionary (see silenceSpellcheck).
+    ses.setSpellCheckerDictionaryDownloadURL(want ? GOOGLE_DICTIONARY_URL : NO_DICTIONARY_URL);
     ses.setSpellCheckerEnabled(want);
     spellcheckApplied.set(ses, want);
   }
@@ -162,6 +164,38 @@ export function applySpellcheck(ses, mode, platform = process.platform) {
 }
 /** @type {WeakMap<Electron.Session, boolean>} */
 const spellcheckApplied = new WeakMap();
+
+/** Where Chromium fetches Hunspell dictionaries unless told otherwise (Windows/Linux). */
+export const GOOGLE_DICTIONARY_URL = 'https://redirector.gvt1.com/edgedl/chrome/dict/';
+/**
+ * A dictionary address that can never be fetched and asks nothing of the
+ * network: an IP literal (no DNS query) on port 0, which Chromium refuses
+ * before connecting (ERR_UNSAFE_PORT) and which no process can listen on.
+ * 0.3.3's first choice, 127.0.0.1:1, was a port a local process could bind
+ * and serve a crafted dictionary from. A '.invalid' name instead sent 12
+ * DNS queries to the resolver (measured in Docker).
+ */
+export const NO_DICTIONARY_URL = 'http://0.0.0.0:0/';
+
+/**
+ * Every session starts with no dictionary download (0.3.3). Measured on
+ * Electron 44.3.0 / Linux: each session (the default one, the chrome's and
+ * the tabs') starts fetching a dictionary from Google within seconds of
+ * being created, even with its checker already switched off. So the
+ * download address is pointed at one that can never be fetched, as each
+ * session is created ('session-created', before anything uses it), and
+ * applySpellcheck gives Google's address back only when the person chooses
+ * 'Always'. A no-op on macOS, which uses the OS checker and downloads nothing.
+ * https://www.electronjs.org/docs/latest/api/app#event-session-created
+ * https://www.electronjs.org/docs/latest/api/session#sessetspellcheckerdictionarydownloadurlurl
+ * https://www.electronjs.org/docs/latest/api/session#sessetspellcheckerenabledenable
+ * @param {Electron.Session} ses
+ */
+export function silenceSpellcheck(ses) {
+  ses.setSpellCheckerDictionaryDownloadURL(NO_DICTIONARY_URL);
+  ses.setSpellCheckerEnabled(false);
+  spellcheckApplied.set(ses, false);
+}
 /** Download progress reports to the engine are spaced by this (R-106). */
 const DOWNLOAD_TICK_MS = 250;
 let downloadSeq = 0;
@@ -177,7 +211,7 @@ let downloadSeq = 0;
  *   onDownload: (view: import('../../shared/ipc-contract.js').DownloadView, controls: { cancel: () => void }|null) => void,
  *   downloadDir?: string|null,
  *   askPermission: (wcId: number|undefined, kinds: import('../../shared/permissions.js').PermissionKind[], requestingUrl: string, isMainFrame: boolean) => Promise<boolean>,
- *   checkPermission: (wcId: number|undefined, kind: import('../../shared/permissions.js').PermissionKind) => boolean,
+ *   checkPermission: (wcId: number|undefined, kind: import('../../shared/permissions.js').PermissionKind, requestingUrl: string, isMainFrame: boolean) => boolean,
  * }} hooks   `matchers` null = engines failed to load; blocking fails OPEN
  *            downloadDir: dev/CI seam (RAHA_DOWNLOAD_DIR, never packaged) —
  *            save there without the dialog, so the e2e can download.
@@ -327,12 +361,15 @@ export function hardenWebSession(ses, hooks) {
     }
     callback(false);
   });
-  ses.setPermissionCheckHandler((wc, permission, _requestingOrigin, details) => {
+  ses.setPermissionCheckHandler((wc, permission, requestingOrigin, details) => {
     // Silent: a check is not a user gesture, so toasting here would fire on
     // page load for sites that merely probe what they could ask for.
     if (SILENTLY_ALLOWED.has(permission)) return true;
     const kind = permissionKindForCheck(permission, details?.mediaType);
-    if (kind && hooks.checkPermission(wc?.id, kind)) return true;
+    // The checking frame (0.3.3): a frame from another site gets no answer
+    // filed under the page's host for notifications or the clipboard.
+    const asker = details?.requestingUrl || requestingOrigin;
+    if (kind && hooks.checkPermission(wc?.id, kind, asker, details?.isMainFrame !== false)) return true;
     log('privacy', `denied permission check: ${permission}${kind ? ` (${kind}: undecided or blocked for this site)` : ''}`);
     return false;
   });

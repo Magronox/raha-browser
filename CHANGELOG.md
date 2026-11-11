@@ -3,6 +3,104 @@
 All notable changes to Raha. Format: [Keep a Changelog](https://keepachangelog.com);
 versions are tags `vX.Y.Z` (tag == package.json version, enforced by CI).
 
+## v0.3.3 — 2026-11-11
+
+The number 0.3.2 was tagged but never released; 0.3.3 follows 0.3.1.
+
+### Fixed
+- **A site could get your client certificate without asking you.** When a
+  site asked for one, Raha sent the first matching certificate installed on
+  your computer, and the site could read what it contains, often a name,
+  email address and organisation. Raha now sends none. The
+  site shows its own error, and Raha tells you which site asked (at most
+  once a minute per site).
+- **The update check carried an install ID.** The update library made a
+  random ID once, kept it in a `.updaterId` file in your profile, and sent
+  it with every update check. Every install now sends the same all-zero
+  value, no ID file is made, and an existing one is deleted.
+- **Raha downloaded a spellcheck dictionary you did not ask for.** On Linux
+  (and possibly Windows), Chromium fetched a dictionary from Google within
+  seconds of the first start, with spellcheck at its default. Now no
+  dictionary is downloaded unless you set spellcheck to Always. Raha's own
+  controls never spellcheck.
+- **A name or password in an address was shown and saved.** For an address
+  such as `https://name:secret@site/`, the address bar, the tooltips (tab
+  list, grid, History, Downloads) and the saved tabs and history kept the
+  name and password. They are now shown and saved without them; an open tab
+  keeps working, and after a restart it opens without them. The saved
+  back/forward steps are covered too (see below).
+- **A damaged profile file could be lost.** When Raha could not read its
+  tabs, settings or history file, it tried to keep a copy but carried on if
+  the copy failed, and kept no copy at all of a file of the wrong shape or
+  one written by a newer Raha; the next save then wrote over it. Now such a
+  file is always copied aside first (`.corrupt-…` or `.newer-…` in the
+  profile folder), Raha says so once, and if the copy cannot be made the
+  file is not written over.
+- **Other accounts on the computer could read your profile files.** Tabs,
+  settings, history and tab thumbnails were saved readable by every account
+  on the computer. They and the profile folders are now readable by you
+  only, and Raha corrects files saved by an older version when it starts.
+  No change on Windows.
+- **A frame from another site could use the page's notification and
+  clipboard permission.** If you allowed a site to show notifications or
+  read the clipboard, an embedded frame from another site on that page (an
+  ad, for example) got the same answer. Now such a frame is always refused
+  notifications and the clipboard.
+- **Chromium's advertising APIs were on.** Pages could use Topics,
+  interest groups and ad auctions (Protected Audience), Shared Storage,
+  Attribution Reporting, Private State Tokens and fenced frames, which sites
+  use for advertising and for measuring it. They are now switched off.
+- **Some actions that cannot be undone did not ask.** *Clear history*,
+  *Delete folder* (which closes its tabs) and *Clear site data* (from a
+  tab's menu or the page's right-click menu) acted at once. Each now asks
+  first and says what is lost: the folder's name and how many tabs, or the
+  site. Cancel is the default; Escape and a click outside also cancel.
+  *Clear all cookies & site data* already asked.
+- **Text typed into pages was saved with each tab's back/forward steps.**
+  Raha kept Chromium's whole record of each step in `state.json`: the text
+  of every form field on those pages, in plain text, and addresses with a
+  name and password, even with *Remember scroll position and unsent form
+  text* turned off. Now each step keeps only its address (without a name
+  or password) and title. With the setting off, no page state is saved at
+  all; with it on, only what that setting allows, for the page you were
+  on. Files saved by 0.3.1 are cleaned at the first start.
+
+  This removes the text from Raha's own files. Backups are not cleaned.
+  Nor is a copy Raha set aside because it could not read the file: it is
+  kept as it was, and Raha names it so you can delete it. A copy of a file
+  Raha could read but not use (from a newer Raha, for example) is cleaned.
+  Raha keeps the newest three copies of each file, and any newer than two
+  weeks; it names each copy it removes when it starts.
+
+  While Raha runs, and with the setting on, a sleeping tab keeps this
+  record in memory, so Back and Forward work after it wakes as before. The
+  record is dropped when the tab closes or Raha quits. After a restart, or
+  with the setting off, pages you reach with Back or Forward load fresh,
+  without their scroll position or the text you had typed. A step to a
+  page a site built in memory (a `blob:` address) is left out, since it
+  cannot load again.
+- **A tab no longer forgets its scroll position and typed text when saving
+  them failed.** If the save before a tab slept failed, Raha took it as "top
+  of the page, nothing typed" and the tab woke at the top with its text
+  gone. Now a failed save keeps the last good one.
+- **The .deb did not start on a stock Ubuntu 24.04.** It did not declare the
+  sound library Chromium needs (`libasound.so.2`), so on a system without it
+  Raha failed to start. It now depends on `libasound2t64` (or
+  `libasound2` on older systems). It also depends on `libgbm1`, which an
+  Ubuntu 22.04 without a desktop does not have.
+- **The licence texts were missing from the macOS app.** Every package now
+  carries, beside the app: Raha's licence (GPL-3.0), `THIRD_PARTY_NOTICES.txt`
+  (the packages and filter lists inside Raha, their licences and source),
+  Electron's licence and Chromium's credits (`LICENSES.chromium.html`).
+
+### Changed
+- **Privacy text now says what Raha fetches.** The Settings note and the
+  docs said the update check was Raha's only request and that turning it off
+  made Raha silent. They now also name the site icons in the tab list, the
+  one-time spellcheck dictionary on Windows/Linux, and that the update check
+  downloads and installs new versions on Windows, and on Linux where the
+  package supports it.
+
 ## v0.3.1 — 2026-09-22
 
 ### Fixed

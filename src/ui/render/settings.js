@@ -174,7 +174,7 @@ export function render() {
         <button class="btn" data-rule-addbtn>${icons.plus} Add rule</button>
       </div>
 
-      <p class="settings-note">Raha sends no telemetry, ever. Its only own network request is the security-update check above (plus, on Windows/Linux, the one-time dictionary download if spellcheck is set to Always) — turn those off and Raha is fully silent.</p>
+      <p class="settings-note">Raha sends no telemetry, ever. On its own it contacts GitHub Releases for the update check above; on Windows, and on Linux where the package supports it, that check also downloads and installs new versions. The tab list loads each site's icon from that site, and on Windows/Linux spellcheck set to Always downloads a dictionary once.</p>
 
       <h3>About</h3>
       <p class="about-line">

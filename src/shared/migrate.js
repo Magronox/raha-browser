@@ -14,6 +14,7 @@ import { validateSettings } from './validate.js';
 import { createTree, repairTree } from './tree.js';
 import { sanitizeHistoryEntries } from './history.js';
 import { sanitizePageState } from './page-state.js';
+import { cleanNavJson } from './urls.js';
 
 /** @type {Record<number, (doc: any) => any>} */
 const STATE_STEPS = {
@@ -106,8 +107,12 @@ export function migrateState(raw) {
   if (repaired) problems.push('state: tree repaired', ...treeProblems.slice(0, 10));
 
   // Sanitize pageState on every tab (bounds a tampered state.json).
+  // 0.3.3: back/forward steps keep only url (no user:pass@) and title. Files
+  // from 0.3.1 held Chromium's whole entries, form text included.
   for (const n of Object.values(tree.nodes)) {
-    if (n.type === 'tab') n.pageState = sanitizePageState(n.pageState);
+    if (n.type !== 'tab') continue;
+    n.pageState = sanitizePageState(n.pageState);
+    if (n.navJson != null) n.navJson = cleanNavJson(n.navJson);
   }
 
   const activeTabId = typeof doc.activeTabId === 'string' && tree.nodes[doc.activeTabId] ? doc.activeTabId : null;
