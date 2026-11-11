@@ -26,11 +26,8 @@ npm run verify        # typecheck + lint + unit + UI harness + e2e
   a third needs its own ADR arguing why.
 - Work items live as GitHub issues; the **agent-task** issue template
   produces specs that both humans and AI agents can execute directly.
-  Issues reference roadmap numbers in their titles (`R-101: Find in page —
-  Ctrl+F bar`); [docs/ROADMAP.md](docs/ROADMAP.md) stays the source of
-  what's next, issues track execution, and an R-item counts as delivered
-  only when its acceptance criteria hold and the *Delivered* note lands in
-  the roadmap.
+  [docs/ROADMAP.md](docs/ROADMAP.md) says what is being worked on now,
+  next and later; issues track the work.
 
 ## Licensing of contributions
 

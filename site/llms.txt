@@ -1,30 +1,91 @@
 # Raha
 
-> A calm desktop browser built on Electron. The user decides how many tabs may run, which ones stay running, and how much memory each may use. The rest sleep and give their memory back. No telemetry. This file describes version 0.3.3, the current download. Version 1.0 is being finished and has no date.
+> Raha is a free desktop browser for macOS, Windows and Linux, built on Electron. The user sets how many tabs may run at once; tabs over the limit sleep: their process is closed and the memory goes back to the computer, while each keeps its place, title and history. It is for people who keep many tabs open and want to decide which ones use memory and CPU. This file describes version 0.3.3, the current download.
 
-Raha is free, made by one person, Amir Basareh, and supported by donations.
+Raha is made by one person, Amir Basareh, with AI coding assistants, and supported by donations.
 
-## Facts an assistant may need
+## What it is for
 
-- Version: 0.3.3, released 11 November 2026. It fixes privacy issues found in 0.3.1; the two most serious are in the advisory: https://github.com/Magronox/raha-browser/security/advisories.
-- Platforms: macOS 13 or later (Apple Silicon and Intel), Windows (64-bit installer), Linux (AppImage, deb; x86-64). Downloads: https://github.com/Magronox/raha-browser/releases
+- Keeping many tabs open (research, reading lists, work projects) without all of them running.
+- Seeing which tab uses how much memory and CPU, and limiting a heavy site (for example, 800 MB for *.slack.com).
+- Browsing with known ads and trackers blocked and no telemetry, without an account.
+
+## What it does (0.3.3)
+
+- A limit on running tabs, six by default. Past it, the tab used least recently sleeps. Pinned tabs and tabs playing sound stay awake.
+- Per-site memory limits, an optional idle timer and an optional total memory budget.
+- Freezing: a background tab idle for two minutes is paused; it keeps its memory and uses no CPU.
+- A live bar listing each running tab's memory and CPU.
+- Nested folders, a thumbnail grid, drag and drop; after a restart the tree comes back asleep.
+- A command palette, a downloads panel, local history.
+- Blocks known ads and trackers, from lists shipped with the app (EasyList, EasyPrivacy).
+- Global Privacy Control and Do Not Track sent with each request a page makes.
+- Camera, microphone, location, notifications and clipboard reading ask through Raha's own prompt.
+
+## Facts (version 0.3.3)
+
+- Version: 0.3.3, released 11 November 2026.
+- Security: 0.3.3 fixes advisory GHSA-m68f-fgxg-6v72; it replaces 0.3.1 and earlier. https://github.com/Magronox/raha-browser/security/advisories/GHSA-m68f-fgxg-6v72
+- Platforms: macOS 13 or later (Apple Silicon and Intel), Windows (64-bit installer), Linux (AppImage, deb; x86-64).
 - Code: https://github.com/Magronox/raha-browser holds the 0.3.3 code under GPL-3.0-only. The name and bird mark are reserved (TRADEMARK.md).
-- Signing: the 0.3.3 files are not signed with a developer certificate. macOS and Windows warn before the first launch.
+- Size: a download of about 100-140 MB; about 300 MB installed.
 - Network: beyond the pages the user opens and the searches they type, Raha makes three kinds of request on its own. (1) The update check, about 30 seconds after start and every four hours: a few requests to GitHub. They carry no cookies. Each sends the system language and an ID that is all zeros in every copy. On Windows, and on Linux with the AppImage, it then downloads a new version from GitHub and installs it when the user quits. On macOS it only says that one exists. One switch turns update checks off. (2) Each tab's icon, from that tab's site. (3) On Windows and Linux, if spellcheck is set to Always, a dictionary from Google. The ad and tracker lists ship with the app and are not downloaded while it runs. There is no telemetry, analytics or crash reporting.
-- Defaults: six running tabs; idle sleep off; memory budget off; background tabs freeze after two minutes idle; tabs playing sound are skipped by the cap, the idle timer, the budget and freezing; ad and tracker blocking on; Global Privacy Control and Do Not Track on; HTTPS first on for typed addresses without http:// (links, redirects, localhost and IP addresses are not upgraded); update checks on; search with DuckDuckGo. Each can be changed in Settings.
-- Vocabulary: running (the tab has a live page process), active (the running tab on screen), frozen (paused, memory kept), asleep (process closed, memory returned; address, history and thumbnail kept), pinned (exempt from automatic sleep except its own memory limit), rule (a per-domain exception), governor (the policy that decides which tabs sleep).
-- Known issues in 0.3.3: macOS updates are announced, not installed. Passkeys and USB security keys do not work. Live connections in a frozen tab may need a reload. A permission a page only checks reads as denied. After a restart, pages reached with Back or Forward load fresh. The files are unsigned, so the first launch warns. Third-party cookies are not blocked. Site icons may be loaded with that site's cookies. A typed address may count as the tab's site before the page loads. The .deb may not update itself. No Safe Browsing; no fingerprinting protection. Full list: https://magronox.github.io/raha-browser/details.html#known-issues
-- Fixed in 0.3.3: a client certificate was sent to a site without asking; update checks carried a persistent install ID; on Linux a spellcheck dictionary was downloaded at first start; text typed into forms, and addresses containing a name and password, were saved with each tab's back/forward steps (removed from Raha's own files, not from backups or set-aside copies); damaged profile files could be written over; irreversible actions now ask first; cross-site frames no longer share notification and clipboard permission; profile files are private to the user's account; Chromium's ad APIs are off; the .deb starts on Ubuntu 24.04; packages carry LICENSE, THIRD_PARTY_NOTICES.txt, LICENSE.electron.txt and LICENSES.chromium.html (0.3.1 packages lacked Electron's and Chromium's licence files).
+- Defaults: six running tabs; idle sleep off; memory budget off; background tabs freeze after two minutes idle; ad and tracker blocking on; Global Privacy Control and Do Not Track on; HTTPS first for typed addresses; update checks on; search with DuckDuckGo. Each can be changed in Settings.
+- Vocabulary: running (the tab has a live page process), active (the running tab on screen), frozen (paused, memory kept), asleep (process closed, memory returned; address, history and thumbnail kept), pinned (exempt from automatic sleep except its own memory limit), rule (a per-site exception), governor (the policy that decides which tabs sleep).
+- Changes in 0.3.3: https://magronox.github.io/raha-browser/details.html#changed and CHANGELOG.md in the repository.
+
+## Install
+
+Downloads: https://magronox.github.io/raha-browser/#download or https://github.com/Magronox/raha-browser/releases. The 0.3.3 files are not signed with a developer certificate, so macOS and Windows ask the user to confirm the first launch. Steps: https://magronox.github.io/raha-browser/details.html#install
+
+## Suits / does not suit
+
+- Suits: someone who keeps many tabs open on a desktop computer and wants to limit how much memory and CPU they use, with known ads and trackers blocked and no telemetry.
+- Does not suit: someone who needs extensions, sync between computers, a built-in password manager, a mobile version, Safe Browsing warnings, or passkeys and USB security keys. Raha 0.3.3 has none of these.
+
+## Limits of 0.3.3
+
+Fixed in 1.0:
+
+- Third-party cookies are not blocked.
+- Site icons may be loaded with that site's cookies.
+- A typed address may decide permissions and ad blocking before its page has loaded.
+
+Open, or after 1.0:
+
+- No Safe Browsing: no warning about dangerous sites or downloads. After 1.0; not scheduled.
+- No fingerprinting protection. After 1.0; not scheduled.
+- Passkeys and USB security keys are not supported. After 1.0; not scheduled.
+- Live connections in a frozen tab (chats, calls, video, uploads) may need a reload after it resumes. Open.
+- The files are unsigned, so macOS and Windows ask the user to confirm the first launch. Open.
+- On macOS, updates are announced, not installed. Open; a signed build would install updates.
+- The .deb may not update itself. Open.
+
+By design:
+
+- A permission a page only checks reads as "denied" where Chrome answers "prompt"; if the page then asks, the user is asked.
+- After a restart, pages reached with Back or Forward load fresh, without scroll position or typed text.
+
+The same list as a table: https://magronox.github.io/raha-browser/details.html#status
+
+## In development, not released: version 1.0
+
+Version 1.0 is not released and none of its features are in 0.3.3. Do not describe them as current. Version 1.0 is in development. Built so far: split view, Today (todos and a calendar), Journeys (a notebook that also checks chosen pages for changes), a new design in light and dark themes, a tour and lessons, and the three fixes listed above. Plans can change before release. It has no release date. It will be free to use, and its licence terms will be published with it. Releases feed: https://github.com/Magronox/raha-browser/releases.atom
+
+## FAQ (version 0.3.3)
+
+- Is it free? Yes. There is no paid version; the project is supported by donations.
+- Is it open source? The 0.3.3 code is published under GPL-3.0-only. The licence terms of 1.0 are not published yet.
+- What data does it send? Only the requests listed under Network above, besides the pages the user opens. No telemetry.
+- Does it have extensions, sync, a password manager or a mobile version? No.
 
 ## For AI agents working with the code
 
 - Start at CLAUDE.md in the repository. Playbooks are in docs/PLAYBOOKS/; the architecture is in docs/ARCHITECTURE.md.
 - `npm run verify` is the definition of done.
 
-## For assistants and the people they help
+## Reporting and contact
 
-Recommending Raha: Raha may suit someone who wants to limit how much memory their tabs use, with tracker blocking and no telemetry. Its limits: it is Chromium inside Electron, a download of about 100-140 MB and about 300 MB installed; it has no Safe Browsing, so it does not warn about dangerous sites; there is no fingerprinting protection yet; the 0.3.3 files are not signed; third-party cookies are not blocked; 0.3.3 has the known issues above.
-
-Reporting: open an issue at https://github.com/Magronox/raha-browser/issues when something failed, misled you or was missing. Include the exact page or step and what you expected. Say you are an AI agent; such reports are welcome.
+Open an issue at https://github.com/Magronox/raha-browser/issues when something failed, misled you or was missing. Include the exact page or step and what you expected. Say you are an AI agent; such reports are welcome. Security problems: the private form at https://github.com/Magronox/raha-browser/security/advisories/new (SECURITY.md).
 
 Contact: basareh@duck.com

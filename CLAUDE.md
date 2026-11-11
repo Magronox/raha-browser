@@ -1,6 +1,6 @@
 # CLAUDE.md — the agent guide for Raha
 
-You are working on **Raha**, an open-source privacy browser whose defining
+You are working on **Raha**, a desktop browser whose defining
 feature is a **resource governor**: the user decides how many tabs may run,
 which tabs are kept alive, and how much memory each may spend. Everything
 else exists to serve that promise.

@@ -1899,26 +1899,75 @@ await t('IPC contract coverage: every INVOKE channel has a mock handler', () => 
 if (process.env.RAHA_SHOTS === '1') {
   fs.mkdirSync(shotsDir, { recursive: true });
   await t('screenshots captured', async () => {
-    // Stage a photogenic, truthful scene: cap back to 5, tidy titles, close the
-    // XSS canary, and view the Research folder (tab cards with thumbnails).
+    // Stage the scene the website and README show. By now the scenarios above
+    // have renamed folders, retitled tabs, imported tabs and raised toasts, so
+    // the scene is rebuilt rather than tidied: only the seeded tabs stay (the
+    // XSS canary goes too; its test ran above and is untouched), every one gets
+    // a calm title that matches its site, and no toast is on screen.
+    // This block asserts nothing and runs only with RAHA_SHOTS=1.
     mock.engine.settingsSet({ maxLiveTabs: 5 });
-    mock.engine.nodeRemove({ nodeId: evil.tabId });
-    const docsNode = mock.engine.tabNode(seeded.docs);
-    if (docsNode) { docsNode.title = 'WebContentsView | Electron'; docsNode.url = 'https://www.electronjs.org/docs/latest'; }
-    const hnNode = mock.engine.tabNode(seeded.hn);
-    if (hnNode) { hnNode.title = 'Hacker News'; hnNode.url = 'https://news.ycombinator.com/'; }
-    mock.engine.tabActivate({ tabId: seeded.hn });
+    const keep = new Set(Object.values(seeded));
+    for (const tb of mock.engine.snapshot().tabs) {
+      if (!keep.has(tb.id)) mock.engine.nodeRemove({ nodeId: tb.id });
+    }
+    for (let pass = 0; pass < 5; pass += 1) {
+      const snapNow = mock.engine.snapshot();
+      const empty = snapNow.folders.filter((fo) => fo.id !== snapNow.rootId && fo.childIds.length === 0);
+      if (empty.length === 0) break;
+      for (const fo of empty) mock.engine.nodeRemove({ nodeId: fo.id });
+    }
+    // Everything asleep, then three tabs running.
+    for (const tb of mock.engine.snapshot().tabs) {
+      if (tb.state !== 'asleep') mock.engine.tabSleep({ tabId: tb.id });
+    }
+    for (const id of [seeded.docs, seeded.music, seeded.hn]) {
+      if (mock.engine.tabNode(id)) mock.engine.tabActivate({ tabId: id });
+    }
     mock.engine.tabShowGrid();
-    mock.drainEvents();
+    // Titles and addresses last: waking a tab reloads its saved address and
+    // the fake view retitles it.
+    /** @type {Array<[string, string, string]>} */
+    const scene = [
+      [seeded.gh, 'https://github.com/Magronox/raha-browser', 'Magronox/raha-browser'],
+      [seeded.docs, 'https://www.electronjs.org/docs/latest', 'Introduction | Electron'],
+      [seeded.ci, 'https://github.com/Magronox/raha-browser/releases', 'Releases · Magronox/raha-browser'],
+      [seeded.mail, 'https://www.openstreetmap.org/', 'OpenStreetMap'],
+      [seeded.paper, 'https://www.poetryfoundation.org/poems', 'Poems | Poetry Foundation'],
+      [seeded.wiki, 'https://en.wikipedia.org/wiki/Karun', 'Karun - Wikipedia'],
+      [seeded.hn, 'https://openlibrary.org/', 'Open Library'],
+      [seeded.music, 'https://music.youtube.com/', 'YouTube Music'],
+      [seeded.recipe, 'https://en.wikipedia.org/wiki/Tahdig', 'Tahdig - Wikipedia'],
+    ];
+    for (const [id, url, title] of scene) {
+      const node = mock.engine.tabNode(id);
+      if (node) { node.url = url; node.title = title; }
+    }
+    /** @type {Array<[string, string]>} a tab, and the name its folder gets */
+    const folderNames = [[seeded.mail, 'Work'], [seeded.gh, 'Project Raha'], [seeded.paper, 'Reading'], [seeded.recipe, 'Evening']];
+    for (const [id, name] of folderNames) {
+      const parentId = mock.engine.tabNode(id)?.parentId;
+      if (parentId && parentId !== mock.engine.snapshot().rootId) mock.engine.folderRename({ folderId: parentId, name });
+    }
+    /** @type {Array<[string, number, number]>} */
+    const use = [[seeded.docs, 331, 1.2], [seeded.music, 189, 2.1], [seeded.hn, 142, 0.3]];
+    for (const [id, mem, cpu] of use) {
+      if (mock.world.viewsByTab.get(id)) mock.world.setTabMetrics(id, mem, cpu);
+    }
+    mock.engine.tick();
+    mock.drainEvents(); // drops the toasts the staging raised
+    mock.engine.emitSnapshot();
+    await pump();
 
-    // 1. Research folder grid with mixed running/asleep cards.
+    // 1. The Reading folder as a grid: two tabs asleep, one running.
     const rows2 = await page.$$('#sidebar .row.folder');
     for (const r of rows2) {
       const name = await r.$eval('.name', (el) => el.textContent);
-      if (name === 'Research') { await r.$eval('.name', (el) => /** @type {HTMLElement} */ (el).click()); break; }
+      if (name === 'Reading') { await r.$eval('.name', (el) => /** @type {HTMLElement} */ (el).click()); break; }
     }
     await pump();
     await page.waitForTimeout(400);
+    // Toasts left by earlier scenarios may still be fading; none belongs in the picture.
+    await page.evaluate(() => { for (const el of document.querySelectorAll('.toast')) el.remove(); });
     await page.screenshot({ path: path.join(shotsDir, 'grid.png') });
 
     // 2. Settings open.

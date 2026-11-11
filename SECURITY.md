@@ -74,7 +74,7 @@ architecture (enforced by tests — see docs/INVARIANTS.md):
 A pre-launch audit against Electron's official security checklist, made
 by the project itself — findings, fixes, and method — is in `docs/SECURITY-AUDIT-2026-07.md`.
 
-Fixed in 0.3.3 (advisory: https://github.com/Magronox/raha-browser/security/advisories): 0.3.1 and earlier registered no
+Fixed in 0.3.3 (advisory: https://github.com/Magronox/raha-browser/security/advisories/GHSA-m68f-fgxg-6v72): 0.3.1 and earlier registered no
 `select-client-certificate` handler, so when a site requested a TLS client
 certificate, Electron sent the first matching certificate on the computer
 without asking. 0.3.3 sends none. The same release stops the persistent
@@ -84,7 +84,7 @@ Known limits in 0.3.3, not fixed: third-party cookies are not blocked; a
 typed address may count as the tab's site for permissions and the blocker's
 first party before the page has loaded.
 
-Accepted risks in 0.3.3 (fixes tracked in docs/ROADMAP.md):
+Accepted risks in 0.3.3:
 - **No Safe Browsing.** Electron ships none of Chrome's malicious-site or
   dangerous-download warnings. A file Chrome would flag downloads silently
   here; treat downloads with the same care you would from a plain link.

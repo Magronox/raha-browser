@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://magronox.github.io/raha-browser/sitemap.xml

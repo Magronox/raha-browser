@@ -2,8 +2,9 @@
 <!-- The Raha website. Static files, nothing else — what's in site/ is what
      serves (ADR-0010, extending ADR-0003). Every link must satisfy
      scripts/check-site.mjs: relative, in-page, or an allow-listed URL.
-     This is the front page and it stays short on purpose: what you can do,
-     the file, and one link. Everything explanatory lives in details.html. -->
+     This is the front page and it stays short on purpose: what Raha is, a
+     picture, what is coming, the download. Everything explanatory lives in
+     details.html. -->
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -11,16 +12,16 @@
   <meta http-equiv="Content-Security-Policy"
         content="default-src 'none'; img-src 'self'; style-src 'self'; script-src 'sha256-TsN/c/+7UMKBFQlgVaf5xKljSI9bxcUK2muXPKRkPyY='; base-uri 'none'; form-action 'none'">
   <title>Raha — a calm browser where you decide which tabs get your memory and CPU</title>
-  <meta name="description" content="A free, open-source browser that runs only as many tabs as you allow. The rest sleep and give their memory back. No account, no telemetry.">
+  <meta name="description" content="Raha is a free desktop browser for macOS, Windows and Linux. It runs only as many tabs as you allow; the rest sleep and give their memory back. No account, no telemetry.">
   <!-- The only absolute self-URLs on this site (Open Graph requires them);
        change these two lines + add site/CNAME when a custom domain lands. -->
   <meta property="og:url" content="https://magronox.github.io/raha-browser/">
   <meta property="og:image" content="https://magronox.github.io/raha-browser/assets/grid.png">
   <meta property="og:title" content="Raha — a calm browser where you decide which tabs get your memory and CPU">
-  <meta property="og:description" content="A free, open-source browser that runs only as many tabs as you allow. The rest sleep and give their memory back. No account, no telemetry.">
+  <meta property="og:description" content="Raha is a free desktop browser for macOS, Windows and Linux. It runs only as many tabs as you allow; the rest sleep and give their memory back. No account, no telemetry.">
   <meta property="og:type" content="website">
   <meta name="twitter:card" content="summary_large_image">
-  <meta property="og:image:alt" content="Raha’s folder grid: tab thumbnails, nested sidebar, and the live bar showing per-tab memory.">
+  <meta property="og:image:alt" content="Raha’s grid: a folder with two tabs asleep and one running.">
   <link rel="icon" href="assets/icon.png">
   <link rel="stylesheet" href="style.css">
   <script type="application/ld+json">
@@ -31,7 +32,8 @@
     "applicationCategory": "BrowserApplication",
     "operatingSystem": ["macOS 13 or later", "Windows", "Linux"],
     "softwareVersion": "0.3.3",
-    "description": "A free, open-source desktop browser built on Electron: cap how many tabs run at once and set how much memory each may use; the rest sleep and give their memory back. Ads and trackers blocked with bundled lists. No telemetry. Version 1.0 is being finished and has no date.",
+    "description": "A free desktop browser built on Electron. The user sets how many tabs may run at once and how much memory a site may use; the rest sleep and give their memory back. Known ads and trackers are blocked from lists shipped with the app. No account, no telemetry.",
+    "featureList": ["A limit on running tabs (six by default)", "Sleeping tabs close their process and keep their place, title and history", "Per-site memory limits", "A live bar with each running tab's memory and CPU", "Nested folders with a thumbnail grid", "Blocks known ads and trackers, from lists shipped with the app", "Global Privacy Control", "No account, no telemetry"],
     "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
     "downloadUrl": "https://github.com/Magronox/raha-browser/releases/latest",
     "license": "https://github.com/Magronox/raha-browser/blob/main/LICENSE",
@@ -57,40 +59,68 @@
 
   <section class="hero" id="top">
     <h1>Raha</h1>
-    <p class="tagline"><strong>A calm browser where you decide which tabs get your memory and CPU.</strong></p>
-    <p class="tagline">It runs only as many tabs as you allow. The rest sleep and give their memory back.</p>
-    <p class="etym">Version 0.3.3. Free and open source. No account, no telemetry.</p>
-    <p class="etym"><em>Raha (<span lang="fa" dir="rtl">رها</span>)</em> is Persian for “free” or “released”.</p>
+    <p class="headline">A calm browser where you decide which tabs get your memory and CPU.</p>
+    <p class="sub">Raha is a free desktop browser for macOS, Windows and Linux. Tabs over the limit sleep: their process is closed and the memory goes back to the computer. Each keeps its place, title and history, and loads again on a click.</p>
+    <!-- MEASURED LINE (not written yet): one sentence with a measured number
+         goes here, as <p class="sub measured">…</p>, once a measurement exists
+         (for example the memory returned when a named set of tabs sleeps, with
+         the machine and the date). No number is shown until it is measured. -->
     <p class="cta">
-      <a class="btn primary" href="#download">Download</a>
-      <a class="btn" href="https://github.com/Magronox/raha-browser">Source on GitHub</a>
+      <a class="btn primary" href="#download">Download for this machine</a>
+      <a class="btn" href="#v1">See what is coming</a>
     </p>
     <p class="dim hint" id="dl-hint" hidden>This guess comes from your browser and can be wrong. <a href="#download">All downloads are below</a>.</p>
-    <p class="shot"><img src="assets/grid.png" width="820" alt="Raha: folder grid with thumbnails, nested sidebar, live bar with per-tab memory badges"></p>
+    <p class="chips"><span>Free</span><span>GPL-3.0 code</span><span>No account</span><span>No telemetry</span></p>
+    <figure class="shot">
+      <img src="assets/grid.png" width="1017" height="320" alt="Raha’s grid: a folder named Research with two tabs asleep and one running">
+      <figcaption>A folder in the grid: two tabs asleep, one running. A sleeping tab keeps its thumbnail and title.</figcaption>
+    </figure>
   </section>
 
-  <section id="control">
+  <section id="how">
     <h2>How it works</h2>
     <div class="cards">
       <div class="card">
-        <h3>Set a cap</h3>
-        <p>Choose how many tabs may run at once; the default is six. The rest sleep: Raha stops them, and their memory goes back to your computer. Each sleeping tab keeps its place, title, thumbnail and history. Click one and it loads again.</p>
+        <h3>Set the number</h3>
+        <p>Six tabs run by default. Past that, the tab used least recently sleeps. A pinned tab stays awake, and so does a tab playing sound.</p>
       </div>
       <div class="card">
-        <h3>See and limit memory</h3>
-        <p>Give <code>*.slack.com</code> 800&nbsp;MB, and a Slack tab sleeps when it goes over. The live bar at the bottom shows the memory and CPU each running tab uses, as your system reports it.</p>
+        <h3>See the cost</h3>
+        <p>A bar at the bottom lists each running tab with its memory and CPU. A site can be given its own limit: with 800&nbsp;MB for <code>*.slack.com</code>, a Slack tab over that sleeps.</p>
       </div>
       <div class="card">
-        <h3>Keep tabs running</h3>
-        <p>A pinned tab stays running. So does a tab playing sound, by default, and any site you write a rule for.</p>
+        <h3>Quiet by default</h3>
+        <p>No account, no telemetry. Known ads and trackers are blocked. Search starts with DuckDuckGo.</p>
       </div>
     </div>
-    <p class="more">The <a href="details.html">details page</a> covers how tabs sleep, privacy and security, known issues, and the keyboard shortcuts.</p>
+  </section>
+
+  <section id="v1" class="paper">
+    <h2>Coming in 1.0</h2>
+    <p>Version 1.0 is in development. Built so far:</p>
+    <ul class="v1-list">
+      <li><b>Split view:</b> two pages side by side.</li>
+      <li><b>Today:</b> todos and a calendar, next to your tabs.</li>
+      <li><b>Journeys:</b> a notebook in the sidebar for courses, books, words and a diary. It also checks pages you choose for changes.</li>
+      <li><b>Zen:</b> only the page on screen.</li>
+      <li>A new design, in light and dark themes.</li>
+      <li>A tour and short lessons.</li>
+      <li>Three privacy fixes: third-party cookies blocked by default, site icons loaded without cookies, and permissions that follow the page that has loaded.</li>
+    </ul>
+    <!-- IMAGE (none yet). When a clean capture of 1.0 exists, add here one
+         figure with class "shot": the image from assets/, and the caption
+         "Version 1.0 in development. Details may change."
+         For a light and dark pair, wrap two figures in a div with class "pair".
+         Add the markup together with the file: check-site fails on a link to
+         a missing file. -->
+    <p>Plans can change before release. 1.0 has no fixed date; it comes out when its tests pass. It will be free to use.</p>
+    <p class="dim">To hear when it comes out: on GitHub, <a href="https://github.com/Magronox/raha-browser">Watch → Custom → Releases</a>, or follow the <a href="https://github.com/Magronox/raha-browser/releases.atom">releases feed</a>.</p>
   </section>
 
   <section id="download">
     <h2>Download</h2>
-    <p class="version">The current version is <b data-version="0.3.3">v0.3.3</b>, released 11 November 2026, for macOS, Windows and Linux. It fixes privacy issues found in 0.3.1 (<a href="https://github.com/Magronox/raha-browser/security/advisories">advisory</a>) and has <a href="details.html#known-issues">known issues</a>.</p>
+    <p class="version">Version <b data-version="0.3.3">0.3.3</b>, 11 November 2026, for macOS, Windows and Linux. <a href="details.html#changed">What changed</a> · <a href="details.html#status">Known issues</a></p>
+    <p class="version">0.3.3 replaces 0.3.1 and earlier. It fixes the two problems in this <a href="https://github.com/Magronox/raha-browser/security/advisories/GHSA-m68f-fgxg-6v72">security advisory</a>.</p>
     <p class="pick" id="dl-pick" hidden></p>
     <div class="dl">
       <div class="card" data-os="mac">
@@ -100,7 +130,7 @@
           <li><a data-asset="mac-arm64" href="https://github.com/Magronox/raha-browser/releases/download/v0.3.3/Raha-0.3.3-arm64.dmg">Apple&nbsp;Silicon (M1 or later) <b>.dmg</b></a></li>
           <li><a data-asset="mac-x64" href="https://github.com/Magronox/raha-browser/releases/download/v0.3.3/Raha-0.3.3.dmg">Intel <b>.dmg</b></a></li>
         </ul>
-        <p>To check which Mac you have, open the Apple menu and choose <i>About This Mac</i>. “Chip Apple M…” means Apple Silicon; “Processor Intel…” means Intel. The wrong file will not open, and macOS says it “needs to be updated”. macOS also warns that it cannot check the app (<a href="details.html#mac-warning">what to do</a>).</p>
+        <p>Not sure which Mac? Apple menu → About This Mac. First launch: macOS asks you to confirm (<a href="details.html#install">how to open it</a>).</p>
       </div>
       <div class="card" data-os="win">
         <p class="yours-label">for this machine</p>
@@ -108,7 +138,7 @@
         <ul class="assets">
           <li><a data-asset="win-x64" href="https://github.com/Magronox/raha-browser/releases/download/v0.3.3/Raha-Setup-0.3.3.exe">Installer <b>.exe</b> (64-bit)</a></li>
         </ul>
-        <p>The installer is not signed, so SmartScreen may stop it. Click <b>More info → Run anyway</b>.</p>
+        <p>First launch: Windows asks you to confirm: <b>More info → Run anyway</b>. (The installer is not signed.)</p>
       </div>
       <div class="card" data-os="linux">
         <p class="yours-label">for this machine</p>
@@ -117,31 +147,37 @@
           <li><a data-asset="linux-appimage" href="https://github.com/Magronox/raha-browser/releases/download/v0.3.3/Raha-0.3.3.AppImage"><b>.AppImage</b> (any distro, x86-64)</a></li>
           <li><a data-asset="linux-deb" href="https://github.com/Magronox/raha-browser/releases/download/v0.3.3/raha-browser_0.3.3_amd64.deb"><b>.deb</b> (Debian / Ubuntu)</a></li>
         </ul>
-        <p>For the AppImage, run <code>chmod +x Raha-*.AppImage</code>, then open it. For the .deb, run <code>sudo apt install ./raha-*.deb</code>.</p>
+        <p>AppImage: <code>chmod +x Raha-*.AppImage</code>, then open it. Deb: <code>sudo apt install ./raha-*.deb</code>.</p>
       </div>
     </div>
     <p class="dim">All files are on the <a href="https://github.com/Magronox/raha-browser/releases/latest">GitHub release page</a>, which shows a SHA-256 checksum next to each.</p>
-    <pre><code># or run the code from source (Node 22 or later)
-git clone https://github.com/Magronox/raha-browser
-cd raha-browser
-npm install
-npm start</code></pre>
   </section>
 
-  <section id="coming">
-    <h2>Version 1.0</h2>
-    <p>Version 1.0 is being finished and has no date. It has a new design and further fixes. It will be free to use, and its licence terms will be published with it. Versions up to 0.3.3 stay GPL-3.0.</p>
+  <section id="privacy">
+    <h2>Privacy, briefly</h2>
+    <ul class="brief">
+      <li>Blocks known ads and trackers, from lists shipped with the app.</li>
+      <li>Sends Global Privacy Control with every request a page makes.</li>
+      <li>Sites ask for the camera, microphone, location and notifications through Raha’s own prompt.</li>
+      <li>Apart from the pages you open, Raha makes three kinds of request on its own. Each is listed.</li>
+    </ul>
+    <p class="more"><a href="details.html#privacy">What Raha sends</a></p>
+  </section>
+
+  <section id="maker">
+    <h2>Who makes it</h2>
+    <p>Raha is made by one person, Amir Basareh, with AI coding assistants (<a href="details.html#support">how</a>). 0.3.3 came out on 11 November 2026; 1.0 is next. Free, supported by donations.</p>
+    <p class="more"><a href="https://github.com/Magronox/raha-browser/blob/main/CHANGELOG.md">Changelog</a> · <a href="https://venmo.com/u/magronox">Donate</a> · <a href="https://github.com/Magronox/raha-browser/issues">Issues</a></p>
   </section>
 
 </main>
 
 <footer>
-  <p class="fine">Send bugs and ideas to <a href="https://github.com/Magronox/raha-browser/issues">GitHub issues</a>
-     or <a href="mailto:basareh@duck.com">basareh@duck.com</a>.</p>
-  <p class="fine">Code <a href="https://github.com/Magronox/raha-browser/blob/main/LICENSE">GPL-3.0-only</a> © 2026 Amir Basareh.
-     The Raha name and bird mark are <a href="https://github.com/Magronox/raha-browser/blob/main/TRADEMARK.md">reserved</a>.
-     This site sets no cookies and runs no analytics. <a href="https://github.com/Magronox/raha-browser/tree/main/site">Its source is on GitHub</a>.</p>
-  <p class="fine" id="for-ai">For AI assistants: a plain-text summary of Raha 0.3.3 is in <a href="llms.txt">llms.txt</a>.</p>
+  <p class="fine">Code of versions up to 0.3.3: <a href="https://github.com/Magronox/raha-browser/blob/main/LICENSE">GPL-3.0-only</a>, © 2026 Amir Basareh. The licence terms of 1.0 will be published with it.
+     The Raha name and bird mark are <a href="https://github.com/Magronox/raha-browser/blob/main/TRADEMARK.md">reserved</a>.</p>
+  <p class="fine"><em>Raha (<span lang="fa" dir="rtl">رها</span>)</em> is Persian for “free” or “released”.</p>
+  <p class="fine">This site sets no cookies and runs no analytics. <a href="https://github.com/Magronox/raha-browser/tree/main/site">Its source is on GitHub</a>.
+     For AI assistants: <a href="llms.txt">llms.txt</a>. Contact: <a href="mailto:basareh@duck.com">basareh@duck.com</a>.</p>
 </footer>
 
 <script>
