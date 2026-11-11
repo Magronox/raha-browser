@@ -7,7 +7,7 @@
 
 Raha is a free desktop browser for macOS, Windows and Linux. Tabs over the limit sleep: their process is closed and the memory goes back to the computer. Each keeps its place, title and history, and loads again on a click.
 
-<img src="docs/screenshots/grid.png" width="820" alt="Raha's grid: a folder named Research with two tabs asleep and one running">
+<img src="docs/screenshots/grid.png" width="820" alt="Raha's window: folders of tabs in the sidebar, a folder named Reading with two tabs asleep and one running, and a bar at the bottom with each running tab's memory">
 
 [![CI](../../actions/workflows/ci.yml/badge.svg)](../../actions/workflows/ci.yml)
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-4fd1b3)](LICENSE)
