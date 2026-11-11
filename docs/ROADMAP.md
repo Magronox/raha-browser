@@ -22,10 +22,6 @@ Plans can change before release. 1.0 has no fixed date; it comes out when its
 tests pass. It will be free to use, and its licence terms will be published
 with it. Versions up to 0.3.3 stay GPL-3.0.
 
-## Next
-
-- Access for AI agents, with permission control. Planned for 1.1; not built.
-
-## Later
+## After 1.0
 
 - Ideas and requests: [GitHub issues](https://github.com/Magronox/raha-browser/issues).
